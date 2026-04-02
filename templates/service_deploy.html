@@ -1,0 +1,1224 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}服务下发{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- 左侧：监听服务代理和监听服务 -->
+        <div class="col-md-6">
+            <!-- 监听服务代理 -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-broadcast-tower me-2"></i>监听服务代理</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">代理程序IP来源</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="listener_agent_source" id="listener_agent_source_test_env" value="test_env" checked>
+                                <label class="btn btn-outline-primary" for="listener_agent_source_test_env">测试环境</label>
+                                <input type="radio" class="btn-check" name="listener_agent_source" id="listener_agent_source_custom" value="custom">
+                                <label class="btn btn-outline-primary" for="listener_agent_source_custom">指定IP</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="listener_test_env_select_container">
+                            <label for="listener_test_env_select" class="form-label">测试环境</label>
+                            <select class="form-select" id="listener_test_env_select">
+                                <option value="">请选择测试环境</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="listener_custom_ip_container" style="display: none;">
+                            <label for="listener_agent_ip" class="form-label">代理程序IP</label>
+                            <input type="text" class="form-control" id="listener_agent_ip" placeholder="例如: 192.168.1.100">
+                        </div>
+                        <div class="col-md-3" id="listener_agent_port_container" style="display: none;">
+                            <label for="listener_agent_port" class="form-label">端口</label>
+                            <input type="number" class="form-control" id="listener_agent_port" value="8888" min="1" max="65535" placeholder="8888">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary w-100" id="listener_connect_btn">
+                                <i class="fas fa-plug me-2"></i>连接
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="listener_interface" class="form-label">网卡选择</label>
+                            <select class="form-select" id="listener_interface" disabled>
+                                <option value="">请先连接代理程序</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="alert alert-info mb-0" id="listener_interface_info">
+                                未选择网卡
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 监听服务 -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-broadcast-tower me-2"></i>监听服务
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-pills mb-3" id="listenerTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tcp-listener" type="button">TCP监听</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#udp-listener" type="button">UDP监听</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ftp-listener" type="button">FTP服务器</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#http-listener" type="button">HTTP服务器</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mail-listener" type="button">邮件服务器</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="tcp-listener">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label">监听端口</label>
+                                    <input type="number" class="form-control" id="tcp_listener_port" value="9000" min="1" max="65535">
+                                </div>
+                                <div class="col-md-4">
+                                    <div>状态: <span class="badge bg-secondary" id="tcp_listener_status">未运行</span></div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button class="btn btn-success me-2" data-protocol="tcp" data-action="start" data-role="listener-btn">
+                                        <i class="fas fa-play me-1"></i>启动
+                                    </button>
+                                    <button class="btn btn-outline-danger" data-protocol="tcp" data-action="stop" data-role="listener-btn">停止</button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>当前连接</h6>
+                                <ul class="list-group" id="tcp_listener_connections">
+                                    <li class="list-group-item text-muted">暂无连接</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="udp-listener">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label">监听端口</label>
+                                    <input type="number" class="form-control" id="udp_listener_port" value="9001" min="1" max="65535">
+                                </div>
+                                <div class="col-md-4">
+                                    <div>状态: <span class="badge bg-secondary" id="udp_listener_status">未运行</span></div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button class="btn btn-success me-2" data-protocol="udp" data-action="start" data-role="listener-btn">
+                                        <i class="fas fa-play me-1"></i>启动
+                                    </button>
+                                    <button class="btn btn-outline-danger" data-protocol="udp" data-action="stop" data-role="listener-btn">停止</button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <span class="text-muted">已接收报文: <span id="udp_listener_packets">0</span></span>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="ftp-listener">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">监听端口</label>
+                                    <input type="number" class="form-control" id="ftp_listener_port" value="21" min="1" max="65535">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">登录账号</label>
+                                    <input type="text" class="form-control" id="ftp_listener_username" value="tdhx" placeholder="用户名">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">登录密码</label>
+                                    <input type="password" class="form-control" id="ftp_listener_password" value="tdhx@2017" placeholder="密码">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">目录路径</label>
+                                    <input type="text" class="form-control" id="ftp_listener_directory" value="" placeholder="留空则使用默认目录">
+                                    <small class="text-muted">留空则使用 C:\packet_agent (Windows) 或 /opt/packet_agent (Linux)</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div>状态: <span class="badge bg-secondary" id="ftp_listener_status">未运行</span></div>
+                                </div>
+                                <div class="col-md-8 text-end">
+                                    <button class="btn btn-success me-2" data-protocol="ftp" data-action="start" data-role="listener-btn">
+                                        <i class="fas fa-play me-1"></i>启动
+                                    </button>
+                                    <button class="btn btn-outline-danger" data-protocol="ftp" data-action="stop" data-role="listener-btn">停止</button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>会话列表</h6>
+                                <ul class="list-group" id="ftp_listener_connections">
+                                    <li class="list-group-item text-muted">暂无会话</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="http-listener">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">监听端口</label>
+                                    <input type="number" class="form-control" id="http_listener_port" value="80" min="1" max="65535">
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">目录路径</label>
+                                    <input type="text" class="form-control" id="http_listener_directory" value="" placeholder="留空则使用默认目录">
+                                    <small class="text-muted">留空则使用 C:\packet_agent\http (Windows) 或 /opt/packet_agent/http (Linux)</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div>状态: <span class="badge bg-secondary" id="http_listener_status">未运行</span></div>
+                                </div>
+                                <div class="col-md-8 text-end">
+                                    <button class="btn btn-success me-2" data-protocol="http" data-action="start" data-role="listener-btn">
+                                        <i class="fas fa-play me-1"></i>启动
+                                    </button>
+                                    <button class="btn btn-outline-danger" data-protocol="http" data-action="stop" data-role="listener-btn">停止</button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>访问信息</h6>
+                                <div class="alert alert-info" id="http_listener_info">
+                                    <p class="mb-1"><strong>访问地址:</strong> <span id="http_listener_url">-</span></p>
+                                    <p class="mb-0"><strong>文件列表:</strong> 启动后可通过浏览器访问查看</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="mail-listener">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">SMTP端口</label>
+                                    <input type="number" class="form-control" id="mail_listener_smtp_port" value="25" min="1" max="65535">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">IMAP端口</label>
+                                    <input type="number" class="form-control" id="mail_listener_imap_port" value="143" min="1" max="65535">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">POP3端口</label>
+                                    <input type="number" class="form-control" id="mail_listener_pop3_port" value="110" min="1" max="65535">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">邮件域名</label>
+                                    <input type="text" class="form-control" id="mail_listener_domain" placeholder="例如: test.local" value="test.local">
+                                </div>
+                                <div class="col-md-6">
+                                </div>
+                                <div class="col-md-4">
+                                    <div>状态: <span class="badge bg-secondary" id="mail_listener_status">未运行</span></div>
+                                </div>
+                                <div class="col-md-8 text-end">
+                                    <button class="btn btn-success me-2" data-protocol="mail" data-action="start" data-role="listener-btn">
+                                        <i class="fas fa-play me-1"></i>启动
+                                    </button>
+                                    <button class="btn btn-outline-danger me-2" data-protocol="mail" data-action="stop" data-role="listener-btn">停止</button>
+                                    <button class="btn btn-primary" id="start_local_mail_service_btn">
+                                        <i class="fas fa-server me-1"></i>启动本地邮件服务
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>邮件服务信息</h6>
+                                <div class="alert alert-info" id="mail_listener_info">
+                                    <p class="mb-1"><strong>SMTP地址:</strong> <span id="mail_listener_smtp_url">-</span></p>
+                                    <p class="mb-1"><strong>IMAP地址:</strong> <span id="mail_listener_imap_url">-</span></p>
+                                    <p class="mb-1"><strong>POP3地址:</strong> <span id="mail_listener_pop3_url">-</span></p>
+                                    <p class="mb-1"><strong>邮件域名:</strong> <span id="mail_listener_domain_info">-</span></p>
+                                    <p class="mb-0"><strong>连接数:</strong> <span id="mail_listener_connections">0</span></p>
+                                </div>
+                            </div>
+
+                            <!-- 用户管理 -->
+                            <div class="mt-4">
+                                <h6><i class="fas fa-users me-2"></i>用户管理</h6>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label">用户名</label>
+                                                <input type="text" class="form-control" id="new_username" placeholder="用户名">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">密码</label>
+                                                <input type="password" class="form-control" id="new_password" placeholder="至少 4 位">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">邮箱</label>
+                                                <input type="text" class="form-control" id="new_email" placeholder="可选">
+                                            </div>
+                                            <div class="col-md-3 d-flex align-items-end">
+                                                <button class="btn btn-success w-100" id="create_user_btn">
+                                                    <i class="fas fa-user-plus me-1"></i>创建用户
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>用户名</th>
+                                                        <th>邮箱</th>
+                                                        <th>创建时间</th>
+                                                        <th>操作</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="user_list">
+                                                    <tr><td colspan="4" class="text-center text-muted">加载中...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：客户端代理和客户端压测 -->
+        <div class="col-md-6">
+            <!-- 客户端代理 -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-desktop me-2"></i>客户端代理</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">代理程序IP来源</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="client_agent_source" id="client_agent_source_test_env" value="test_env" checked>
+                                <label class="btn btn-outline-success" for="client_agent_source_test_env">测试环境</label>
+                                <input type="radio" class="btn-check" name="client_agent_source" id="client_agent_source_custom" value="custom">
+                                <label class="btn btn-outline-success" for="client_agent_source_custom">指定IP</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="client_test_env_select_container">
+                            <label for="client_test_env_select" class="form-label">测试环境</label>
+                            <select class="form-select" id="client_test_env_select">
+                                <option value="">请选择测试环境</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="client_custom_ip_container" style="display: none;">
+                            <label for="client_agent_ip" class="form-label">代理程序IP</label>
+                            <input type="text" class="form-control" id="client_agent_ip" placeholder="例如：192.168.1.101">
+                        </div>
+                        <div class="col-md-3" id="client_agent_port_container" style="display: none;">
+                            <label for="client_agent_port" class="form-label">端口</label>
+                            <input type="number" class="form-control" id="client_agent_port" value="8888" min="1" max="65535" placeholder="8888">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-success w-100" id="client_connect_btn">
+                                <i class="fas fa-plug me-2"></i>连接
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="client_interface" class="form-label">网卡选择</label>
+                            <select class="form-select" id="client_interface" disabled>
+                                <option value="">请先连接代理程序</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="alert alert-info mb-0" id="client_interface_info">
+                                未选择网卡
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 客户端压测 -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="fas fa-exchange-alt me-2"></i>客户端压测
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-pills mb-3" id="clientTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tcp-client" type="button">TCP客户端</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#udp-client" type="button">UDP客户端</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ftp-client" type="button">FTP客户端</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#http-client" type="button">HTTP客户端</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mail-client" type="button">邮件客户端</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="tcp-client">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">服务器地址</label>
+                                    <input type="text" class="form-control" id="tcp_client_server" value="127.0.0.1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">端口</label>
+                                    <input type="number" class="form-control" id="tcp_client_port" value="9000" min="1" max="65535">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">连接数</label>
+                                    <input type="number" class="form-control" id="tcp_client_connections" value="5" min="1" max="200">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">连接速率(每秒)</label>
+                                    <input type="number" class="form-control" id="tcp_client_rate" value="5" min="0.1" step="0.1">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">发送周期(秒)</label>
+                                    <input type="number" class="form-control" id="tcp_client_interval" value="1" min="0.1" step="0.1">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label d-block">状态</label>
+                                    <span class="badge bg-secondary" id="tcp_client_status">未连接</span>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">发送内容</label>
+                                    <textarea class="form-control" id="tcp_client_message" rows=2>hello firewall</textarea>
+                                </div>
+                                <div class="col-md-12 text-end">
+                                    <button class="btn btn-primary me-2" id="tcp_client_connect"><i class="fas fa-link me-1"></i>连接</button>
+                                    <button class="btn btn-success me-2" id="tcp_client_start" disabled><i class="fas fa-paper-plane me-1"></i>开始发送</button>
+                                    <button class="btn btn-outline-warning me-2" id="tcp_client_stop_send" disabled><i class="fas fa-pause me-1"></i>停止发送</button>
+                                    <button class="btn btn-outline-danger" id="tcp_client_disconnect" disabled>断开连接</button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>当前连接</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped align-middle" id="tcp_connection_table">
+                                        <thead>
+                                            <tr>
+                                                <th>连接ID</th>
+                                                <th>目标</th>
+                                                <th>已发送</th>
+                                                <th>状态</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="5" class="text-muted">暂无连接</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="udp-client">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">服务器地址</label>
+                                    <input type="text" class="form-control" id="udp_client_server" value="127.0.0.1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">端口</label>
+                                    <input type="number" class="form-control" id="udp_client_port" value="9001" min="1" max="65535">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">发送线程数</label>
+                                    <input type="number" class="form-control" id="udp_client_connections" value="3" min="1" max="100">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">发送周期(秒)</label>
+                                    <input type="number" class="form-control" id="udp_client_interval" value="1" min="0.1" step="0.1">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label d-block">状态</label>
+                                    <span class="badge bg-secondary" id="udp_client_status">未运行</span>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">发送内容</label>
+                                    <textarea class="form-control" id="udp_client_message" rows=2>udp test packet</textarea>
+                                </div>
+                                <div class="col-md-12 text-end">
+                                    <button class="btn btn-success me-2" id="udp_client_start"><i class="fas fa-paper-plane me-1"></i>发送</button>
+                                    <button class="btn btn-outline-danger" id="udp_client_stop">停止</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="http-client">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">服务器地址</label>
+                                    <input type="text" class="form-control" id="http_client_server" value="4.4.4.34">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">端口</label>
+                                    <input type="number" class="form-control" id="http_client_port" value="80" min="1" max="65535">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label d-block">状态</label>
+                                    <span class="badge bg-secondary" id="http_client_status">未连接</span>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">连接控制</label>
+                                    <div class="d-flex gap-2 mb-2">
+                                        <button class="btn btn-primary" id="http_client_connect"><i class="fas fa-link me-1"></i>连接</button>
+                                        <button class="btn btn-outline-danger" id="http_client_disconnect" disabled>断开</button>
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">服务器文件列表</label>
+                                    <div class="input-group mb-2">
+                                        <button class="btn btn-outline-secondary" id="http_client_go_up" type="button" disabled title="返回上级目录">
+                                            <i class="fas fa-level-up-alt"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" id="http_client_refresh_file_list" type="button" disabled>
+                                            <i class="fas fa-sync-alt"></i> 刷新列表
+                                        </button>
+                                        <input type="text" class="form-control" id="http_client_current_dir" placeholder="当前目录" readonly style="background-color: #f8f9fa;">
+                                    </div>
+                                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;" id="http_client_file_list">
+                                        <div class="text-muted text-center">未连接</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">上传文件</label>
+                                    <div class="input-group mb-2">
+                                        <input type="file" class="form-control" id="http_client_upload_file">
+                                        <button class="btn btn-outline-primary" id="http_client_upload_btn" type="button" disabled>
+                                            <i class="fas fa-upload"></i> 上传
+                                        </button>
+                                    </div>
+                                    <div class="border rounded p-2" style="max-height: 100px; overflow-y: auto;" id="http_client_upload_content">
+                                        <div class="text-muted text-center">选择文件后显示预览</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">下载文件</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="http_client_download_file" placeholder="文件名">
+                                        <button class="btn btn-outline-success" id="http_client_download_btn" type="button" disabled>
+                                            <i class="fas fa-download"></i> 下载
+                                        </button>
+                                    </div>
+                                    <div class="border rounded p-2 mt-2" style="max-height: 100px; overflow-y: auto;" id="http_client_download_content">
+                                        <div class="text-muted text-center">下载内容将显示在这里</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="mail-client">
+                            <div class="row g-3">
+                                <!-- 发送邮件 -->
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-edit me-2"></i>发送邮件</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-3">
+                                                    <label class="form-label">邮件服务器</label>
+                                                    <input type="text" class="form-control" id="mail_server" value="10.40.30.34" placeholder="邮件服务器 IP">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">SMTP 端口</label>
+                                                    <input type="number" class="form-control" id="mail_smtp_port" value="25" min="1" max="65535">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">&nbsp;</label>
+                                                    <div class="form-check mt-2">
+                                                        <input class="form-check-input" type="checkbox" id="mail_use_local_storage">
+                                                        <label class="form-check-label" for="mail_use_local_storage">
+                                                            使用本地存储
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">IMAP 端口</label>
+                                                    <input type="number" class="form-control" id="mail_imap_port" value="143" min="1" max="65535">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">POP3 端口</label>
+                                                    <input type="number" class="form-control" id="mail_pop3_port" value="110" min="1" max="65535">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label">接收协议</label>
+                                                    <select class="form-select" id="mail_receive_protocol">
+                                                        <option value="imap">IMAP</option>
+                                                        <option value="pop3">POP3</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label">用户名</label>
+                                                    <input type="text" class="form-control" id="mail_receive_user" value="receiver" placeholder="收件箱用户名">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">密码</label>
+                                                    <input type="password" class="form-control" id="mail_receive_pass" value="test123" placeholder="密码">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">发件人</label>
+                                                    <input type="email" class="form-control" id="mail_from" value="sender@test.local" placeholder="sender@test.local">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">收件人</label>
+                                                    <input type="email" class="form-control" id="mail_to" value="receiver@test.local" placeholder="receiver@test.local">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">抄送 (可选)</label>
+                                                    <input type="email" class="form-control" id="mail_cc" placeholder="例如：cc@example.com">
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <label class="form-label">主题</label>
+                                                    <input type="text" class="form-control" id="mail_subject" placeholder="邮件主题">
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <label class="form-label">邮件内容</label>
+                                                    <textarea class="form-control" id="mail_content" rows="4" placeholder="请输入邮件内容..."></textarea>
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <label class="form-label">附件</label>
+                                                    <input type="file" class="form-control" id="mail_attachment" multiple>
+                                                    <small class="text-muted">可选择多个文件作为附件</small>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2 mt-3">
+                                                <button class="btn btn-success" id="send_mail_btn">
+                                                    <i class="fas fa-paper-plane me-1"></i>发送邮件
+                                                </button>
+                                                <button class="btn btn-outline-primary" id="refresh_inbox_btn">
+                                                    <i class="fas fa-sync-alt me-1"></i>刷新收件箱
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 收件箱 -->
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0"><i class="fas fa-inbox me-2"></i>收件箱</h6>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <small class="text-muted">邮箱：sender@test.local, receiver@test.local</small>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive" style="max-height: 400px;">
+                                                <table class="table table-sm table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>发件人</th>
+                                                            <th>收件人</th>
+                                                            <th>主题</th>
+                                                            <th>时间</th>
+                                                            <th>大小</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="inbox_list">
+                                                        <tr>
+                                                            <td colspan="5" class="text-center text-muted">暂无邮件</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="ftp-client">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">服务器地址</label>
+                                    <input type="text" class="form-control" id="ftp_client_server" value="10.40.30.34">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">端口</label>
+                                    <input type="number" class="form-control" id="ftp_client_port" value="21" min="1" max="65535">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label d-block">状态</label>
+                                    <span class="badge bg-secondary" id="ftp_client_status">未连接</span>
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="d-flex gap-2 mb-3">
+                                        <button class="btn btn-primary" id="ftp_client_connect">
+                                            <i class="fas fa-link me-1"></i>连接
+                                        </button>
+                                        <button class="btn btn-outline-danger" id="ftp_client_disconnect" disabled>
+                                            <i class="fas fa-unlink me-1"></i>断开
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- 文件列表 -->
+                                <div class="col-md-12">
+                                    <label class="form-label">远程文件列表</label>
+                                    <div class="input-group mb-2">
+                                        <button class="btn btn-outline-secondary" id="ftp_client_go_up" type="button" disabled title="返回上级目录">
+                                            <i class="fas fa-level-up-alt"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" id="ftp_client_refresh_file_list" type="button" disabled>
+                                            <i class="fas fa-sync-alt"></i> 刷新列表
+                                        </button>
+                                        <input type="text" class="form-control" id="ftp_client_current_dir" readonly placeholder="当前目录">
+                                    </div>
+                                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;" id="ftp_client_file_list">
+                                        <div class="text-muted text-center">未连接</div>
+                                    </div>
+                                </div>
+                                <!-- 文件上传 -->
+                                <div class="col-md-12">
+                                    <label class="form-label">上传文件</label>
+                                    <div class="input-group mb-2">
+                                        <input type="file" class="form-control" id="ftp_client_upload_file">
+                                        <button class="btn btn-outline-success" id="ftp_client_upload_btn" type="button" disabled>
+                                            <i class="fas fa-upload"></i> 上传
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- 文件下载 -->
+                                <div class="col-md-12">
+                                    <label class="form-label">下载文件</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="ftp_client_download_file" placeholder="文件名">
+                                        <button class="btn btn-outline-success" id="ftp_client_download_btn" type="button" disabled>
+                                            <i class="fas fa-download"></i> 下载
+                                        </button>
+                                    </div>
+                                    <div class="border rounded p-2 mt-2" style="max-height: 100px; overflow-y: auto;" id="ftp_client_download_content">
+                                        <div class="text-muted text-center">下载内容将显示在这里</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志区域 -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>服务日志</h5>
+                    <button class="btn btn-outline-danger btn-sm" id="clear_logs_btn">
+                        <i class="fas fa-trash me-1"></i>清空日志
+                    </button>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group" id="service_log_list" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 引入服务下发模块 -->
+<script src="{% static 'js/service_deploy.js' %}?v=20260401103000"></script>
+<style>
+    /* FTP 文件列表样式 */
+    .ftp-file-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .ftp-file-item {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .ftp-file-item:hover {
+        background-color: #f8f9fa;
+        padding-left: 1.25rem;
+    }
+
+    .ftp-file-item.active {
+        background-color: #e3f2fd;
+        border-left: 3px solid #2196f3;
+        font-weight: 500;
+    }
+
+    .ftp-file-item .file-name {
+        font-size: 14px;
+    }
+
+    .ftp-file-item .file-size {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    /* 文件夹图标颜色 */
+    .ftp-file-item .fa-folder {
+        color: #f59e0b;
+    }
+
+    /* 文件图标颜色 */
+    .ftp-file-item .fa-file {
+        color: #6c757d;
+    }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+(() => {
+    console.log('[DEBUG] service_deploy.html 脚本已加载');
+console.log('========================================');
+console.log('===  服务下发页面调试信息            ===');
+console.log('===  JS 文件版本：202603271500           ===');
+console.log('========================================');
+
+    const logList = document.getElementById('service_log_list');
+    const clearLogsBtn = document.getElementById('clear_logs_btn');
+
+    function debugLog(message, level) {
+        console.log('[DEBUG ' + (level || 'INFO') + ']', message);
+        if (logList) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            const badgeClass = {
+                'info': 'bg-info',
+                'warning': 'bg-warning text-dark',
+                'error': 'bg-danger',
+                'success': 'bg-success',
+                'debug': 'bg-secondary'
+            }[level || 'info'] || 'bg-info';
+            li.innerHTML = '<span class="text-break">' + message + '</span><span class="badge ' + badgeClass + '">' + (level || 'info') + '</span>';
+            logList.insertBefore(li, logList.firstChild);
+            while (logList.children.length > 100) {
+                logList.removeChild(logList.lastChild);
+            }
+        }
+    }
+
+    debugLog('服务下发页面初始化...', 'info');
+
+    if (!window.ServiceDeploy) {
+        debugLog('警告：ServiceDeploy 模块未加载', 'warning');
+        window.ServiceDeploy = {
+            Utils: { addLogEntry: debugLog }
+        };
+    }
+
+    debugLog('window.ServiceDeploy 检查完成', 'debug');
+
+    let listenerAgentUrl = '';
+    let clientAgentUrl = '';
+
+    if (clearLogsBtn && logList) {
+        clearLogsBtn.addEventListener('click', function() {
+            logList.innerHTML = '';
+            debugLog('日志已清空', 'info');
+        });
+    }
+
+    function loadTestEnvironments() {
+        console.log('[DEBUG] 开始加载测试环境列表...');
+        debugLog('正在加载测试环境列表...', 'info');
+
+        fetch('/api/test_env/list/')
+            .then(response => {
+                console.log('[DEBUG] API 响应状态:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('[DEBUG] API 返回数据:', data);
+                if (data.success) {
+                    const envs = data.environments || [];
+                    debugLog('加载测试环境：' + envs.length + ' 个', 'success');
+
+                    const listenerSelect = document.getElementById('listener_test_env_select');
+                    if (listenerSelect) {
+                        listenerSelect.innerHTML = '<option value="">请选择测试环境</option>';
+                        envs.forEach(env => {
+                            const option = document.createElement('option');
+                            option.value = env.ip;
+                            option.textContent = env.name + ' (' + env.ip + ')';
+                            listenerSelect.appendChild(option);
+                        });
+                        debugLog('监听服务代理测试环境列表已更新', 'debug');
+                    }
+
+                    const clientSelect = document.getElementById('client_test_env_select');
+                    if (clientSelect) {
+                        clientSelect.innerHTML = '<option value="">请选择测试环境</option>';
+                        envs.forEach(env => {
+                            const option = document.createElement('option');
+                            option.value = env.ip;
+                            option.textContent = env.name + ' (' + env.ip + ')';
+                            clientSelect.appendChild(option);
+                        });
+                        debugLog('客户端代理测试环境列表已更新', 'debug');
+                    }
+                } else {
+                    debugLog('加载测试环境失败：' + (data.error || '未知错误'), 'error');
+                }
+            })
+            .catch(err => {
+                console.error('[DEBUG] 加载测试环境异常:', err);
+                debugLog('加载测试环境异常：' + err.message, 'error');
+            });
+    }
+
+    debugLog('页面初始化：加载测试环境列表...', 'info');
+    loadTestEnvironments();
+
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'test_environments') {
+            debugLog('检测到测试环境更新', 'info');
+            loadTestEnvironments();
+        }
+    });
+
+    function sendMail() {
+        debugLog('开始发送邮件...', 'info');
+
+        // 调试：打印 clientAgentUrl
+        console.log('[DEBUG] clientAgentUrl:', clientAgentUrl);
+        debugLog('客户端代理URL: ' + (clientAgentUrl || '未设置'), 'info');
+
+        // 从前端配置获取邮件服务器和端口
+        const mailServer = document.getElementById('mail_server')?.value || '10.40.30.34';
+        const smtpPort = parseInt(document.getElementById('mail_smtp_port')?.value) || 25;
+
+        const mailData = {
+            from: document.getElementById('mail_from').value.trim() || 'sender@test.local',
+            to: document.getElementById('mail_to').value.trim() || 'receiver@test.local',
+            cc: document.getElementById('mail_cc').value.trim(),
+            subject: document.getElementById('mail_subject').value.trim(),
+            content: document.getElementById('mail_content').value.trim()
+        };
+
+        console.log('[DEBUG] 邮件数据:', mailData);
+        debugLog(`邮件服务器：${mailServer}:${smtpPort}`, 'info');
+
+        if (!mailData.to || !mailData.subject || !mailData.content) {
+            debugLog('请填写收件人、主题和邮件内容', 'warning');
+            return;
+        }
+
+        if (!clientAgentUrl) {
+            debugLog('请先连接客户端代理程序', 'warning');
+            return;
+        }
+
+        const sendBtn = document.getElementById('send_mail_btn');
+        const originalText = sendBtn.innerHTML;
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>发送中...';
+
+        debugLog('正在发送邮件：' + mailData.subject, 'info');
+
+        // 检查是否勾选了本地存储
+        const useLocalStorage = document.getElementById('mail_use_local_storage')?.checked ?? false;
+        console.log('[DEBUG] use_local_storage:', useLocalStorage);
+        debugLog('使用本地存储: ' + useLocalStorage, 'info');
+
+        // 处理附件
+        const attachmentInput = document.getElementById('mail_attachment');
+
+        console.log('[DEBUG] attachmentInput:', attachmentInput);
+        console.log('[DEBUG] attachmentInput.files:', attachmentInput?.files);
+        console.log('[DEBUG] files length:', attachmentInput?.files?.length);
+
+        if (attachmentInput && attachmentInput.files && attachmentInput.files.length > 0) {
+            debugLog('处理 ' + attachmentInput.files.length + ' 个附件...', 'info');
+            console.log('[DEBUG] 开始读取附件文件...');
+
+            // 使用 Promise 处理所有文件
+            const filePromises = Array.from(attachmentInput.files).map(file => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // 获取 base64 编码的内容（去掉前缀）
+                        const base64Content = e.target.result.split(',')[1];
+                        resolve({
+                            filename: file.name,
+                            content: base64Content,
+                            type: file.type || 'application/octet-stream'
+                        });
+                    };
+                    reader.onerror = function(e) {
+                        reject(new Error('文件读取失败: ' + file.name));
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            // 等待所有文件读取完成后发送邮件
+            Promise.all(filePromises)
+                .then(processedAttachments => {
+                    mailData.attachments = processedAttachments;
+                    debugLog('附件处理完成，共 ' + processedAttachments.length + ' 个', 'success');
+
+                    // 发送带附件的邮件
+                    sendMailRequest(mailServer, smtpPort, useLocalStorage, mailData, sendBtn, originalText);
+                })
+                .catch(err => {
+                    debugLog('附件处理失败：' + err.message, 'error');
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = originalText;
+                });
+        } else {
+            // 无附件，直接发送
+            sendMailRequest(mailServer, smtpPort, useLocalStorage, mailData, sendBtn, originalText);
+        }
+    }
+
+    function sendMailRequest(mailServer, smtpPort, useLocalStorage, mailData, sendBtn, originalText) {
+        // 调试：检查 mailData 中的附件
+        console.log('[DEBUG] sendMailRequest 中的 mailData:', mailData);
+        console.log('[DEBUG] mailData.attachments:', mailData.attachments);
+
+        const requestBody = {
+            protocol: 'mail',
+            action: 'send_mail',
+            smtp_config: {
+                server: mailServer,
+                port: smtpPort,
+                ssl: false,
+                no_auth: true,
+                use_local_storage: useLocalStorage
+            },
+            mail_data: mailData
+        };
+        console.log('[DEBUG] 请求体:', requestBody);
+        console.log('[DEBUG] 请求体中的附件:', requestBody.mail_data.attachments);
+
+        const requestUrl = clientAgentUrl + '/api/services/client';
+        console.log('[DEBUG] 请求URL:', requestUrl);
+        debugLog('请求URL: ' + requestUrl, 'info');
+
+        fetch(requestUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                debugLog('邮件发送成功', 'success');
+                // 发送成功后自动刷新收件箱
+                setTimeout(() => refreshInbox(), 1000);
+            } else {
+                debugLog('邮件发送失败：' + (data.error || '未知错误'), 'error');
+            }
+        })
+        .catch(err => {
+            debugLog('邮件发送异常：' + err.message, 'error');
+        })
+        .finally(() => {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalText;
+        });
+    }
+
+    function refreshInbox() {
+        debugLog('开始刷新收件箱...', 'info');
+
+        // 使用客户端代理通过 IMAP/POP3 协议从邮件服务器获取邮件
+        if (!clientAgentUrl) {
+            debugLog('请先连接客户端代理程序', 'warning');
+            return;
+        }
+
+        const refreshBtn = document.getElementById('refresh_inbox_btn');
+        const originalText = refreshBtn.innerHTML;
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
+
+        // 从前端配置获取邮件服务器和凭据
+        const mailServer = document.getElementById('mail_server')?.value || '10.40.30.34';
+        const protocol = document.getElementById('mail_receive_protocol')?.value || 'imap';
+        let port, user, pass, protocolName;
+
+        if (protocol === 'pop3') {
+            port = parseInt(document.getElementById('mail_pop3_port')?.value) || 110;
+            user = document.getElementById('mail_receive_user')?.value || 'receiver';
+            pass = document.getElementById('mail_receive_pass')?.value || 'test123';
+            protocolName = 'POP3';
+        } else {
+            port = parseInt(document.getElementById('mail_imap_port')?.value) || 143;
+            user = document.getElementById('mail_receive_user')?.value || 'receiver';
+            pass = document.getElementById('mail_receive_pass')?.value || 'test123';
+            protocolName = 'IMAP';
+        }
+
+        debugLog(`通过 ${protocolName} 从 ${mailServer}:${port} 获取邮件...`, 'info');
+
+        fetch(clientAgentUrl + '/api/services/client', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                protocol: 'mail',
+                action: 'get_inbox',
+                receive_config: {
+                    protocol: protocol,
+                    server: mailServer,
+                    port: port,
+                    ssl: false,
+                    email: user,
+                    password: pass
+                }
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.mails) {
+                debugLog('收件箱刷新成功：共 ' + data.mails.length + ' 封邮件', 'success');
+                displayInboxList(data.mails);
+            } else {
+                debugLog('收件箱刷新失败：' + (data.error || '未知错误'), 'error');
+            }
+        })
+        .catch(err => {
+            debugLog('收件箱刷新异常：' + err.message, 'error');
+        })
+        .finally(() => {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = originalText;
+        });
+    }
+
+    function displayInboxList(mails) {
+        const inboxList = document.getElementById('inbox_list');
+        if (!inboxList) return;
+
+        if (!mails || mails.length === 0) {
+            inboxList.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无邮件</td></tr>';
+            return;
+        }
+
+        // 后端已按日期倒序排列，无需前端再次排序
+        // IMAP: 后端反转 recent_ids 确保最新在前
+        // POP3: 后端倒序处理邮件编号确保最新在前
+
+        let html = '';
+        mails.forEach(mail => {
+            html += '<tr>';
+            html += '<td>' + (mail.mail_from || mail.from || '未知') + '</td>';
+            html += '<td>' + (mail.mail_to || mail.to || '未知') + '</td>';
+            html += '<td>' + (mail.subject || '无主题') + '</td>';
+            html += '<td>' + (mail.date || '未知') + '</td>';
+            html += '<td>' + formatSize(mail.size) + '</td>';
+            html += '</tr>';
+        });
+        inboxList.innerHTML = html;
+    }
+
+    function formatSize(size) {
+        if (!size || size === '-') return '-';
+        if (size < 1024) return size + ' B';
+        if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+        return (size / 1024 / 1024).toFixed(1) + ' MB';
+    }
+
+    document.getElementById('send_mail_btn').addEventListener('click', function() {
+        sendMail();
+    });
+
+    document.getElementById('refresh_inbox_btn').addEventListener('click', function() {
+        refreshInbox();
+    });
+
+    window.addEventListener('agent:connected:listener', function(e) {
+        listenerAgentUrl = e.detail.agentUrl;
+        debugLog('监听服务代理已连接：' + listenerAgentUrl, 'success');
+    });
+
+    window.addEventListener('agent:connected:client', function(e) {
+        clientAgentUrl = e.detail.agentUrl;
+        debugLog('客户端代理已连接：' + clientAgentUrl, 'success');
+    });
+
+    window.addEventListener('agent:disconnected:listener', function() {
+        listenerAgentUrl = '';
+        debugLog('监听服务代理已断开', 'warning');
+    });
+
+    window.addEventListener('agent:disconnected:client', function() {
+        clientAgentUrl = '';
+        debugLog('客户端代理已断开', 'warning');
+    });
+
+    debugLog('邮件客户端事件绑定完成', 'debug');
+
+    // ========== 初始化代理连接器 ==========
+    debugLog('正在初始化代理连接器...', 'info');
+
+    // 监听服务代理连接器
+    const listenerConnector = new window.ServiceDeploy.AgentConnector('listener', {
+        connectBtn: document.getElementById('listener_connect_btn'),
+        agentIpInput: document.getElementById('listener_agent_ip'),
+        agentPortInput: document.getElementById('listener_agent_port'),
+        interfaceSelect: document.getElementById('listener_interface'),
+        interfaceInfo: document.getElementById('listener_interface_info'),
+        testEnvSelect: document.getElementById('listener_test_env_select'),
+        customIpContainer: document.getElementById('listener_custom_ip_container'),
+        testEnvContainer: document.getElementById('listener_test_env_select_container'),
+        logList: logList
+    });
+
+    // 客户端代理连接器
+    const clientConnector = new window.ServiceDeploy.AgentConnector('client', {
+        connectBtn: document.getElementById('client_connect_btn'),
+        agentIpInput: document.getElementById('client_agent_ip'),
+        agentPortInput: document.getElementById('client_agent_port'),
+        interfaceSelect: document.getElementById('client_interface'),
+        interfaceInfo: document.getElementById('client_interface_info'),
+        testEnvSelect: document.getElementById('client_test_env_select'),
+        customIpContainer: document.getElementById('client_custom_ip_container'),
+        testEnvContainer: document.getElementById('client_test_env_select_container'),
+        logList: logList
+    });
+
+    debugLog('代理连接器初始化完成', 'success');
+
+    // ========== 初始化监听服务管理器 ==========
+    debugLog('正在初始化监听服务管理器...', 'info');
+
+    const listenerStatusPoller = new window.ServiceDeploy.StatusPoller(
+        listenerConnector,
+        clientConnector,
+        logList
+    );
+
+    const listenerServiceManager = new window.ServiceDeploy.ListenerServiceManager(
+        listenerConnector,
+        listenerStatusPoller,
+        logList
+    );
+
+    // ========== 初始化状态显示更新器 ==========
+    const statusDisplayUpdater = new window.ServiceDeploy.StatusDisplayUpdater();
+    debugLog('状态显示更新器初始化完成', 'success');
+    console.log('[DEBUG] StatusDisplayUpdater 已初始化，bindEvents 已调用');
+
+    debugLog('监听服务管理器初始化完成', 'success');
+
+    // ========== 初始化客户端服务管理器 ==========
+    debugLog('正在初始化客户端服务管理器...', 'info');
+
+    const clientServiceManager = new window.ServiceDeploy.ClientServiceManager(
+        clientConnector,
+        listenerStatusPoller,
+        logList
+    );
+
+    debugLog('客户端服务管理器初始化完成', 'success');
+
+    debugLog('页面初始化完成！', 'success');
+
+})();
+});
+</script>
+{% endblock %}

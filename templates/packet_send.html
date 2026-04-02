@@ -1,0 +1,2161 @@
+{% extends "base.html" %}
+
+{% block title %}报文发送 - 测试系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-2"><i class="fas fa-network-wired text-primary me-2"></i>报文发送</h2>
+            <p class="text-muted mb-0">连接远程主机并发送网络报文</p>
+        </div>
+    </div>
+
+    <!-- 连接配置区域 -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-server me-2"></i>连接配置</h5>
+            <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#connectionHelp" aria-expanded="false">
+                <i class="fas fa-question-circle me-2"></i>连接帮助
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- 连接方式选择 -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label class="form-label">连接方式</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="connection_type" id="connection_agent" value="agent" checked>
+                        <label class="btn btn-outline-primary" for="connection_agent">
+                            <i class="fas fa-network-wired me-2"></i>代理程序（推荐）
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="connection_type" id="connection_ssh" value="ssh">
+                        <label class="btn btn-outline-primary" for="connection_ssh">
+                            <i class="fas fa-terminal me-2"></i>SSH连接
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 代理程序连接配置 -->
+            <div id="agent_connection_config">
+                <div class="agent-connection-row">
+                    <div class="row align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">设备来源</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="agent_device_source" id="agent_device_source_test_env" value="test_env" checked>
+                                <label class="btn btn-outline-primary" for="agent_device_source_test_env">测试环境</label>
+                                <input type="radio" class="btn-check" name="agent_device_source" id="agent_device_source_custom" value="custom">
+                                <label class="btn btn-outline-primary" for="agent_device_source_custom">指定IP</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4" id="agent_test_env_select_container">
+                            <label for="agent_test_env_select" class="form-label">测试环境 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="agent_test_env_select">
+                                <option value="">请选择测试环境</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" id="agent_custom_ip_container" style="display: none;">
+                            <label for="agent_ip" class="form-label">代理程序IP <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="agent_ip" placeholder="例如: 192.168.1.100">
+                        </div>
+                        <div class="col-md-2">
+                            <button id="connect_agent" class="btn btn-primary w-100">
+                                <i class="fas fa-plug me-2"></i>连接
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-text mt-2">代理程序运行在远程主机上的HTTP服务地址（端口: 8888）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SSH连接配置（默认隐藏） -->
+            <div id="ssh_connection_config" style="display: none;">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="host_address" class="form-label">主机地址</label>
+                            <input type="text" class="form-control" id="host_address" placeholder="例如: 192.168.1.100">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="ssh_port" class="form-label">SSH端口</label>
+                            <input type="number" class="form-control" id="ssh_port" value="22" placeholder="22">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="ssh_username" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="ssh_username" placeholder="例如: Administrator">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="ssh_password" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="ssh_password" placeholder="请输入密码">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button id="connect_host" class="btn btn-primary w-100">
+                                <i class="fas fa-plug me-2"></i>连接
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 连接帮助信息（默认隐藏） -->
+            <div class="collapse" id="connectionHelp">
+                <hr>
+                <div class="alert alert-info mb-0">
+                    <h6><i class="fas fa-info-circle me-2"></i>连接方式说明</h6>
+                    
+                    <h6 class="mt-3"><strong>代理程序方式（推荐）</strong></h6>
+                    <p class="mb-2">代理程序运行在远程主机上，提供精确的报文构造和发送能力。</p>
+                    <ol class="mb-3">
+                        <li><strong>Windows 安装步骤：</strong>
+                            <ul>
+                                <li>安装 Npcap: <a href="https://nmap.org/npcap/" target="_blank">https://nmap.org/npcap/</a></li>
+                                <li>安装 Python 3.7+</li>
+                                <li>安装依赖: <code>pip install flask flask-cors scapy</code></li>
+                                <li>运行代理程序: <code>python packet_agent.py --host 0.0.0.0 --port 8888</code></li>
+                                <li>注意：需要管理员权限运行</li>
+                            </ul>
+                        </li>
+                        <li><strong>Linux 安装步骤：</strong>
+                            <ul>
+                                <li>安装依赖: <code>sudo apt-get install python3-pip libpcap-dev</code></li>
+                                <li>安装Python包: <code>pip3 install flask flask-cors scapy</code></li>
+                                <li>运行代理程序（需要root）: <code>sudo python3 packet_agent.py --host 0.0.0.0 --port 8888</code></li>
+                            </ul>
+                        </li>
+                        <li><strong>连接信息：</strong>
+                            <ul>
+                                <li>代理程序URL：例如 <code>http://192.168.1.100:8888</code></li>
+                                <li>确保代理程序已启动并监听指定端口</li>
+                                <li>确保防火墙允许访问代理程序端口</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    
+                    <h6 class="mt-3"><strong>SSH方式（备用）</strong></h6>
+                    <p class="mb-2">通过SSH连接远程主机，使用系统命令发送报文（功能有限）。</p>
+                    <ol class="mb-3">
+                        <li><strong>Windows 7/10/11 需要先安装并启用 SSH 服务器：</strong>
+                            <ul>
+                                <li>Windows 10/11: 设置 → 应用 → 可选功能 → 安装"OpenSSH 服务器"</li>
+                                <li>Windows 7: 下载安装 <a href="https://github.com/PowerShell/Win32-OpenSSH/releases" target="_blank">OpenSSH for Windows</a></li>
+                                <li>启动服务: <code>Start-Service sshd</code></li>
+                            </ul>
+                        </li>
+                        <li><strong>连接信息：</strong>
+                            <ul>
+                                <li>主机地址：远程主机的 IP 地址</li>
+                                <li>SSH端口：默认 22</li>
+                                <li>用户名和密码：系统用户凭据</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    
+                    <p class="mb-0"><strong>推荐：</strong>使用代理程序方式可以获得更精确的报文控制和更好的性能。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- 网卡信息区域（占一整行） -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-ethernet me-2"></i>网卡信息</h5>
+                        <button id="refresh_interfaces" class="btn btn-sm btn-outline-primary" disabled>
+                            <i class="fas fa-sync-alt me-2"></i>刷新
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="interfaces_list" class="text-center text-muted py-5">
+                            <i class="fas fa-info-circle fa-2x mb-2 opacity-50"></i>
+                            <p>请先连接远程主机以获取网卡信息</p>
+                        </div>
+                        <!-- 目标网卡选择（显示在网卡列表下方） -->
+                        <div class="mt-3" id="target_interface_section" style="display: none;">
+                            <div class="row align-items-end">
+                                <div class="col-md-6">
+                                    <label for="target_interface" class="form-label fw-bold">
+                                        <i class="fas fa-check-circle me-2 text-success"></i>已选择网卡
+                                    </label>
+                                    <select class="form-select form-select-lg" id="target_interface" disabled>
+                                        <option value="" selected>请选择网卡</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div class="form-text">点击上方网卡卡片进行选择，或使用下拉菜单选择</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左侧配置区域 -->
+            <div class="col-lg-8">
+                <!-- 报文配置卡片 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>报文配置</h5>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#packetVariations" aria-expanded="false">
+                        <i class="fas fa-chevron-down me-2" id="variationsIcon"></i>报文变化
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- 协议标签页 -->
+                    <ul class="nav nav-tabs mb-3" id="protocolTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="arp-tab" data-bs-toggle="tab" data-bs-target="#arp" type="button" role="tab">ARP</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="icmp-tab" data-bs-toggle="tab" data-bs-target="#icmp" type="button" role="tab">ICMP</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="udp-tab" data-bs-toggle="tab" data-bs-target="#udp" type="button" role="tab">UDP</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tcp-tab" data-bs-toggle="tab" data-bs-target="#tcp" type="button" role="tab" aria-selected="true">TCP</button>
+                        </li>
+                    </ul>
+                    
+                    <!-- 协议配置内容 -->
+                    <div class="tab-content" id="protocolTabContent">
+                        <!-- TCP配置 -->
+                        <div class="tab-pane fade show active" id="tcp" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="src_mac" class="form-label">源MAC地址</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="src_mac" placeholder="随机生成">
+                                            <button class="btn btn-outline-secondary" type="button" id="tcp_random_src_mac" title="随机生成源MAC">
+                                                <i class="fas fa-dice"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="tcp_use_local_mac">
+                                            <label class="form-check-label" for="tcp_use_local_mac">
+                                                使用本机MAC（自动填入所选网卡MAC）
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="dst_mac" class="form-label">目的MAC地址</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="dst_mac" placeholder="随机生成">
+                                            <button class="btn btn-outline-secondary" type="button" id="tcp_random_dst_mac" title="随机生成目的MAC">
+                                                <i class="fas fa-dice"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="src_ip" class="form-label">源IP地址</label>
+                                        <input type="text" class="form-control" id="src_ip" placeholder="例如: 4.4.4.34">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="dst_ip" class="form-label">目的IP地址 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="dst_ip" value="4.4.4.34" placeholder="例如: 4.4.4.34" required>
+                                            <div class="input-group-text">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="tcp_land">
+                                                    <label class="form-check-label" for="tcp_land" title="LAND攻击：源IP和目的IP相同">LAND</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="src_port" class="form-label">源端口</label>
+                                        <input type="number" class="form-control" id="src_port" value="3333" min="0" max="65535" placeholder="例如: 3333">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="dst_port" class="form-label">目的端口 <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="dst_port" value="9992" min="0" max="65535" placeholder="例如: 9992" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">TCP标志位</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="flag_syn" checked>
+                                                <label class="form-check-label" for="flag_syn">SYN</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="flag_ack">
+                                                <label class="form-check-label" for="flag_ack">ACK</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="flag_fin">
+                                                <label class="form-check-label" for="flag_fin">FIN</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="flag_rst">
+                                                <label class="form-check-label" for="flag_rst">RST</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="flag_psh">
+                                                <label class="form-check-label" for="flag_psh">PSH</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="flag_urg">
+                                                <label class="form-check-label" for="flag_urg">URG</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <label for="tcp_data" class="form-label">数据</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="tcp_data" value="00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF" placeholder="十六进制数据，用空格分隔">
+                                            <select class="form-select" id="data_format" style="max-width: 120px;">
+                                                <option value="hex" selected>HEX</option>
+                                                <option value="ascii">ASCII</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ARP配置 -->
+                        <div class="tab-pane fade" id="arp" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="mb-3">ARP基本参数配置</h6>
+                                    <div class="mb-3">
+                                        <label for="arp_src_mac" class="form-label">源MAC地址</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="arp_src_mac" value="22:22:22:22:22:22" placeholder="例如: 22:22:22:22:22:22">
+                                            <div class="input-group-text">
+                                                <input class="form-check-input mt-0" type="checkbox" id="arp_use_local_mac">
+                                                <label class="form-check-label ms-2" for="arp_use_local_mac">本地地址</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="arp_dst_mac" class="form-label">目的MAC地址</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="arp_dst_mac" value="FF-FF-FF-FF-FF-FF" placeholder="例如: FF-FF-FF-FF-FF-FF">
+                                            <div class="input-group-text">
+                                                <input class="form-check-input mt-0" type="checkbox" id="arp_use_broadcast">
+                                                <label class="form-check-label ms-2" for="arp_use_broadcast">广播</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="arp_src_ip" class="form-label">源IP地址</label>
+                                        <input type="text" class="form-control" id="arp_src_ip" value="10.0.0.1" placeholder="例如: 10.0.0.1">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="arp_dst_ip" class="form-label">目的IP地址 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="arp_dst_ip" value="10.0.0.2" placeholder="例如: 10.0.0.2" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="arp_type" class="form-label">类型 <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="arp_type" required>
+                                            <option value="arp_req" selected>ARP REQ</option>
+                                            <option value="arp_reply">ARP REPLY</option>
+                                            <option value="rarp_req">RARP REQ</option>
+                                            <option value="rarp_reply">RARP REPLY</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ICMP配置 -->
+                        <div class="tab-pane fade" id="icmp" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="mb-3">ICMP基本参数配置</h6>
+                                    <div class="mb-3">
+                                        <label for="icmp_src_mac" class="form-label">源MAC地址</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="icmp_src_mac" value="C8-A3-62-4F-D0-D0" placeholder="例如: C8-A3-62-4F-D0-D0">
+                                            <div class="input-group-text">
+                                                <input class="form-check-input mt-0" type="checkbox" id="icmp_use_local_mac">
+                                                <label class="form-check-label ms-2" for="icmp_use_local_mac">本地地址</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="icmp_dst_mac" class="form-label">目的MAC地址</label>
+                                        <input type="text" class="form-control" id="icmp_dst_mac" value="" placeholder="例如: ff-ff-ff-ff-ff-ff">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="icmp_src_ip" class="form-label">源IP地址</label>
+                                        <input type="text" class="form-control" id="icmp_src_ip" value="4.4.4.100" placeholder="例如: 4.4.4.100">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="icmp_dst_ip" class="form-label">目的IP地址 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="icmp_dst_ip" value="4.4.4.255" placeholder="例如: 4.4.4.255" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="icmp_type" class="form-label">类型 <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="icmp_type" required>
+                                            <option value="echo" selected>ICMP ECHO</option>
+                                            <option value="echo_reply">ICMP ECHO REPLY</option>
+                                            <option value="ping_of_death">Ping of Death</option>
+                                            <option value="smurf">ICMP Smurf</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="icmp_data_length" class="form-label">数据长度</label>
+                                        <input type="number" class="form-control" id="icmp_data_length" value="16" min="0" placeholder="例如: 16">
+                                        <div class="form-text" id="icmp_data_length_help">
+                                            <small class="text-muted">普通ICMP包建议16-64字节</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="udp" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="udp_src_mac" class="form-label">源MAC地址</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="udp_src_mac" value="F4-F1-9E-19-79-B9" placeholder="例如: F4-F1-9E-19-79-B9">
+                                            <div class="input-group-text">
+                                                <input class="form-check-input mt-0" type="checkbox" id="udp_use_local_mac">
+                                                <label class="form-check-label ms-2" for="udp_use_local_mac">本地地址</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_dst_mac" class="form-label">目的MAC地址</label>
+                                        <input type="text" class="form-control" id="udp_dst_mac" value="00-50-56-C0-00-01" placeholder="例如: 00-50-56-C0-00-01">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_src_ip" class="form-label">源IP地址</label>
+                                        <input type="text" class="form-control" id="udp_src_ip" value="4.4.4.100" placeholder="例如: 4.4.4.100">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_dst_ip" class="form-label">目的IP地址 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="udp_dst_ip" value="4.4.4.200" placeholder="例如: 4.4.4.200" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="udp_type" class="form-label">类型 <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="udp_type" required>
+                                            <option value="udp" selected>UDP</option>
+                                            <option value="teardrop">Teardrop</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_src_port" class="form-label">源端口</label>
+                                        <input type="number" class="form-control" id="udp_src_port" value="1122" min="0" max="65535" placeholder="例如: 1122">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_dst_port" class="form-label">目的端口</label>
+                                        <input type="number" class="form-control" id="udp_dst_port" value="2233" min="0" max="65535" placeholder="例如: 2233">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_data_length" class="form-label">数据长度</label>
+                                        <input type="number" class="form-control" id="udp_data_length" value="16" min="0" placeholder="例如: 16">
+                                        <div class="form-text">
+                                            <small class="text-muted">普通UDP包建议16-64字节</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 报文变化配置（默认隐藏） -->
+                    <div class="collapse" id="packetVariations">
+                        <hr>
+                        <h6 class="mb-3"><i class="fas fa-exchange-alt me-2"></i>报文变化配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">源MAC地址</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="var_src_mac_type">
+                                            <option value="fixed" selected>固定</option>
+                                            <option value="increment">递增</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="var_src_mac_count" value="255" min="1" placeholder="变化次数">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">目的MAC地址</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="var_dst_mac_type">
+                                            <option value="fixed" selected>固定</option>
+                                            <option value="increment">递增</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="var_dst_mac_count" value="255" min="1" placeholder="变化次数">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">源IP地址</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="var_src_ip_type">
+                                            <option value="fixed" selected>固定</option>
+                                            <option value="increment">递增</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="var_src_ip_count" value="255" min="1" placeholder="变化次数">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">目的IP地址</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="var_dst_ip_type">
+                                            <option value="fixed" selected>固定</option>
+                                            <option value="increment">递增</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="var_dst_ip_count" value="255" min="1" placeholder="变化次数">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">源端口</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="var_src_port_type">
+                                            <option value="fixed" selected>固定</option>
+                                            <option value="increment">递增</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="var_src_port_count" value="255" min="1" placeholder="变化次数">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">目的端口</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="var_dst_port_type">
+                                            <option value="fixed" selected>固定</option>
+                                            <option value="increment">递增</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="var_dst_port_count" value="255" min="1" placeholder="变化次数">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 发送控制 -->
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">发送次数</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="send_mode" id="send_continuous" value="continuous" checked>
+                                    <label class="btn btn-outline-primary" for="send_continuous">连续发送</label>
+                                    
+                                    <input type="radio" class="btn-check" name="send_mode" id="send_count" value="count">
+                                    <label class="btn btn-outline-primary" for="send_count">
+                                        <input type="number" class="form-control form-control-sm d-inline" id="send_count_value" value="1" min="1" style="width: 80px; display: inline-block;"> 次
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">发送间隔</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="interval_mode" id="interval_delay" value="delay">
+                                    <label class="btn btn-outline-primary" for="interval_delay">
+                                        延迟 <input type="number" class="form-control form-control-sm d-inline" id="interval_value" value="100" min="0" style="width: 80px; display: inline-block;"> ms
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="interval_mode" id="interval_none" value="none" checked>
+                                    <label class="btn btn-outline-primary" for="interval_none">无延迟</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 发送按钮 -->
+                    <div class="d-flex justify-content-end mt-3">
+                        <button id="send_packet_btn" class="btn btn-success btn-lg" disabled>
+                            <i class="fas fa-paper-plane me-2"></i>发送
+                        </button>
+                        <button id="stop_packet_btn" class="btn btn-danger btn-lg ms-2" disabled style="display: none;">
+                            <i class="fas fa-stop me-2"></i>停止
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 发送统计卡片 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>发送统计</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="border rounded p-3">
+                                <h6 class="text-muted mb-2">发送报文数</h6>
+                                <h3 id="stat_sent_count" class="mb-0">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3">
+                                <h6 class="text-muted mb-2">发送速率</h6>
+                                <h3 id="stat_rate" class="mb-0">0 <small class="text-muted">包/秒</small></h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3">
+                                <h6 class="text-muted mb-2">发送带宽</h6>
+                                <h3 id="stat_bandwidth" class="mb-0">0 <small class="text-muted">bps</small></h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧操作日志 -->
+        <div class="col-lg-4">
+            <div class="card operation-log-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>操作日志</h5>
+                    <button id="clear_log" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-trash me-2"></i>清空
+                    </button>
+                </div>
+                <div class="operation-log-body" id="packet_log">
+                    <div class="text-muted text-center py-5">
+                        <i class="fas fa-terminal fa-2x mb-2 opacity-50"></i>
+                        <p>等待操作...</p>
+                        <p class="small">日志将在此处实时显示</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 连接相关元素
+    const connectAgentBtn = document.getElementById('connect_agent');
+    const connectHostBtn = document.getElementById('connect_host');
+    const refreshBtn = document.getElementById('refresh_interfaces');
+    const sendPacketBtn = document.getElementById('send_packet_btn');
+    const stopPacketBtn = document.getElementById('stop_packet_btn');
+    const clearLogBtn = document.getElementById('clear_log');
+    const interfacesList = document.getElementById('interfaces_list');
+    const targetInterface = document.getElementById('target_interface');
+    const packetLog = document.getElementById('packet_log');
+    
+    // 连接方式选择
+    const connectionTypeRadios = document.querySelectorAll('input[name="connection_type"]');
+    const agentConfig = document.getElementById('agent_connection_config');
+    const sshConfig = document.getElementById('ssh_connection_config');
+    
+    // 统计相关
+    const statSentCount = document.getElementById('stat_sent_count');
+    const statRate = document.getElementById('stat_rate');
+    const statBandwidth = document.getElementById('stat_bandwidth');
+    
+    let isConnected = false;
+    let connectionType = 'agent'; // 'agent' or 'ssh'
+    let currentAgentUrl = '';
+    let currentHost = '';
+    let currentUsername = '';
+    let currentPassword = '';
+    let currentPort = 22;
+    let statsInterval = null;
+    let currentSendConfig = null; // 保存当前发送配置，用于检测完成
+    
+    // 测试环境相关
+    let testEnvironments = [];
+    
+    // 加载测试环境列表
+    function loadTestEnvironments() {
+        fetch('/api/test_env/list/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const envs = data.environments.map(env => ({
+                        id: env.id.toString(),
+                        name: env.name,
+                        ip: env.ip,
+                        type: env.type,
+                        user: env.ssh_user,
+                        password: env.ssh_password,
+                        port: env.ssh_port
+                    }));
+                    testEnvironments = envs;
+                    const select = document.getElementById('agent_test_env_select');
+                    if (!select) return;
+                    select.innerHTML = '<option value="">请选择测试环境</option>';
+                    envs.forEach(env => {
+                        const option = document.createElement('option');
+                        option.value = env.id;
+                        option.textContent = `${env.name} (${env.ip}) - ${env.type === 'windows' ? 'Windows' : 'Linux'}`;
+                        option.dataset.env = JSON.stringify(env);
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(err => console.error('加载环境列表失败:', err));
+    }
+    
+    // 设备来源切换事件
+    document.querySelectorAll('input[name="agent_device_source"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const isTestEnv = this.value === 'test_env';
+            document.getElementById('agent_test_env_select_container').style.display = isTestEnv ? 'block' : 'none';
+            document.getElementById('agent_custom_ip_container').style.display = isTestEnv ? 'none' : 'block';
+        });
+    });
+    
+    // 测试环境选择变化时自动填充IP
+    document.getElementById('agent_test_env_select')?.addEventListener('change', function() {
+        const envId = this.value;
+        if (envId) {
+            const env = testEnvironments.find(e => e.id === envId);
+            if (env) {
+                // 自动填充到agent_ip输入框（虽然隐藏，但连接时会使用）
+                document.getElementById('agent_ip').value = env.ip;
+            }
+        }
+    });
+    
+    // 页面加载时加载测试环境
+    loadTestEnvironments();
+    
+    // 添加日志条目
+    function addLogEntry(message, type = 'info') {
+        if (!packetLog) return;
+        
+        const timestamp = new Date().toLocaleTimeString();
+        const colors = {
+            'info': '#4fc3f7',
+            'success': '#66bb6a',
+            'warning': '#ffa726',
+            'danger': '#ef5350'
+        };
+        const icons = {
+            'info': 'fa-info-circle',
+            'success': 'fa-check-circle',
+            'warning': 'fa-exclamation-triangle',
+            'danger': 'fa-times-circle'
+        };
+        
+        // 清空初始提示
+        if (packetLog.querySelector('.text-center')) {
+            packetLog.innerHTML = '';
+        }
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = 'mb-2';
+        logEntry.style.wordBreak = 'break-word';
+        logEntry.innerHTML = `
+            <span style="color: #888;">[${timestamp}]</span>
+            <i class="fas ${icons[type] || icons.info}" style="color: ${colors[type] || colors.info};"></i>
+            <span style="color: ${colors[type] || colors.info};">${escapeHtml(message)}</span>
+        `;
+        packetLog.appendChild(logEntry);
+        packetLog.scrollTop = packetLog.scrollHeight;
+    }
+    
+    // HTML转义函数
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // ARP本地地址复选框事件
+    const arpUseLocalMac = document.getElementById('arp_use_local_mac');
+    if (arpUseLocalMac) {
+        arpUseLocalMac.addEventListener('change', function() {
+            if (this.checked) {
+                // 检查是否已选择网卡（使用最新的DOM引用）
+                const currentTargetInterface = document.getElementById('target_interface');
+                const selectedInterface = currentTargetInterface ? currentTargetInterface.value : '';
+                if (!selectedInterface) {
+                    addLogEntry('请先选择网卡', 'warning');
+                    this.checked = false;
+                    return;
+                }
+                
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    document.getElementById('arp_src_mac').value = localMac;
+                    addLogEntry(`已自动填充源MAC地址: ${localMac}`, 'info');
+                } else {
+                    addLogEntry('无法获取网卡MAC地址，请检查网卡信息', 'warning');
+                    this.checked = false;
+                }
+            }
+        });
+    }
+    
+    // ARP广播复选框事件
+    const arpUseBroadcast = document.getElementById('arp_use_broadcast');
+    if (arpUseBroadcast) {
+        arpUseBroadcast.addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('arp_dst_mac').value = 'FF-FF-FF-FF-FF-FF';
+            }
+        });
+    }
+    
+    // TCP随机MAC地址按钮事件
+    document.getElementById('tcp_random_src_mac')?.addEventListener('click', () => {
+        const randomMac = generateRandomMac();
+        document.getElementById('src_mac').value = randomMac;
+        // 如果勾选了使用本机MAC，取消勾选
+        const useLocalMacCheckbox = document.getElementById('tcp_use_local_mac');
+        if (useLocalMacCheckbox) {
+            useLocalMacCheckbox.checked = false;
+        }
+        addLogEntry(`已生成随机源MAC地址: ${randomMac}`, 'info');
+    });
+    
+    document.getElementById('tcp_random_dst_mac')?.addEventListener('click', () => {
+        const randomMac = generateRandomMac();
+        document.getElementById('dst_mac').value = randomMac;
+        addLogEntry(`已生成随机目的MAC地址: ${randomMac}`, 'info');
+    });
+    
+    // TCP使用本机MAC复选框事件
+    const tcpUseLocalMac = document.getElementById('tcp_use_local_mac');
+    if (tcpUseLocalMac) {
+        tcpUseLocalMac.addEventListener('change', function() {
+            if (this.checked) {
+                // 检查是否已选择网卡
+                const currentTargetInterface = document.getElementById('target_interface');
+                const selectedInterface = currentTargetInterface ? currentTargetInterface.value : '';
+                if (!selectedInterface) {
+                    addLogEntry('请先选择网卡', 'warning');
+                    this.checked = false;
+                    return;
+                }
+                
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    document.getElementById('src_mac').value = localMac;
+                    addLogEntry(`已自动填充本机MAC地址: ${localMac}`, 'info');
+                } else {
+                    addLogEntry('无法获取网卡MAC地址，请检查网卡信息', 'warning');
+                    this.checked = false;
+                }
+            }
+        });
+    }
+    
+    // TCP LAND勾选框事件
+    const tcpLandCheckbox = document.getElementById('tcp_land');
+    const tcpSrcIpInput = document.getElementById('src_ip');
+    const tcpDstIpInput = document.getElementById('dst_ip');
+    
+    if (tcpLandCheckbox && tcpSrcIpInput && tcpDstIpInput) {
+        tcpLandCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // 生成随机IP地址
+                const randomIp = generateRandomIp();
+                // 同步到源IP和目的IP
+                tcpSrcIpInput.value = randomIp;
+                tcpDstIpInput.value = randomIp;
+                addLogEntry(`LAND攻击: 已自动生成随机IP地址并同步到源IP和目的IP: ${randomIp}`, 'info');
+            }
+        });
+    }
+    
+    // 页面加载时自动生成TCP源MAC地址
+    setTimeout(function() {
+        const srcMacInput = document.getElementById('src_mac');
+        if (srcMacInput && !srcMacInput.value) {
+            srcMacInput.value = generateRandomMac();
+        }
+        // 同时生成目的MAC地址
+        const dstMacInput = document.getElementById('dst_mac');
+        if (dstMacInput && !dstMacInput.value) {
+            dstMacInput.value = generateRandomMac();
+        }
+    }, 500);
+    
+    // 生成随机MAC地址
+    function generateRandomMac() {
+        const hex = '0123456789abcdef';
+        let mac = '';
+        for (let i = 0; i < 6; i++) {
+            if (i > 0) mac += '-';
+            // 第一个字节的第二个字符确保是偶数（本地管理地址）
+            if (i === 0) {
+                mac += hex[Math.floor(Math.random() * 16)];
+                mac += hex[Math.floor(Math.random() * 8) * 2]; // 确保是偶数
+            } else {
+                mac += hex[Math.floor(Math.random() * 16)];
+                mac += hex[Math.floor(Math.random() * 16)];
+            }
+        }
+        return mac;
+    }
+    
+    // 生成随机IP地址
+    function generateRandomIp() {
+        // 生成私有IP地址范围（10.x.x.x, 172.16-31.x.x, 192.168.x.x）
+        const ranges = [
+            () => `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+            () => `172.${Math.floor(Math.random() * 16) + 16}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+            () => `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`
+        ];
+        return ranges[Math.floor(Math.random() * ranges.length)]();
+    }
+    
+    // ICMP类型变化事件
+    const icmpTypeSelect = document.getElementById('icmp_type');
+    const icmpDataLengthInput = document.getElementById('icmp_data_length');
+    const icmpDataLengthHelp = document.getElementById('icmp_data_length_help');
+    const icmpDstMacInput = document.getElementById('icmp_dst_mac');
+    const icmpDstIpInput = document.getElementById('icmp_dst_ip');
+    const icmpTabBtn = document.getElementById('icmp-tab');
+    
+    // 首次进入ICMP时初始化一次默认值（避免目的MAC显示全F）
+    let icmpInitializedOnce = false;
+    function initIcmpOnce() {
+        if (icmpInitializedOnce) return;
+        icmpInitializedOnce = true;
+        
+        // 仅在ICMP ECHO时：随机一次目的MAC（不覆盖用户手填的值）
+        if (icmpTypeSelect && icmpTypeSelect.value === 'echo' && icmpDstMacInput) {
+            const current = (icmpDstMacInput.value || '').trim().toLowerCase();
+            if (!current || current === 'ff-ff-ff-ff-ff-ff' || current === 'ff:ff:ff:ff:ff:ff') {
+                const randomMac = generateRandomMac();
+                icmpDstMacInput.value = randomMac;
+                addLogEntry(`ICMP: 首次进入已自动生成随机目的MAC地址: ${randomMac}`, 'info');
+            }
+        }
+    }
+    
+    if (icmpTypeSelect && icmpDataLengthInput && icmpDataLengthHelp) {
+        icmpTypeSelect.addEventListener('change', function() {
+            if (this.value === 'echo') {
+                // ICMP ECHO: 目的MAC随机产生，数据长度为16，目的IP为4.4.4.200
+                icmpDataLengthInput.value = '16';
+                icmpDataLengthInput.min = '0';
+                icmpDataLengthInput.removeAttribute('max');
+                icmpDataLengthHelp.innerHTML = '<small class="text-muted">普通ICMP包建议16-64字节</small>';
+                
+                // 随机生成目的MAC地址
+                if (icmpDstMacInput) {
+                    const randomMac = generateRandomMac();
+                    icmpDstMacInput.value = randomMac;
+                    addLogEntry(`ICMP ECHO: 已自动生成随机目的MAC地址: ${randomMac}`, 'info');
+                }
+                
+                // 设置目的IP为4.4.4.200
+                if (icmpDstIpInput) {
+                    icmpDstIpInput.value = '4.4.4.200';
+                    addLogEntry('ICMP ECHO: 已自动填充目的IP地址为 4.4.4.200', 'info');
+                }
+            } else if (this.value === 'ping_of_death') {
+                // Ping of Death: 设置默认超大包大小
+                // 注意：IP包总长度字段只有16位（最大65535），所以ICMP载荷最大为65507字节（65535-20-8）
+                icmpDataLengthInput.value = '65507';
+                icmpDataLengthInput.min = '65507';
+                icmpDataLengthInput.max = '65507';
+                icmpDataLengthHelp.innerHTML = '<small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Ping of Death: 最大65507字节（IP包最大65535字节，减去IP头20字节和ICMP头8字节）（仅用于产品功能测试）</small>';
+                
+                // 随机生成目的MAC地址
+                if (icmpDstMacInput) {
+                    const randomMac = generateRandomMac();
+                    icmpDstMacInput.value = randomMac;
+                    addLogEntry(`Ping of Death: 已自动生成随机目的MAC地址: ${randomMac}`, 'info');
+                }
+                
+                // 随机生成目的IP地址
+                if (icmpDstIpInput) {
+                    const randomIp = generateRandomIp();
+                    icmpDstIpInput.value = randomIp;
+                    addLogEntry(`Ping of Death: 已自动生成随机目的IP地址: ${randomIp}`, 'info');
+                }
+            } else if (this.value === 'smurf') {
+                // ICMP Smurf: 目的MAC为全F，目的IP为广播地址，数据长度为16
+                icmpDataLengthInput.value = '16';
+                icmpDataLengthInput.min = '0';
+                icmpDataLengthInput.removeAttribute('max');
+                icmpDataLengthHelp.innerHTML = '<small class="text-muted">普通ICMP包建议16-64字节</small>';
+                
+                if (icmpDstMacInput) {
+                    icmpDstMacInput.value = 'ff-ff-ff-ff-ff-ff';
+                    addLogEntry('ICMP Smurf: 已自动填充目的MAC地址为广播地址 (FF:FF:FF:FF:FF:FF)', 'info');
+                }
+                if (icmpDstIpInput) {
+                    icmpDstIpInput.value = '4.4.4.255';
+                    addLogEntry('ICMP Smurf: 已自动填充目的IP地址为广播地址 (4.4.4.255)', 'info');
+                }
+            } else {
+                // 普通ICMP: 恢复默认值
+                icmpDataLengthInput.value = '16';
+                icmpDataLengthInput.min = '0';
+                icmpDataLengthInput.removeAttribute('max');
+                icmpDataLengthHelp.innerHTML = '<small class="text-muted">普通ICMP包建议16-64字节</small>';
+                
+                // 恢复默认的目的MAC和IP（如果需要）
+                if (icmpDstMacInput && !icmpDstMacInput.dataset.originalValue) {
+                    icmpDstMacInput.dataset.originalValue = icmpDstMacInput.value;
+                }
+                if (icmpDstIpInput && !icmpDstIpInput.dataset.originalValue) {
+                    icmpDstIpInput.dataset.originalValue = icmpDstIpInput.value;
+                }
+            }
+        });
+    }
+
+    // Bootstrap tab：首次切到ICMP时初始化
+    if (icmpTabBtn) {
+        icmpTabBtn.addEventListener('shown.bs.tab', function() {
+            initIcmpOnce();
+        });
+    }
+    // 若页面加载后默认已经在ICMP页，也初始化一次
+    try {
+        const icmpPane = document.getElementById('icmp');
+        if (icmpPane && icmpPane.classList.contains('active')) {
+            initIcmpOnce();
+        }
+    } catch (e) {
+        // ignore
+    }
+    
+    // ICMP本地地址复选框事件
+    const icmpUseLocalMac = document.getElementById('icmp_use_local_mac');
+    if (icmpUseLocalMac) {
+        icmpUseLocalMac.addEventListener('change', function() {
+            if (this.checked) {
+                // 检查是否已选择网卡（使用最新的DOM引用）
+                const currentTargetInterface = document.getElementById('target_interface');
+                const selectedInterface = currentTargetInterface ? currentTargetInterface.value : '';
+                if (!selectedInterface) {
+                    addLogEntry('请先选择网卡', 'warning');
+                    this.checked = false;
+                    return;
+                }
+                
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    document.getElementById('icmp_src_mac').value = localMac;
+                    addLogEntry(`已自动填充源MAC地址: ${localMac}`, 'info');
+                } else {
+                    addLogEntry('无法获取网卡MAC地址，请检查网卡信息', 'warning');
+                    this.checked = false;
+                }
+            }
+        });
+    }
+    
+    // UDP本地地址复选框事件
+    const udpUseLocalMac = document.getElementById('udp_use_local_mac');
+    if (udpUseLocalMac) {
+        udpUseLocalMac.addEventListener('change', function() {
+            if (this.checked) {
+                // 检查是否已选择网卡（使用最新的DOM引用）
+                const currentTargetInterface = document.getElementById('target_interface');
+                const selectedInterface = currentTargetInterface ? currentTargetInterface.value : '';
+                if (!selectedInterface) {
+                    addLogEntry('请先选择网卡', 'warning');
+                    this.checked = false;
+                    return;
+                }
+                
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    document.getElementById('udp_src_mac').value = localMac;
+                    addLogEntry(`已自动填充源MAC地址: ${localMac}`, 'info');
+                } else {
+                    addLogEntry('无法获取网卡MAC地址，请检查网卡信息', 'warning');
+                    this.checked = false;
+                }
+            }
+        });
+    }
+    
+    // 注意：网卡选择变化的处理已经在displayInterfaces函数中实现
+    // 这里不再重复添加监听器，避免冲突
+    
+    // 连接方式切换
+    connectionTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            connectionType = this.value;
+            if (connectionType === 'agent') {
+                agentConfig.style.display = 'block';
+                sshConfig.style.display = 'none';
+            } else {
+                agentConfig.style.display = 'none';
+                sshConfig.style.display = 'block';
+            }
+            // 重置连接状态
+            isConnected = false;
+            resetConnectionUI();
+        });
+    });
+    
+    // 连接代理程序
+    if (connectAgentBtn) {
+        connectAgentBtn.addEventListener('click', function() {
+            // 获取设备来源
+            const deviceSource = document.querySelector('input[name="agent_device_source"]:checked')?.value || 'test_env';
+            let agentIp = '';
+            
+            if (deviceSource === 'test_env') {
+                // 从测试环境选择
+                const envId = document.getElementById('agent_test_env_select').value;
+                if (!envId) {
+                    addLogEntry('请选择测试环境', 'warning');
+                    return;
+                }
+                const env = testEnvironments.find(e => e.id === envId);
+                if (!env) {
+                    addLogEntry('测试环境不存在', 'warning');
+                    return;
+                }
+                agentIp = env.ip;
+            } else {
+                // 手动指定IP
+                agentIp = document.getElementById('agent_ip').value.trim();
+                if (!agentIp) {
+                    addLogEntry('请输入代理程序IP地址', 'warning');
+                    return;
+                }
+            }
+            
+            // 使用默认端口8888
+            const agentPort = '8888';
+            
+            // 组合URL
+            const agentUrl = `http://${agentIp}:${agentPort}`;
+            
+            if (connectAgentBtn) {
+                connectAgentBtn.disabled = true;
+                connectAgentBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>连接中...';
+            }
+            addLogEntry(`正在连接代理程序: ${agentUrl}...`, 'info');
+            
+            // 获取网卡信息
+            fetch('/api/agent/interfaces/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    agent_url: agentUrl
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isConnected = true;
+                    connectionType = 'agent';
+                    currentAgentUrl = agentUrl;
+                    
+                    if (connectAgentBtn) {
+                        connectAgentBtn.innerHTML = '<i class="fas fa-check me-2"></i>已连接';
+                        connectAgentBtn.classList.remove('btn-primary');
+                        connectAgentBtn.classList.add('btn-success');
+                        connectAgentBtn.disabled = true;
+                    }
+                    
+                    if (refreshBtn) refreshBtn.disabled = false;
+                    if (sendPacketBtn) sendPacketBtn.disabled = false;
+                    if (targetInterface) targetInterface.disabled = false;
+                    
+                    addLogEntry(`成功连接到代理程序`, 'success');
+                    displayInterfaces(data.interfaces || []);
+                } else {
+                    addLogEntry(`连接失败: ${data.error}`, 'danger');
+                    if (connectAgentBtn) {
+                        connectAgentBtn.disabled = false;
+                        connectAgentBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+                    }
+                }
+            })
+            .catch(error => {
+                addLogEntry(`连接出错: ${error.message}`, 'danger');
+                if (connectAgentBtn) {
+                    connectAgentBtn.disabled = false;
+                    connectAgentBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+                }
+            });
+        });
+    }
+    
+    // 连接主机（SSH方式）
+    if (connectHostBtn) {
+        connectHostBtn.addEventListener('click', function() {
+            const host = document.getElementById('host_address').value;
+            const port = parseInt(document.getElementById('ssh_port').value) || 22;
+            const username = document.getElementById('ssh_username').value;
+            const password = document.getElementById('ssh_password').value;
+            
+            if (!host || !username || !password) {
+                addLogEntry('请填写完整的连接信息', 'warning');
+                return;
+            }
+            
+            if (connectHostBtn) {
+                connectHostBtn.disabled = true;
+                connectHostBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>连接中...';
+            }
+            addLogEntry(`正在连接 ${host}:${port}...`, 'info');
+        
+        // 获取网卡信息
+        fetch('/api/get_interfaces/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                host: host,
+                port: port,
+                username: username,
+                password: password
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                isConnected = true;
+                connectionType = 'ssh';
+                currentHost = host;
+                currentUsername = username;
+                currentPassword = password;
+                currentPort = port;
+                
+                connectHostBtn.innerHTML = '<i class="fas fa-check me-2"></i>已连接';
+                connectHostBtn.classList.remove('btn-primary');
+                connectHostBtn.classList.add('btn-success');
+                connectHostBtn.disabled = true;
+                
+                refreshBtn.disabled = false;
+                sendPacketBtn.disabled = false;
+                targetInterface.disabled = false;
+                
+                addLogEntry(`成功连接到 ${host}`, 'success');
+                displayInterfaces(data.interfaces || []);
+            } else {
+                addLogEntry(`连接失败: ${data.error}`, 'danger');
+                if (connectHostBtn) {
+                    connectHostBtn.disabled = false;
+                    connectHostBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+                }
+            }
+        })
+        .catch(error => {
+            addLogEntry(`连接出错: ${error.message}`, 'danger');
+            if (connectHostBtn) {
+                connectHostBtn.disabled = false;
+                connectHostBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+            }
+        });
+        });
+    }
+    
+    // 重置连接UI
+    function resetConnectionUI() {
+        isConnected = false;
+        if (refreshBtn) refreshBtn.disabled = true;
+        if (sendPacketBtn) sendPacketBtn.disabled = true;
+        if (targetInterface) targetInterface.disabled = true;
+        if (connectAgentBtn) {
+            connectAgentBtn.disabled = false;
+            connectAgentBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+            connectAgentBtn.classList.remove('btn-success');
+            connectAgentBtn.classList.add('btn-primary');
+        }
+        if (connectHostBtn) {
+            connectHostBtn.disabled = false;
+            connectHostBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+            connectHostBtn.classList.remove('btn-success');
+            connectHostBtn.classList.add('btn-primary');
+        }
+        if (interfacesList) {
+            interfacesList.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-info-circle fa-2x mb-2 opacity-50"></i>
+                    <p>请先连接远程主机以获取网卡信息</p>
+                </div>
+            `;
+        }
+        if (targetInterface) {
+            targetInterface.innerHTML = '<option value="" selected>请先获取网卡信息</option>';
+        }
+    }
+    
+    // 刷新网卡信息
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (!isConnected) return;
+            
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>刷新中...';
+            addLogEntry('正在刷新网卡信息...', 'info');
+            
+            let apiUrl, requestBody;
+            if (connectionType === 'agent') {
+                apiUrl = '/api/agent/interfaces/';
+                requestBody = { agent_url: currentAgentUrl };
+            } else {
+                apiUrl = '/api/get_interfaces/';
+                requestBody = {
+                    host: currentHost,
+                    port: currentPort,
+                    username: currentUsername,
+                    password: currentPassword
+                };
+            }
+            
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLogEntry('网卡信息刷新成功', 'success');
+                    displayInterfaces(data.interfaces || []);
+                } else {
+                    addLogEntry(`刷新失败: ${data.error}`, 'danger');
+                }
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>刷新';
+                }
+            })
+            .catch(error => {
+                addLogEntry(`刷新出错: ${error.message}`, 'danger');
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>刷新';
+                }
+            });
+        });
+    }
+    
+    // 存储接口数据
+    let interfacesData = [];
+    
+    // 显示网卡列表
+    function displayInterfaces(interfaces) {
+        // 存储接口数据
+        interfacesData = interfaces || [];
+        
+        if (!interfaces || interfaces.length === 0) {
+            if (interfacesList) {
+                interfacesList.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2 opacity-50"></i>
+                        <p>未找到可用网卡</p>
+                    </div>
+                `;
+            }
+            if (targetInterface) {
+                targetInterface.innerHTML = '<option value="" selected>未找到网卡</option>';
+            }
+            const targetSection = document.getElementById('target_interface_section');
+            if (targetSection) targetSection.style.display = 'none';
+            return;
+        }
+        
+        let html = '<div class="row g-3">';
+        interfaces.forEach((iface, index) => {
+            // 处理接口对象或字符串
+            const ifaceName = typeof iface === 'string' ? iface : (iface.name || iface);
+            const displayName = typeof iface === 'object' ? (iface.display_name || iface.name || iface) : iface;
+            const ifaceIp = typeof iface === 'object' ? (iface.ip || '') : '';
+            const ifaceMac = typeof iface === 'object' ? (iface.mac || '') : '';
+            
+            // 生成友好的显示名称
+            let friendlyName = displayName;
+            if (displayName && displayName.startsWith('\\Device\\NPF_')) {
+                // Windows NPF设备，使用MAC地址后6位作为标识
+                if (ifaceMac) {
+                    const macShort = ifaceMac.replace(/:/g, '').substring(6, 12).toUpperCase();
+                    friendlyName = `网卡 ${macShort}`;
+                } else {
+                    friendlyName = '网卡 ' + (index + 1);
+                }
+            }
+            
+            html += `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card interface-card border h-100" data-interface="${ifaceName}" style="cursor: pointer; transition: all 0.3s;">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-network-wired text-primary fa-2x"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-2 fw-bold">${friendlyName}</h6>
+                                    ${ifaceIp ? `<div class="mb-1"><i class="fas fa-globe text-info me-1"></i><small>IP: ${ifaceIp}</small></div>` : ''}
+                                    ${ifaceMac ? `<div class="mb-0"><i class="fas fa-fingerprint text-success me-1"></i><small>MAC: ${ifaceMac}</small></div>` : ''}
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-check-circle text-success selection-indicator" style="display: none;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        if (interfacesList) {
+            interfacesList.innerHTML = html;
+        }
+        
+        // 添加点击事件
+        const interfaceCards = interfacesList.querySelectorAll('.interface-card');
+        interfaceCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const ifaceName = this.getAttribute('data-interface');
+                // 移除其他卡片的选中状态
+                interfaceCards.forEach(c => {
+                    c.classList.remove('border-success', 'bg-light');
+                    c.querySelector('.selection-indicator').style.display = 'none';
+                });
+                // 添加当前卡片的选中状态
+                this.classList.add('border-success', 'bg-light');
+                this.querySelector('.selection-indicator').style.display = 'block';
+                // 更新下拉选择框（使用最新的DOM引用）
+                const currentTargetInterface = document.getElementById('target_interface');
+                if (currentTargetInterface) {
+                    currentTargetInterface.value = ifaceName;
+                    // 触发change事件以同步其他逻辑（如ARP MAC更新）
+                    currentTargetInterface.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                addLogEntry(`已选择网卡: ${this.querySelector('h6').textContent}`, 'success');
+            });
+            
+            // 添加悬停效果
+            card.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('border-success')) {
+                    this.classList.add('border-primary', 'shadow-sm');
+                }
+            });
+            card.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('border-success')) {
+                    this.classList.remove('border-primary', 'shadow-sm');
+                }
+            });
+        });
+        
+        // 更新下拉选择框
+        const targetSection = document.getElementById('target_interface_section');
+        const currentTargetInterface = document.getElementById('target_interface');
+        if (currentTargetInterface && targetSection) {
+            // 保存当前选中的值（如果有）
+            const currentValue = currentTargetInterface.value;
+            
+            currentTargetInterface.innerHTML = '<option value="">请选择网卡</option>';
+            interfaces.forEach(iface => {
+                const ifaceName = typeof iface === 'string' ? iface : (iface.name || iface);
+                const displayName = typeof iface === 'object' ? (iface.display_name || iface.name || iface) : iface;
+                let friendlyName = displayName;
+                if (displayName && displayName.startsWith('\\Device\\NPF_')) {
+                    const ifaceMac = typeof iface === 'object' ? (iface.mac || '') : '';
+                    if (ifaceMac) {
+                        const macShort = ifaceMac.replace(/:/g, '').substring(6, 12).toUpperCase();
+                        friendlyName = `网卡 ${macShort}`;
+                    } else {
+                        friendlyName = '网卡 ' + (interfaces.indexOf(iface) + 1);
+                    }
+                }
+                const option = document.createElement('option');
+                option.value = ifaceName;
+                option.textContent = friendlyName;
+                currentTargetInterface.appendChild(option);
+            });
+            
+            // 恢复之前选中的值（如果仍然存在）
+            if (currentValue) {
+                const optionExists = Array.from(currentTargetInterface.options).some(opt => opt.value === currentValue);
+                if (optionExists) {
+                    currentTargetInterface.value = currentValue;
+                    // 触发change事件以同步卡片选中状态
+                    currentTargetInterface.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            
+            targetSection.style.display = 'block';
+            currentTargetInterface.disabled = false;
+        }
+        
+        // 下拉选择框变化时，同步更新卡片选中状态和ARP MAC地址
+        if (targetInterface && targetInterface.parentNode) {
+            // 移除可能存在的旧监听器，避免重复绑定
+            const newTargetInterface = targetInterface.cloneNode(true);
+            targetInterface.parentNode.replaceChild(newTargetInterface, targetInterface);
+            // 更新全局引用
+            const updatedTargetInterface = document.getElementById('target_interface');
+            if (updatedTargetInterface) {
+                updatedTargetInterface.addEventListener('change', function() {
+                    const selectedName = this.value;
+                    if (!selectedName) {
+                        // 如果选择为空，清除所有选中状态
+                        interfaceCards.forEach(c => {
+                            c.classList.remove('border-success', 'bg-light');
+                            c.querySelector('.selection-indicator').style.display = 'none';
+                        });
+                        return;
+                    }
+                    
+                    // 同步更新卡片选中状态
+                    interfaceCards.forEach(card => {
+                        const cardName = card.getAttribute('data-interface');
+                        if (cardName === selectedName) {
+                            // 移除其他选中状态
+                            interfaceCards.forEach(c => {
+                                c.classList.remove('border-success', 'bg-light');
+                                c.querySelector('.selection-indicator').style.display = 'none';
+                            });
+                            // 添加当前选中状态
+                            card.classList.add('border-success', 'bg-light');
+                            card.querySelector('.selection-indicator').style.display = 'block';
+                        }
+                    });
+                    
+                    // 如果ARP本地地址已勾选，自动更新MAC
+                    const arpUseLocalMacEl = document.getElementById('arp_use_local_mac');
+                    if (arpUseLocalMacEl && arpUseLocalMacEl.checked) {
+                        const localMac = getSelectedInterfaceMac();
+                        if (localMac) {
+                            const arpSrcMacEl = document.getElementById('arp_src_mac');
+                            if (arpSrcMacEl) {
+                                arpSrcMacEl.value = localMac;
+                            }
+                        }
+                    }
+                    
+                    // 如果ICMP本地地址已勾选，自动更新MAC
+                    const icmpUseLocalMacEl = document.getElementById('icmp_use_local_mac');
+                    if (icmpUseLocalMacEl && icmpUseLocalMacEl.checked) {
+                        const localMac = getSelectedInterfaceMac();
+                        if (localMac) {
+                            const icmpSrcMacEl = document.getElementById('icmp_src_mac');
+                            if (icmpSrcMacEl) {
+                                icmpSrcMacEl.value = localMac;
+                            }
+                        }
+                    }
+                    
+                    // 如果TCP使用本机MAC已勾选，自动更新MAC
+                    const tcpUseLocalMacEl = document.getElementById('tcp_use_local_mac');
+                    if (tcpUseLocalMacEl && tcpUseLocalMacEl.checked) {
+                        const localMac = getSelectedInterfaceMac();
+                        if (localMac) {
+                            const tcpSrcMacEl = document.getElementById('src_mac');
+                            if (tcpSrcMacEl) {
+                                tcpSrcMacEl.value = localMac;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+    
+    // 获取当前选中网卡的MAC地址
+    function getSelectedInterfaceMac() {
+        // 获取最新的targetInterface引用（因为可能被替换过）
+        const currentTargetInterface = document.getElementById('target_interface');
+        const selectedInterface = currentTargetInterface ? currentTargetInterface.value : '';
+        if (!selectedInterface) {
+            return '';
+        }
+        
+        // 优先从存储的接口数据中查找
+        if (interfacesData && interfacesData.length > 0) {
+            const iface = interfacesData.find(i => {
+                const ifaceName = typeof i === 'string' ? i : (i.name || i);
+                return ifaceName === selectedInterface;
+            });
+            if (iface) {
+                if (typeof iface === 'object' && iface.mac) {
+                    return iface.mac;
+                }
+            }
+        }
+        
+        // 从网卡卡片中查找MAC地址（备用方案）
+        const selectedCard = interfacesList?.querySelector(`.interface-card[data-interface="${selectedInterface}"]`);
+        if (selectedCard) {
+            const macText = selectedCard.textContent;
+            const macMatch = macText.match(/MAC:\s*([0-9A-Fa-f:]{17})/);
+            if (macMatch) {
+                return macMatch[1];
+            }
+        }
+        
+        return '';
+    }
+    
+    // 收集报文配置数据（根据当前选中的协议标签页）
+    function collectPacketConfig() {
+        // 获取当前激活的协议标签页
+        const activeTab = document.querySelector('#protocolTabs .nav-link.active');
+        const protocol = activeTab ? activeTab.getAttribute('data-bs-target').replace('#', '') : 'tcp';
+        
+        if (protocol === 'arp') {
+            // ARP配置
+            let srcMac = document.getElementById('arp_src_mac')?.value || '';
+            let dstMac = document.getElementById('arp_dst_mac')?.value || '';
+            
+            // 如果勾选了本地地址，使用当前选中网卡的MAC
+            if (document.getElementById('arp_use_local_mac')?.checked) {
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    srcMac = localMac;
+                    document.getElementById('arp_src_mac').value = localMac;
+                }
+            }
+            
+            // 如果勾选了广播，使用广播MAC
+            if (document.getElementById('arp_use_broadcast')?.checked) {
+                dstMac = 'FF-FF-FF-FF-FF-FF';
+                document.getElementById('arp_dst_mac').value = dstMac;
+            }
+            
+            return {
+                protocol: 'arp',
+                src_mac: srcMac,
+                dst_mac: dstMac,
+                src_ip: document.getElementById('arp_src_ip')?.value || '',
+                dst_ip: document.getElementById('arp_dst_ip')?.value || '',
+                arp_type: document.getElementById('arp_type')?.value || 'arp_req'
+            };
+        } else if (protocol === 'tcp') {
+            // TCP配置
+            let srcMac = document.getElementById('src_mac')?.value || '';
+            let dstMac = document.getElementById('dst_mac')?.value || '';
+            
+            // 如果勾选了使用本机MAC，使用当前选中网卡的MAC
+            if (document.getElementById('tcp_use_local_mac')?.checked) {
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    srcMac = localMac;
+                    document.getElementById('src_mac').value = localMac;
+                }
+            }
+            
+            const config = {
+                protocol: 'tcp',
+                src_mac: srcMac,
+                dst_mac: dstMac,
+                src_ip: document.getElementById('src_ip')?.value || '',
+                dst_ip: document.getElementById('dst_ip')?.value || '',
+                src_port: parseInt(document.getElementById('src_port')?.value || '0') || 0,
+                dst_port: parseInt(document.getElementById('dst_port')?.value || '0') || 0,
+                flags: [],
+                data: document.getElementById('tcp_data')?.value || ''
+            };
+            
+            // 收集TCP标志位
+            if (document.getElementById('flag_syn')?.checked) config.flags.push('SYN');
+            if (document.getElementById('flag_ack')?.checked) config.flags.push('ACK');
+            if (document.getElementById('flag_fin')?.checked) config.flags.push('FIN');
+            if (document.getElementById('flag_rst')?.checked) config.flags.push('RST');
+            if (document.getElementById('flag_psh')?.checked) config.flags.push('PSH');
+            if (document.getElementById('flag_urg')?.checked) config.flags.push('URG');
+            
+            return config;
+        } else if (protocol === 'icmp') {
+            // ICMP配置
+            let srcMac = document.getElementById('icmp_src_mac')?.value || '';
+            let dstMac = document.getElementById('icmp_dst_mac')?.value || '';
+            
+            // 如果勾选了本地地址，使用当前选中网卡的MAC
+            if (document.getElementById('icmp_use_local_mac')?.checked) {
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    srcMac = localMac;
+                    document.getElementById('icmp_src_mac').value = localMac;
+                }
+            }
+            
+            return {
+                protocol: 'icmp',
+                src_mac: srcMac,
+                dst_mac: dstMac,
+                src_ip: document.getElementById('icmp_src_ip')?.value || '',
+                dst_ip: document.getElementById('icmp_dst_ip')?.value || '',
+                icmp_type: document.getElementById('icmp_type')?.value || 'echo',
+                data_length: parseInt(document.getElementById('icmp_data_length')?.value || '0') || 0
+            };
+        } else if (protocol === 'udp') {
+            // UDP配置
+            let srcMac = document.getElementById('udp_src_mac')?.value || '';
+            let dstMac = document.getElementById('udp_dst_mac')?.value || '';
+            
+            // 如果勾选了本地地址，使用当前选中网卡的MAC
+            if (document.getElementById('udp_use_local_mac')?.checked) {
+                const localMac = getSelectedInterfaceMac();
+                if (localMac) {
+                    srcMac = localMac;
+                    document.getElementById('udp_src_mac').value = localMac;
+                }
+            }
+            
+            return {
+                protocol: 'udp',
+                src_mac: srcMac,
+                dst_mac: dstMac,
+                src_ip: document.getElementById('udp_src_ip')?.value || '',
+                dst_ip: document.getElementById('udp_dst_ip')?.value || '',
+                src_port: parseInt(document.getElementById('udp_src_port')?.value || '0') || 0,
+                dst_port: parseInt(document.getElementById('udp_dst_port')?.value || '0') || 0,
+                udp_type: document.getElementById('udp_type')?.value || 'udp',
+                data_length: parseInt(document.getElementById('udp_data_length')?.value || '0') || 0
+            };
+        }
+        
+        // 默认返回TCP配置
+        return {
+            protocol: 'tcp',
+            src_mac: '',
+            dst_mac: '',
+            src_ip: '',
+            dst_ip: '',
+            src_port: 0,
+            dst_port: 0,
+            flags: [],
+            data: ''
+        };
+    }
+    
+    // 收集报文变化配置（通用）
+    function collectVariations() {
+        const variations = {};
+        const varFields = ['src_mac', 'dst_mac', 'src_ip', 'dst_ip', 'src_port', 'dst_port'];
+        varFields.forEach(field => {
+            const typeEl = document.getElementById(`var_${field}_type`);
+            const countEl = document.getElementById(`var_${field}_count`);
+            if (typeEl && countEl) {
+                const type = typeEl.value;
+                const count = parseInt(countEl.value) || 1;
+                if (type !== 'fixed') {
+                    variations[field] = { type: type, count: count };
+                }
+            }
+        });
+        return variations;
+    }
+    
+    // 收集发送配置
+    function collectSendConfig() {
+        const sendModeEl = document.querySelector('input[name="send_mode"]:checked');
+        const intervalModeEl = document.querySelector('input[name="interval_mode"]:checked');
+        
+        if (!sendModeEl || !intervalModeEl) {
+            return {
+                continuous: true,
+                count: 1,
+                interval: 0
+            };
+        }
+        
+        const sendMode = sendModeEl.value;
+        const intervalMode = intervalModeEl.value;
+        
+        const config = {
+            continuous: sendMode === 'continuous',
+            count: sendMode === 'count' ? parseInt(document.getElementById('send_count_value')?.value || '1') || 1 : 1,
+            interval: intervalMode === 'delay' ? parseInt(document.getElementById('interval_value')?.value || '0') || 0 : 0
+        };
+        
+        return config;
+    }
+    
+    // 发送报文
+    if (sendPacketBtn) {
+        sendPacketBtn.addEventListener('click', function() {
+            if (!isConnected) {
+                addLogEntry('请先连接远程主机', 'warning');
+                return;
+            }
+            
+            // 使用最新的DOM引用来获取选中的网卡
+            const currentTargetInterface = document.getElementById('target_interface');
+            const interface = currentTargetInterface ? currentTargetInterface.value : '';
+            if (!interface) {
+                addLogEntry('请选择目标网卡', 'warning');
+                return;
+            }
+            
+            // 获取当前协议
+            const activeTab = document.querySelector('#protocolTabs .nav-link.active');
+            const protocol = activeTab ? activeTab.getAttribute('data-bs-target').replace('#', '') : 'tcp';
+            
+            // 根据协议验证不同的必填字段
+            if (protocol === 'arp') {
+                const dstIpEl = document.getElementById('arp_dst_ip');
+                if (!dstIpEl || !dstIpEl.value) {
+                    addLogEntry('请输入目的IP地址', 'warning');
+                    return;
+                }
+            } else if (protocol === 'tcp') {
+                const dstIpEl = document.getElementById('dst_ip');
+                if (!dstIpEl || !dstIpEl.value) {
+                    addLogEntry('请输入目的IP地址', 'warning');
+                    return;
+                }
+            } else if (protocol === 'icmp') {
+                const dstIpEl = document.getElementById('icmp_dst_ip');
+                if (!dstIpEl || !dstIpEl.value) {
+                    addLogEntry('请输入目的IP地址', 'warning');
+                    return;
+                }
+            } else if (protocol === 'udp') {
+                const dstIpEl = document.getElementById('udp_dst_ip');
+                if (!dstIpEl || !dstIpEl.value) {
+                    addLogEntry('请输入目的IP地址', 'warning');
+                    return;
+                }
+            }
+            
+            if (sendPacketBtn) {
+                sendPacketBtn.disabled = true;
+                sendPacketBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>发送中...';
+            }
+            if (stopPacketBtn) {
+                stopPacketBtn.disabled = false;
+                stopPacketBtn.style.display = 'inline-block';
+            }
+            
+            // 获取友好的网卡名称用于显示
+            let friendlyInterfaceName = interface;
+            const selectedCard = interfacesList?.querySelector(`.interface-card[data-interface="${interface}"]`);
+            if (selectedCard) {
+                friendlyInterfaceName = selectedCard.querySelector('h6')?.textContent || interface;
+            }
+            
+            addLogEntry(`正在通过网卡 "${friendlyInterfaceName}" 发送报文...`, 'info');
+            
+            const packetConfig = collectPacketConfig();
+            const sendConfig = collectSendConfig();
+            
+            // 保存当前发送配置，用于检测完成
+            currentSendConfig = sendConfig;
+            
+            // 收集报文变化配置
+            const variations = collectVariations();
+            if (Object.keys(variations).length > 0) {
+                packetConfig.variations = variations;
+            }
+            
+            // 根据协议显示不同的配置信息
+            if (packetConfig.protocol === 'arp') {
+                addLogEntry(`报文配置: 协议=ARP, 类型=${packetConfig.arp_type}, 源IP=${packetConfig.src_ip}, 目的IP=${packetConfig.dst_ip}`, 'info');
+                addLogEntry(`源MAC: ${packetConfig.src_mac || '自动'}, 目的MAC: ${packetConfig.dst_mac || '自动'}`, 'info');
+            } else if (packetConfig.protocol === 'tcp') {
+                addLogEntry(`报文配置: 协议=TCP, 源IP=${packetConfig.src_ip || '自动'}, 目的IP=${packetConfig.dst_ip}, 目的端口=${packetConfig.dst_port}`, 'info');
+            } else if (packetConfig.protocol === 'icmp') {
+                addLogEntry(`报文配置: 协议=ICMP, 类型=${packetConfig.icmp_type}, 源IP=${packetConfig.src_ip}, 目的IP=${packetConfig.dst_ip}`, 'info');
+                addLogEntry(`源MAC: ${packetConfig.src_mac || '自动'}, 目的MAC: ${packetConfig.dst_mac || '自动'}, 数据长度=${packetConfig.data_length || 0}`, 'info');
+            } else {
+                addLogEntry(`报文配置: 协议=${packetConfig.protocol.toUpperCase()}`, 'info');
+            }
+            
+            if (connectionType === 'agent') {
+                // 使用代理程序发送
+                addLogEntry('正在连接代理程序发送报文...', 'info');
+                
+                // 创建超时控制器
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+                
+                fetch('/api/agent/send_packet/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        agent_url: currentAgentUrl,
+                        interface: interface,
+                        packet_config: packetConfig,
+                        send_config: sendConfig
+                    }),
+                    signal: controller.signal
+                })
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        addLogEntry('✓ 报文发送请求已提交，开始发送...', 'success');
+                        addLogEntry(`发送模式: ${sendConfig.continuous ? '连续发送' : `发送 ${sendConfig.count} 次`}`, 'info');
+                        if (sendConfig.interval > 0) {
+                            addLogEntry(`发送间隔: ${sendConfig.interval}ms`, 'info');
+                        }
+                        // 开始轮询统计
+                        startStatsPolling();
+                    } else {
+                        addLogEntry(`✗ 发送失败: ${data.error}`, 'danger');
+                        resetSendButton();
+                    }
+                })
+                .catch(error => {
+                    clearTimeout(timeoutId);
+                    let errorMsg = error.message;
+                    if (error.name === 'AbortError') {
+                        errorMsg = '请求超时（30秒），请检查代理程序是否正常运行';
+                    } else if (error.message.includes('Failed to fetch')) {
+                        errorMsg = '无法连接到服务器，请检查网络连接和代理程序状态';
+                    }
+                    addLogEntry(`✗ 发送出错: ${errorMsg}`, 'danger');
+                    console.error('发送报文错误详情:', error);
+                    resetSendButton();
+                });
+            } else {
+                // SSH方式（保留原有逻辑）
+                addLogEntry('SSH方式发送功能待完善', 'warning');
+                resetSendButton();
+            }
+        });
+    }
+    
+    // 停止发送
+    if (stopPacketBtn) {
+        stopPacketBtn.addEventListener('click', function() {
+            if (connectionType === 'agent' && currentAgentUrl) {
+                fetch('/api/agent/stop_sending/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        agent_url: currentAgentUrl
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addLogEntry('已停止发送', 'info');
+                    }
+                    resetSendButton();
+                    stopStatsPolling();
+                })
+                .catch(error => {
+                    addLogEntry(`停止失败: ${error.message}`, 'danger');
+                });
+            }
+        });
+    }
+    
+    // 重置发送按钮
+    function resetSendButton() {
+        if (sendPacketBtn) {
+            sendPacketBtn.disabled = false;
+            sendPacketBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>发送';
+        }
+        if (stopPacketBtn) {
+            stopPacketBtn.disabled = true;
+            stopPacketBtn.style.display = 'none';
+        }
+        // 清空发送配置
+        currentSendConfig = null;
+    }
+    
+    // 开始统计轮询
+    function startStatsPolling() {
+        if (statsInterval) clearInterval(statsInterval);
+        let lastSentCount = 0;
+        statsInterval = setInterval(() => {
+            if (connectionType === 'agent' && currentAgentUrl) {
+                fetch('/api/agent/statistics/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        agent_url: currentAgentUrl
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.statistics) {
+                        const stats = data.statistics;
+                        const currentSent = stats.total_sent || 0;
+                        const currentRate = stats.rate || 0;
+                        const currentBandwidth = stats.bandwidth || 0;
+                        
+                        // 更新统计显示
+                        if (statSentCount) statSentCount.textContent = currentSent;
+                        if (statRate) statRate.innerHTML = currentRate + ' <small class="text-muted">包/秒</small>';
+                        if (statBandwidth) statBandwidth.innerHTML = formatBandwidth(currentBandwidth) + ' <small class="text-muted">bps</small>';
+                        
+                        // 如果发送数量有变化，记录日志
+                        if (currentSent > lastSentCount) {
+                            const diff = currentSent - lastSentCount;
+                            if (diff > 0 && currentSent % 100 === 0) { // 每100个包记录一次
+                                addLogEntry(`已发送 ${currentSent} 个报文 (速率: ${currentRate} 包/秒)`, 'info');
+                            }
+                            lastSentCount = currentSent;
+                        }
+                        
+                        // 检测非连续发送是否完成
+                        if (currentSendConfig && !currentSendConfig.continuous) {
+                            const targetCount = currentSendConfig.count || 1;
+                            if (currentSent >= targetCount) {
+                                // 发送完成，自动停止
+                                addLogEntry(`已发送完成 (${currentSent}/${targetCount})，自动停止`, 'success');
+                                stopStatsPolling();
+                                
+                                // 调用停止发送接口
+                                if (connectionType === 'agent' && currentAgentUrl) {
+                                    fetch('/api/agent/stop_sending/', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRFToken': getCookie('csrftoken')
+                                        },
+                                        body: JSON.stringify({
+                                            agent_url: currentAgentUrl
+                                        })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            addLogEntry('发送已自动停止', 'info');
+                                        }
+                                        resetSendButton();
+                                    })
+                                    .catch(error => {
+                                        console.error('停止发送失败:', error);
+                                        resetSendButton();
+                                    });
+                                } else {
+                                    resetSendButton();
+                                }
+                                
+                                // 清空发送配置
+                                currentSendConfig = null;
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('获取统计失败:', error);
+                });
+            }
+        }, 1000); // 每秒更新一次
+    }
+    
+    // 格式化带宽显示
+    function formatBandwidth(bps) {
+        if (bps >= 1000000000) {
+            return (bps / 1000000000).toFixed(2) + 'G';
+        } else if (bps >= 1000000) {
+            return (bps / 1000000).toFixed(2) + 'M';
+        } else if (bps >= 1000) {
+            return (bps / 1000).toFixed(2) + 'K';
+        }
+        return bps;
+    }
+    
+    // 停止统计轮询
+    function stopStatsPolling() {
+        if (statsInterval) {
+            clearInterval(statsInterval);
+            statsInterval = null;
+        }
+    }
+    
+    // 处理"报文变化"按钮的图标切换
+    const packetVariations = document.getElementById('packetVariations');
+    const variationsIcon = document.getElementById('variationsIcon');
+    if (packetVariations && variationsIcon) {
+        packetVariations.addEventListener('show.bs.collapse', function() {
+            variationsIcon.classList.remove('fa-chevron-down');
+            variationsIcon.classList.add('fa-chevron-up');
+        });
+        packetVariations.addEventListener('hide.bs.collapse', function() {
+            variationsIcon.classList.remove('fa-chevron-up');
+            variationsIcon.classList.add('fa-chevron-down');
+        });
+    }
+    
+    // 处理"更多"按钮的图标切换（如果存在）
+    const advancedConfig = document.getElementById('advancedConfig');
+    const moreIcon = document.getElementById('moreIcon');
+    if (advancedConfig && moreIcon) {
+        advancedConfig.addEventListener('show.bs.collapse', function() {
+            moreIcon.classList.remove('fa-chevron-down');
+            moreIcon.classList.add('fa-chevron-up');
+        });
+        advancedConfig.addEventListener('hide.bs.collapse', function() {
+            moreIcon.classList.remove('fa-chevron-up');
+            moreIcon.classList.add('fa-chevron-down');
+        });
+    }
+    
+    // 清空日志
+    if (clearLogBtn && packetLog) {
+        clearLogBtn.addEventListener('click', function() {
+            packetLog.innerHTML = `
+                <div class="text-muted text-center py-5">
+                    <i class="fas fa-terminal fa-2x mb-2 opacity-50"></i>
+                    <p>等待操作...</p>
+                    <p class="small">日志将在此处实时显示</p>
+                </div>
+            `;
+        });
+    }
+    
+    // 获取CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}
+

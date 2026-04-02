@@ -1,0 +1,1082 @@
+{% extends "base.html" %}
+
+{% block title %}测试设备 - 测试系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-2"><i class="fas fa-desktop text-primary me-2"></i>测试设备监控</h2>
+            <p class="text-muted mb-0">管理并监控测试设备（安全设备、工控防火墙、工控审计、IDS等）</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 设备列表 -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>设备列表</h5>
+                    <div>
+                        <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal" data-bs-target="#alertConfigModal">
+                            <i class="fas fa-bell me-2"></i>告警配置
+                        </button>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+                            <i class="fas fa-plus me-2"></i>添加设备
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="device_list" class="list-group">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                            <p>暂无设备，请添加设备</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coredump文件监测 -->
+        <div class="col-lg-4">
+            <div class="card mb-4" id="coredump_card" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Coredump文件监测</h5>
+                    <button class="btn btn-sm btn-outline-primary" id="refresh_coredump">
+                        <i class="fas fa-sync-alt me-2"></i>刷新
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="coredump_list" class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>文件名</th>
+                                    <th>大小</th>
+                                    <th>修改时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coredump_table_body">
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">暂无coredump文件</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加设备模态框 -->
+<div class="modal fade" id="addDeviceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>添加测试设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add_device_form">
+                    <div class="mb-3">
+                        <label for="device_name" class="form-label">设备名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="device_name" placeholder="例如: 工控防火墙-01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_type" class="form-label">设备类型 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="device_type" required>
+                            <option value="">请选择设备类型</option>
+                            <option value="security_device">安全设备</option>
+                            <option value="ic_firewall">工控防火墙</option>
+                            <option value="ic_audit">工控审计</option>
+                            <option value="ids">IDS</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_ip" class="form-label">设备IP地址 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="device_ip" placeholder="例如: 192.168.1.100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_port" class="form-label">SSH端口</label>
+                        <input type="number" class="form-control" id="device_port" value="22" min="1" max="65535">
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_user" class="form-label">SSH用户名</label>
+                        <input type="text" class="form-control" id="device_user" value="admin" placeholder="admin" autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_password" class="form-label">SSH密码</label>
+                        <input type="password" class="form-control" id="device_password" value="tdhx@2017" placeholder="tdhx@2017" autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_description" class="form-label">设备描述</label>
+                        <textarea class="form-control" id="device_description" rows="2" placeholder="可选：设备描述信息"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="test_connection_btn">
+                    <i class="fas fa-plug me-2"></i>测试连接
+                </button>
+                <button type="button" class="btn btn-success" id="save_device_btn">
+                    <i class="fas fa-save me-2"></i>保存设备
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 告警配置模态框 -->
+<div class="modal fade" id="alertConfigModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-bell me-2"></i>告警配置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="alert_config_form">
+                    <div class="mb-3">
+                        <label for="smtp_server" class="form-label">SMTP服务器 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="smtp_server" placeholder="例如: smtp.qq.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="smtp_port" class="form-label">SMTP端口 <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="smtp_port" value="587" min="1" max="65535" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sender_email" class="form-label">发件人邮箱 <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="sender_email" placeholder="例如: sender@example.com" required autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="sender_password" class="form-label">发件人密码 <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="sender_password" placeholder="邮箱密码或授权码" required autocomplete="current-password">
+                        <div class="form-text">部分邮箱需要使用授权码而非登录密码</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="use_tls" checked>
+                            <label class="form-check-label" for="use_tls">
+                                使用TLS加密（端口587通常使用TLS）
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="use_ssl">
+                            <label class="form-check-label" for="use_ssl">
+                                使用SSL加密（端口465通常使用SSL）
+                            </label>
+                        </div>
+                        <div class="form-text">注意：端口465通常需要SSL，端口587通常需要TLS。如果发送失败，请尝试切换SSL/TLS选项。</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="recipients" class="form-label">收件人邮箱 <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="recipients" rows="3" placeholder="每行一个邮箱地址，例如:&#10;recipient1@example.com&#10;recipient2@example.com" required></textarea>
+                        <div class="form-text">支持多个收件人，每行一个邮箱地址</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="check_interval" class="form-label">监测频率（秒） <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="check_interval" value="300" min="60" required>
+                        <div class="form-text">建议设置60秒以上，避免过于频繁的检查</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cpu_threshold" class="form-label">CPU告警阈值（%） <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="cpu_threshold" value="80" min="1" max="100" required>
+                                <div class="form-text">CPU使用率超过此值时发送告警</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="memory_threshold" class="form-label">内存告警阈值（%） <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="memory_threshold" value="80" min="1" max="100" required>
+                                <div class="form-text">内存使用率超过此值时发送告警</div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="test_email_btn">
+                    <i class="fas fa-paper-plane me-2"></i>测试发送
+                </button>
+                <button type="button" class="btn btn-success" id="save_alert_config_btn">
+                    <i class="fas fa-save me-2"></i>保存配置
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 命令执行模态框 -->
+<div class="modal fade" id="executeCommandModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-terminal me-2"></i>执行命令</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="command_type" class="form-label">命令类型</label>
+                    <select class="form-select" id="command_type">
+                        <option value="normal">普通命令</option>
+                        <option value="vtysh">Vtysh命令</option>
+                        <option value="backend">后台命令（需要root权限）</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="command_input" class="form-label">命令</label>
+                    <textarea class="form-control font-monospace" id="command_input" rows="5" placeholder="例如: show version&#10;或: show ip addr"></textarea>
+                    <div class="form-text">支持多行命令，每行一个命令</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">执行结果</label>
+                    <div class="border rounded p-3 bg-dark text-light" style="min-height: 200px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem;" id="command_output">
+                        <div class="text-muted">等待执行命令...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="execute_command_btn">
+                    <i class="fas fa-play me-2"></i>执行命令
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 设备列表存储
+    let devices = [];
+    let deviceMonitorIntervals = {}; // 为每个设备存储监控间隔
+    let deviceMonitorData = {}; // 存储每个设备的监控数据
+    let currentDevice = null; // 当前选中的设备（用于coredump）
+    let deviceMonitoringStatus = {}; // 存储每个设备的监测开关状态
+
+    // 初始化 - 先加载数据，再加载监测状态，最后渲染列表
+    loadDevices();
+
+    // 加载设备列表
+    function loadDevices() {
+        fetch('/api/device/list/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    devices = data.devices.map(d => ({
+                        id: d.id.toString(),
+                        name: d.name,
+                        type: d.type,
+                        ip: d.ip,
+                        port: d.port,
+                        user: d.user,
+                        password: d.password,
+                        description: d.description,
+                        created_at: d.created_at
+                    }));
+                    loadMonitoringStatus().then(() => {
+                        renderDeviceList();
+                        startAllDeviceMonitoring();
+                    });
+                } else {
+                    console.error('加载设备列表失败:', data.error);
+                }
+            })
+            .catch(err => console.error('加载设备列表失败:', err));
+    }
+    
+    // 添加设备表单提交
+    const saveDeviceBtn = document.getElementById('save_device_btn');
+    if (saveDeviceBtn) {
+        saveDeviceBtn.addEventListener('click', function() {
+            const name = document.getElementById('device_name').value.trim();
+            const type = document.getElementById('device_type').value;
+            const ip = document.getElementById('device_ip').value.trim();
+            const port = parseInt(document.getElementById('device_port').value) || 22;
+            const user = document.getElementById('device_user').value.trim() || 'admin';
+            const password = document.getElementById('device_password').value || 'tdhx@2017';
+            const description = document.getElementById('device_description').value.trim();
+
+            if (!name || !type || !ip) {
+                alert('请填写必填项');
+                return;
+            }
+
+            fetch('/api/device/add/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    name, type, ip, port, user, password, description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadDevices();
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addDeviceModal'));
+                    modal.hide();
+                    // 清空表单
+                    document.getElementById('add_device_form').reset();
+                    document.getElementById('device_user').value = 'admin';
+                    document.getElementById('device_password').value = 'tdhx@2017';
+                } else {
+                    alert('保存失败: ' + data.error);
+                }
+            })
+            .catch(err => alert('保存失败: ' + err.message));
+        });
+    } else {
+        console.error('找不到保存设备按钮');
+    }
+
+    // 测试连接
+    const testConnectionBtn = document.getElementById('test_connection_btn');
+    if (testConnectionBtn) {
+        testConnectionBtn.addEventListener('click', function() {
+            const ip = document.getElementById('device_ip').value.trim();
+            const port = parseInt(document.getElementById('device_port').value) || 22;
+            const user = document.getElementById('device_user').value.trim() || 'admin';
+            const password = document.getElementById('device_password').value || 'tdhx@2017';
+
+            if (!ip) {
+                alert('请输入设备IP地址');
+                return;
+            }
+
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>测试中...';
+
+            fetch('/api/device/test_connection/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    ip: ip,
+                    port: port,
+                    user: user,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                if (data.success) {
+                    alert(`连接测试成功: ${ip}`);
+                } else {
+                    alert(`连接测试失败: ${data.error || '未知错误'}`);
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                alert(`连接测试失败: ${err.message}`);
+            });
+        });
+    } else {
+        console.error('找不到测试连接按钮');
+    }
+    
+    // 自动开始监控所有设备（在函数定义之后）
+    try {
+        startAllDeviceMonitoring();
+    } catch (e) {
+        console.error('启动设备监控失败:', e);
+    }
+
+    // 渲染设备列表
+    function renderDeviceList() {
+        const deviceList = document.getElementById('device_list');
+        if (devices.length === 0) {
+            deviceList.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                    <p>暂无设备，请添加设备</p>
+                </div>
+            `;
+            return;
+        }
+
+        deviceList.innerHTML = devices.map(device => {
+            const typeNames = {
+                'security_device': '安全设备',
+                'ic_firewall': '工控防火墙',
+                'ic_audit': '工控审计',
+                'ids': 'IDS',
+                'other': '其他'
+            };
+            const typeName = typeNames[device.type] || '未知';
+            
+            // 获取该设备的监控数据
+            const monitorData = deviceMonitorData[device.id] || {};
+            const cpuUsage = monitorData.cpu_usage || 0;
+            const memory = monitorData.memory || { usage: 0, used: 0, total: 0 };
+            const network = monitorData.network || { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 };
+            
+            // 获取监测状态
+            const isMonitoring = deviceMonitoringStatus[device.id] || false;
+            device.monitoring = isMonitoring;
+
+            return `
+                <div class="list-group-item" data-device-id="${device.id}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${escapeHtml(device.name)}</h6>
+                            <small class="text-muted">
+                                <i class="fas fa-tag me-1"></i>${typeName} | 
+                                <i class="fas fa-network-wired me-1"></i>${device.ip}:${device.port} | 
+                                <i class="fas fa-user me-1"></i>${device.user}
+                            </small>
+                            ${device.description ? `<p class="mb-0 mt-1 small text-muted">${escapeHtml(device.description)}</p>` : ''}
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm ${device.monitoring ? 'btn-success' : 'btn-outline-secondary'}" 
+                                    onclick="toggleDeviceMonitoring('${device.id}')" 
+                                    id="monitor_btn_${device.id}"
+                                    title="${device.monitoring ? '关闭监测' : '开启监测'}">
+                                <i class="fas fa-${device.monitoring ? 'pause' : 'play'} me-1"></i>${device.monitoring ? '监测中' : '开启监测'}
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="executeCommand('${device.id}')">
+                                <i class="fas fa-terminal me-1"></i>命令
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteDevice('${device.id}')">
+                                <i class="fas fa-trash me-1"></i>删除
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 实时监控信息 -->
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-4">
+                            <div class="border rounded p-2 bg-light">
+                                <small class="text-muted d-block mb-1">CPU使用率</small>
+                                <div class="d-flex align-items-center">
+                                    <span class="fw-bold me-2" id="cpu_${device.id}">${cpuUsage.toFixed(1)}%</span>
+                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                        <div class="progress-bar ${cpuUsage > 80 ? 'bg-danger' : cpuUsage > 60 ? 'bg-warning' : 'bg-primary'}" 
+                                             role="progressbar" 
+                                             style="width: ${cpuUsage}%"
+                                             id="cpu_progress_${device.id}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-2 bg-light">
+                                <small class="text-muted d-block mb-1">内存使用率</small>
+                                <div class="d-flex align-items-center">
+                                    <span class="fw-bold me-2" id="memory_${device.id}">${memory.usage.toFixed(1)}%</span>
+                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                        <div class="progress-bar ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning' : 'bg-success'}" 
+                                             role="progressbar" 
+                                             style="width: ${memory.usage}%"
+                                             id="memory_progress_${device.id}"></div>
+                                    </div>
+                                </div>
+                                <small class="text-muted" id="memory_detail_${device.id}">${memory.used || 0} MB / ${memory.total || 0} MB</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-2 bg-light">
+                                <small class="text-muted d-block mb-1">网络流量</small>
+                                <div>
+                                    <small class="d-block"><i class="fas fa-download text-success me-1"></i>接收: <span id="network_rx_${device.id}">${network.rx_rate > 0 ? formatBytes(network.rx_rate) + '/s' : (network.rx_bytes > 0 ? formatBytes(network.rx_bytes) : '--')}</span></small>
+                                    <small class="d-block"><i class="fas fa-upload text-primary me-1"></i>发送: <span id="network_tx_${device.id}">${network.tx_rate > 0 ? formatBytes(network.tx_rate) + '/s' : (network.tx_bytes > 0 ? formatBytes(network.tx_bytes) : '--')}</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 开始监控所有设备
+    function startAllDeviceMonitoring() {
+        // 停止所有现有监控
+        Object.values(deviceMonitorIntervals).forEach(interval => {
+            if (interval) clearInterval(interval);
+        });
+        deviceMonitorIntervals = {};
+
+        // 为每个设备启动监控
+        devices.forEach(device => {
+            startDeviceMonitoring(device.id);
+        });
+    }
+
+    // 开始监控单个设备
+    function startDeviceMonitoring(deviceId) {
+        const device = devices.find(d => d.id === deviceId);
+        if (!device) return;
+
+        // 如果已有监控间隔，先清除
+        if (deviceMonitorIntervals[deviceId]) {
+            clearInterval(deviceMonitorIntervals[deviceId]);
+        }
+
+        // 立即获取一次
+        fetchDeviceMonitorData(deviceId);
+
+        // 每30秒更新一次（从5秒改为30秒，减少请求频率）
+        deviceMonitorIntervals[deviceId] = setInterval(() => {
+            fetchDeviceMonitorData(deviceId);
+        }, 30000); // 30秒
+    }
+
+    // 获取单个设备的监控数据
+    function fetchDeviceMonitorData(deviceId) {
+        const device = devices.find(d => d.id === deviceId);
+        if (!device) return;
+
+        fetch('/api/device/monitor_data/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                ip: device.ip,
+                port: device.port,
+                user: device.user,
+                password: device.password,
+                device_type: device.type
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 存储监控数据
+                deviceMonitorData[deviceId] = {
+                    cpu_usage: data.cpu_usage || 0,
+                    memory: data.memory || { usage: 0, used: 0, total: 0 },
+                    network: data.network || { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
+                };
+
+                console.log(`设备 ${deviceId} 获取监控数据成功:`, deviceMonitorData[deviceId]);
+
+                // 更新界面
+                updateDeviceMonitorDisplay(deviceId);
+            } else {
+                // 检查是否是设备离线
+                if (data.offline) {
+                    console.warn(`设备 ${deviceId} 离线，跳过获取监控数据: ${data.error}`);
+                    // 设备离线时，保持上次的数据，不更新界面
+                    // 可以在这里添加离线状态显示
+                    return;
+                }
+                
+                console.error(`获取设备 ${deviceId} 监控数据失败:`, data.error);
+                // 其他错误时保持上次的数据，不清空
+                if (!deviceMonitorData[deviceId]) {
+                    deviceMonitorData[deviceId] = {
+                        cpu_usage: 0,
+                        memory: { usage: 0, used: 0, total: 0 },
+                        network: { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
+                    };
+                }
+                updateDeviceMonitorDisplay(deviceId);
+            }
+        })
+        .catch(err => {
+            console.error(`获取设备 ${deviceId} 监控数据失败:`, err);
+            // 网络错误时保持上次的数据，不清空
+            if (!deviceMonitorData[deviceId]) {
+                deviceMonitorData[deviceId] = {
+                    cpu_usage: 0,
+                    memory: { usage: 0, used: 0, total: 0 },
+                    network: { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
+                };
+            }
+        });
+    }
+
+    // 更新设备监控显示
+    function updateDeviceMonitorDisplay(deviceId) {
+        const monitorData = deviceMonitorData[deviceId];
+        if (!monitorData) {
+            console.warn(`设备 ${deviceId} 没有监控数据`);
+            return;
+        }
+
+        const cpuUsage = monitorData.cpu_usage || 0;
+        const memory = monitorData.memory || { usage: 0, used: 0, total: 0 };
+        const network = monitorData.network || { rx_rate: 0, tx_rate: 0 };
+
+        const deviceItem = document.querySelector(`[data-device-id="${deviceId}"]`);
+        if (!deviceItem) {
+            console.warn(`找不到设备元素: ${deviceId}`);
+            return;
+        }
+
+        // 更新CPU
+        const cpuElement = document.getElementById(`cpu_${deviceId}`);
+        const cpuProgressElement = document.getElementById(`cpu_progress_${deviceId}`);
+        if (cpuElement) {
+            cpuElement.textContent = cpuUsage.toFixed(1) + '%';
+        }
+        if (cpuProgressElement) {
+            cpuProgressElement.style.width = cpuUsage + '%';
+            cpuProgressElement.className = `progress-bar ${cpuUsage > 80 ? 'bg-danger' : cpuUsage > 60 ? 'bg-warning' : 'bg-primary'}`;
+        }
+
+        // 更新内存
+        const memoryElement = document.getElementById(`memory_${deviceId}`);
+        const memoryDetailElement = document.getElementById(`memory_detail_${deviceId}`);
+        const memoryProgressElement = document.getElementById(`memory_progress_${deviceId}`);
+        if (memoryElement) {
+            memoryElement.textContent = memory.usage.toFixed(1) + '%';
+        }
+        if (memoryDetailElement) {
+            memoryDetailElement.textContent = `${memory.used || 0} MB / ${memory.total || 0} MB`;
+        }
+        if (memoryProgressElement) {
+            memoryProgressElement.style.width = memory.usage + '%';
+            memoryProgressElement.className = `progress-bar ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning' : 'bg-success'}`;
+        }
+
+        // 更新网络（优先显示速率，如果没有速率则显示累计流量，保持上次显示的值）
+        const networkRxElement = document.getElementById(`network_rx_${deviceId}`);
+        const networkTxElement = document.getElementById(`network_tx_${deviceId}`);
+        if (networkRxElement) {
+            if (network.rx_rate > 0) {
+                networkRxElement.textContent = formatBytes(network.rx_rate) + '/s';
+            } else if (network.rx_bytes > 0) {
+                // 如果没有速率，显示累计流量
+                networkRxElement.textContent = formatBytes(network.rx_bytes);
+            }
+            // 如果都是0，保持上次显示的值（不更新）
+        }
+        if (networkTxElement) {
+            if (network.tx_rate > 0) {
+                networkTxElement.textContent = formatBytes(network.tx_rate) + '/s';
+            } else if (network.tx_bytes > 0) {
+                // 如果没有速率，显示累计流量
+                networkTxElement.textContent = formatBytes(network.tx_bytes);
+            }
+            // 如果都是0，保持上次显示的值（不更新）
+        }
+        
+        console.log(`设备 ${deviceId} 监控数据已更新: CPU=${cpuUsage.toFixed(1)}%, 内存=${memory.usage.toFixed(1)}%`);
+    }
+
+    // 选择设备查看coredump
+    window.selectDevice = function(deviceId) {
+        currentDevice = devices.find(d => d.id === deviceId);
+        if (!currentDevice) return;
+
+        // 显示coredump卡片
+        document.getElementById('coredump_card').style.display = 'block';
+        refreshCoredump();
+    };
+
+    // 刷新Coredump文件列表
+    function refreshCoredump() {
+        if (!currentDevice) return;
+
+        fetch('/api/device/coredump/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                ip: currentDevice.ip,
+                port: currentDevice.port,
+                user: currentDevice.user,
+                password: currentDevice.password
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const tbody = document.getElementById('coredump_table_body');
+                const files = data.files || [];
+                
+                if (files.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">暂无coredump文件</td></tr>';
+                } else {
+                    tbody.innerHTML = files.map(file => `
+                        <tr>
+                            <td><code>${escapeHtml(file.name)}</code></td>
+                            <td>${escapeHtml(file.size_str || formatBytes(file.size || 0))}</td>
+                            <td>${escapeHtml(file.mtime || '')}</td>
+                        </tr>
+                    `).join('');
+                }
+            } else {
+                alert(`获取coredump文件列表失败: ${data.error || '未知错误'}`);
+            }
+        })
+        .catch(err => {
+            alert(`获取coredump文件列表失败: ${err.message}`);
+        });
+    }
+
+    document.getElementById('refresh_coredump').addEventListener('click', refreshCoredump);
+
+    // 执行命令
+    window.executeCommand = function(deviceId) {
+        const device = devices.find(d => d.id === deviceId);
+        if (!device) return;
+
+        // 保存当前设备到模态框
+        document.getElementById('executeCommandModal').dataset.deviceId = deviceId;
+        document.getElementById('command_output').innerHTML = '<div class="text-muted">等待执行命令...</div>';
+        
+        const modal = new bootstrap.Modal(document.getElementById('executeCommandModal'));
+        modal.show();
+    };
+
+    document.getElementById('execute_command_btn').addEventListener('click', function() {
+        const deviceId = document.getElementById('executeCommandModal').dataset.deviceId;
+        const device = devices.find(d => d.id === deviceId);
+        if (!device) return;
+
+        const commandType = document.getElementById('command_type').value;
+        const commandInput = document.getElementById('command_input').value.trim();
+        const outputDiv = document.getElementById('command_output');
+
+        if (!commandInput) {
+            alert('请输入命令');
+            return;
+        }
+
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>执行中...';
+        outputDiv.innerHTML = '<div class="text-info">正在执行命令...</div>';
+
+        fetch('/api/device/execute/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                ip: device.ip,
+                port: device.port,
+                user: device.user,
+                password: device.password,
+                command_type: commandType,
+                command: commandInput,
+                device_type: device.type
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            
+            if (data.success) {
+                outputDiv.innerHTML = `<pre class="mb-0 text-light">${escapeHtml(data.output || '')}</pre>`;
+            } else {
+                outputDiv.innerHTML = `<div class="text-danger">错误: ${escapeHtml(data.error || '未知错误')}</div>`;
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            outputDiv.innerHTML = `<div class="text-danger">执行失败: ${escapeHtml(err.message)}</div>`;
+        });
+    });
+
+    // 删除设备
+    window.deleteDevice = function(deviceId) {
+        if (!confirm('确定要删除该设备吗？')) return;
+
+        fetch('/api/device/delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ id: deviceId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 停止该设备的监控
+                if (deviceMonitorIntervals[deviceId]) {
+                    clearInterval(deviceMonitorIntervals[deviceId]);
+                    delete deviceMonitorIntervals[deviceId];
+                }
+                delete deviceMonitorData[deviceId];
+                delete deviceMonitoringStatus[deviceId];
+
+                if (currentDevice && currentDevice.id === deviceId) {
+                    currentDevice = null;
+                    document.getElementById('coredump_card').style.display = 'none';
+                }
+                
+                loadDevices();
+            } else {
+                alert('删除失败: ' + data.error);
+            }
+        })
+        .catch(err => alert('删除失败: ' + err.message));
+    };
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // 切换设备监测开关
+    window.toggleDeviceMonitoring = function(deviceId) {
+        const device = devices.find(d => d.id === deviceId);
+        if (!device) return;
+
+        const isMonitoring = deviceMonitoringStatus[deviceId] || false;
+        const newStatus = !isMonitoring;
+
+        fetch('/api/device/monitoring/toggle/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                device_id: deviceId,
+                enabled: newStatus,
+                device_info: {
+                    name: device.name,
+                    ip: device.ip,
+                    type: device.type,
+                    user: device.user,
+                    password: device.password,
+                    port: device.port
+                }
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                deviceMonitoringStatus[deviceId] = newStatus;
+                renderDeviceList();
+                alert(newStatus ? '监测已开启' : '监测已关闭');
+            } else {
+                alert('操作失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            alert('操作失败: ' + err.message);
+        });
+    };
+
+    // 加载告警配置
+    function loadAlertConfig() {
+        fetch('/api/device/alert_config/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.config) {
+                const config = data.config;
+                document.getElementById('smtp_server').value = config.smtp_server || '';
+                document.getElementById('smtp_port').value = config.smtp_port || 587;
+                document.getElementById('sender_email').value = config.sender_email || '';
+                // 如果密码不是'***'（占位符），才更新密码字段，否则保持原值
+                if (config.sender_password && config.sender_password !== '***') {
+                    document.getElementById('sender_password').value = config.sender_password;
+                }
+                document.getElementById('use_tls').checked = config.use_tls !== false;
+                document.getElementById('use_ssl').checked = config.use_ssl === true;
+                document.getElementById('recipients').value = (config.recipients || []).join('\n');
+                document.getElementById('check_interval').value = config.check_interval || 300;
+                document.getElementById('cpu_threshold').value = config.cpu_threshold || 80;
+                document.getElementById('memory_threshold').value = config.memory_threshold || 80;
+            }
+        })
+        .catch(err => {
+            console.error('加载告警配置失败:', err);
+        });
+    }
+
+    // 保存告警配置
+    document.getElementById('save_alert_config_btn').addEventListener('click', function() {
+        const passwordField = document.getElementById('sender_password');
+        const currentPassword = passwordField.value;
+        
+        // 如果密码字段为空或者是占位符，需要从后端获取原密码
+        let passwordToSave = currentPassword;
+        if (!currentPassword || currentPassword === '***') {
+            // 如果密码为空，尝试从已保存的配置中获取（如果有的话）
+            // 这里我们需要先获取当前配置，如果密码是空的，就不更新密码字段
+            fetch('/api/device/alert_config/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.config && data.config.sender_password && data.config.sender_password !== '***') {
+                    // 如果后端有密码，使用后端的密码
+                    passwordToSave = data.config.sender_password;
+                }
+                saveConfigWithPassword(passwordToSave);
+            })
+            .catch(() => {
+                // 如果获取失败，使用当前值（可能是空）
+                saveConfigWithPassword(passwordToSave);
+            });
+            return;
+        }
+        
+        saveConfigWithPassword(passwordToSave);
+    });
+    
+    function saveConfigWithPassword(password) {
+        const config = {
+            smtp_server: document.getElementById('smtp_server').value.trim(),
+            smtp_port: parseInt(document.getElementById('smtp_port').value),
+            sender_email: document.getElementById('sender_email').value.trim(),
+            use_tls: document.getElementById('use_tls').checked,
+            use_ssl: document.getElementById('use_ssl').checked,
+            recipients: document.getElementById('recipients').value.split('\n')
+                .map(r => r.trim())
+                .filter(r => r && r.includes('@')),
+            check_interval: parseInt(document.getElementById('check_interval').value),
+            cpu_threshold: parseInt(document.getElementById('cpu_threshold').value),
+            memory_threshold: parseInt(document.getElementById('memory_threshold').value)
+        };
+        
+        // 如果密码不为空且不是占位符，才添加到配置中
+        if (password && password !== '***') {
+            config.sender_password = password;
+        }
+        // 如果密码为空或占位符，不包含在配置中，后端会保留原密码
+
+        if (!config.smtp_server || !config.sender_email || config.recipients.length === 0) {
+            alert('请填写完整的配置信息');
+            return;
+        }
+
+        fetch('/api/device/alert_config/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(config)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('配置保存成功');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('alertConfigModal'));
+                modal.hide();
+            } else {
+                alert('保存失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            alert('保存失败: ' + err.message);
+        });
+    }
+
+    // 测试邮件发送
+    document.getElementById('test_email_btn').addEventListener('click', function() {
+        const config = {
+            smtp_server: document.getElementById('smtp_server').value.trim(),
+            smtp_port: parseInt(document.getElementById('smtp_port').value),
+            sender_email: document.getElementById('sender_email').value.trim(),
+            sender_password: document.getElementById('sender_password').value,
+            use_tls: document.getElementById('use_tls').checked,
+            use_ssl: document.getElementById('use_ssl').checked,
+            recipients: document.getElementById('recipients').value.split('\n')
+                .map(r => r.trim())
+                .filter(r => r && r.includes('@'))
+        };
+
+        if (!config.smtp_server || !config.sender_email || !config.sender_password || config.recipients.length === 0) {
+            alert('请填写完整的配置信息');
+            return;
+        }
+
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>发送中...';
+
+        fetch('/api/device/alert_config/test/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(config)
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (data.success) {
+                alert('测试邮件发送成功，请检查收件箱');
+            } else {
+                alert('测试邮件发送失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            alert('测试邮件发送失败: ' + err.message);
+        });
+    });
+
+    // 打开告警配置模态框时加载配置
+    document.getElementById('alertConfigModal').addEventListener('show.bs.modal', function() {
+        loadAlertConfig();
+    });
+
+    // 加载所有设备的监测状态
+    function loadMonitoringStatus() {
+        return fetch('/api/device/monitoring/status/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.status) {
+                deviceMonitoringStatus = data.status;
+                return data.status;
+            }
+            return {};
+        })
+        .catch(err => {
+            console.error('加载监测状态失败:', err);
+            return {};
+        });
+    }
+});
+</script>
+{% endblock %}

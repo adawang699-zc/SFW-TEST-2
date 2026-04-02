@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent 自动同步</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto" x-data="agentSync()">
+        <h1 class="text-3xl font-bold mb-6">Agent 文件自动同步</h1>
+
+        <!-- 状态卡片 -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">同步状态</h2>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <span class="text-gray-600">运行状态:</span>
+                    <span x-text="status.running ? '✅ 运行中' : '❌ 已停止'"
+                          :class="status.running ? 'text-green-600' : 'text-red-600'"
+                          class="ml-2 font-semibold"></span>
+                </div>
+                <div>
+                    <span class="text-gray-600">启用状态:</span>
+                    <span x-text="status.enabled ? '✅ 已启用' : '❌ 已禁用'"
+                          :class="status.enabled ? 'text-green-600' : 'text-red-600'"
+                          class="ml-2 font-semibold"></span>
+                </div>
+                <div>
+                    <span class="text-gray-600">监控目录:</span>
+                    <span x-text="status.watch_dir || '未设置'" class="ml-2"></span>
+                </div>
+                <div>
+                    <span class="text-gray-600">远程主机:</span>
+                    <span x-text="status.remote_hosts.join(', ') || '无'" class="ml-2"></span>
+                </div>
+                <div x-show="status.uploading" class="text-blue-600">
+                    <span>🔄 正在上传...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">控制</h2>
+
+            <div class="space-x-4">
+                <button @click="startSync()"
+                        x-show="!status.running"
+                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                    启动同步
+                </button>
+
+                <button @click="stopSync()"
+                        x-show="status.running"
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                    停止同步
+                </button>
+
+                <button @click="refreshStatus()"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                    刷新状态
+                </button>
+            </div>
+        </div>
+
+        <!-- 配置表单 -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">配置</h2>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 mb-2">监控目录</label>
+                    <input type="text" x-model="config.watch_dir"
+                           class="w-full border rounded px-3 py-2"
+                           placeholder="默认：packet_agent/">
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 mb-2">远程主机列表</label>
+                    <input type="text" x-model="config.hosts"
+                           class="w-full border rounded px-3 py-2"
+                           placeholder="10.40.30.35,10.40.30.34">
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">SSH 用户</label>
+                        <input type="text" x-model="config.user"
+                               class="w-full border rounded px-3 py-2"
+                               value="tdhx">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">SSH 密码</label>
+                        <input type="password" x-model="config.password"
+                               class="w-full border rounded px-3 py-2"
+                               value="tdhx@2017">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">SSH 端口</label>
+                        <input type="number" x-model="config.port"
+                               class="w-full border rounded px-3 py-2"
+                               value="22">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 待上传文件列表 -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6" x-show="status.pending_files.length > 0">
+            <h2 class="text-xl font-semibold mb-4">待上传文件</h2>
+
+            <ul class="space-y-2">
+                <template x-for="file in status.pending_files" :key="file">
+                    <li class="flex items-center">
+                        <span class="text-yellow-600 mr-2">⏳</span>
+                        <span x-text="file"></span>
+                    </li>
+                </template>
+            </ul>
+        </div>
+
+        <!-- 消息提示 -->
+        <div x-show="message"
+             :class="messageType === 'error' ? 'bg-red-100 border-red-400 text-red-700' : 'bg-green-100 border-green-400 text-green-700'"
+             class="border rounded p-4 mb-6">
+            <span x-text="message"></span>
+        </div>
+    </div>
+
+    <script>
+        function agentSync() {
+            return {
+                status: {
+                    running: false,
+                    enabled: true,
+                    watch_dir: null,
+                    remote_hosts: [],
+                    pending_files: [],
+                    uploading: false
+                },
+                config: {
+                    watch_dir: '',
+                    hosts: '10.40.30.35,10.40.30.34',
+                    user: 'tdhx',
+                    password: 'tdhx@2017',
+                    port: 22
+                },
+                message: '',
+                messageType: 'success',
+
+                init() {
+                    this.refreshStatus();
+                    // 每 5 秒自动刷新状态
+                    setInterval(() => this.refreshStatus(), 5000);
+                },
+
+                async refreshStatus() {
+                    try {
+                        const resp = await fetch('/api/agent-sync/status/');
+                        const data = await resp.json();
+                        if (data.success) {
+                            this.status = data;
+                        }
+                    } catch (e) {
+                        this.showMessage('获取状态失败：' + e.message, 'error');
+                    }
+                },
+
+                async startSync() {
+                    try {
+                        const resp = await fetch('/api/agent-sync/start/', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                watch_dir: this.config.watch_dir || null,
+                                remote_hosts: this.config.hosts.split(',').map(s => s.trim()),
+                                user: this.config.user,
+                                password: this.config.password,
+                                port: parseInt(this.config.port)
+                            })
+                        });
+                        const data = await resp.json();
+                        if (data.success) {
+                            this.showMessage(data.message, 'success');
+                            this.refreshStatus();
+                        } else {
+                            this.showMessage(data.error || '启动失败', 'error');
+                        }
+                    } catch (e) {
+                        this.showMessage('启动失败：' + e.message, 'error');
+                    }
+                },
+
+                async stopSync() {
+                    try {
+                        const resp = await fetch('/api/agent-sync/stop/', {
+                            method: 'POST'
+                        });
+                        const data = await resp.json();
+                        if (data.success) {
+                            this.showMessage(data.message, 'success');
+                            this.refreshStatus();
+                        } else {
+                            this.showMessage(data.error || '停止失败', 'error');
+                        }
+                    } catch (e) {
+                        this.showMessage('停止失败：' + e.message, 'error');
+                    }
+                },
+
+                showMessage(msg, type) {
+                    this.message = msg;
+                    this.messageType = type;
+                    setTimeout(() => this.message = '', 5000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# 基础依赖（必需）
+flask>=2.0.0
+flask-cors>=3.0.0
+scapy>=2.4.5
+psutil>=5.8.0
+
+# 工控协议依赖（可选）
+# Modbus协议支持
+pymodbus>=3.0.0
+
+# S7协议支持
+# 注意：python-snap7还需要安装底层snap7库
+# Windows: 从 https://sourceforge.net/projects/snap7/files/ 下载并安装
+# Linux: 需要编译安装snap7库
+python-snap7>=1.3

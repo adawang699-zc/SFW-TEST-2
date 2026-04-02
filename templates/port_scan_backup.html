@@ -1,0 +1,1223 @@
+{% extends "base.html" %}
+
+{% block title %}端口扫描 - 测试系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-2"><i class="fas fa-search text-primary me-2"></i>端口扫描</h2>
+            <p class="text-muted mb-0">对指定IP和端口范围进行端口扫描</p>
+        </div>
+    </div>
+
+    <!-- 连接配置区域（最上面，和其他菜单一致） -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-network-wired me-2"></i>连接配置</h5>
+                    <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#connectionHelp" aria-expanded="false">
+                        <i class="fas fa-question-circle me-2"></i>帮助
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- 连接方式选择 -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">连接方式</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="connection_type" id="connection_agent" value="agent" checked>
+                                <label class="btn btn-outline-primary" for="connection_agent">
+                                    <i class="fas fa-network-wired me-2"></i>代理程序（推荐）
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="connection_type" id="connection_ssh" value="ssh">
+                                <label class="btn btn-outline-primary" for="connection_ssh">
+                                    <i class="fas fa-terminal me-2"></i>SSH连接
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 代理程序连接配置 -->
+                    <div id="agent_connection_config">
+                        <div class="agent-connection-row">
+                            <div class="row align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">设备来源</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="agent_device_source" id="agent_device_source_test_env" value="test_env" checked>
+                                        <label class="btn btn-outline-primary" for="agent_device_source_test_env">测试环境</label>
+                                        <input type="radio" class="btn-check" name="agent_device_source" id="agent_device_source_custom" value="custom">
+                                        <label class="btn btn-outline-primary" for="agent_device_source_custom">指定IP</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4" id="agent_test_env_select_container">
+                                    <label for="agent_test_env_select" class="form-label">测试环境 <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="agent_test_env_select">
+                                        <option value="">请选择测试环境</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4" id="agent_custom_ip_container" style="display: none;">
+                                    <label for="agent_ip" class="form-label">代理程序IP <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="agent_ip" placeholder="例如: 192.168.1.100">
+                                </div>
+                                <div class="col-md-1">
+                                    <button id="connect_agent" class="btn btn-primary w-100">
+                                        <i class="fas fa-plug me-2"></i>连接
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- SSH连接配置（默认隐藏） -->
+                    <div id="ssh_connection_config" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="host_address" class="form-label">主机地址</label>
+                                    <input type="text" class="form-control" id="host_address" placeholder="例如: 192.168.1.100">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="ssh_port" class="form-label">SSH端口</label>
+                                    <input type="number" class="form-control" id="ssh_port" value="22" placeholder="22">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="ssh_username" class="form-label">用户名</label>
+                                    <input type="text" class="form-control" id="ssh_username" placeholder="例如: Administrator">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="ssh_password" class="form-label">密码</label>
+                                    <input type="password" class="form-control" id="ssh_password" placeholder="请输入密码">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button id="connect_host" class="btn btn-primary w-100">
+                                        <i class="fas fa-plug me-2"></i>连接
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 网卡信息区域 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-ethernet me-2"></i>网卡信息</h5>
+                    <button id="refresh_interfaces" class="btn btn-sm btn-outline-primary" disabled>
+                        <i class="fas fa-sync-alt me-2"></i>刷新
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="interfaces_list" class="text-center text-muted py-5">
+                        <i class="fas fa-info-circle fa-2x mb-2 opacity-50"></i>
+                        <p>请先连接远程主机以获取网卡信息</p>
+                    </div>
+                    <!-- 目标网卡选择（显示在网卡列表下方） -->
+                    <div class="mt-3" id="target_interface_section" style="display: none;">
+                        <div class="row align-items-end">
+                            <div class="col-md-6">
+                                <label for="target_interface" class="form-label fw-bold">
+                                    <i class="fas fa-check-circle me-2 text-success"></i>已选择网卡
+                                </label>
+                                <select class="form-select form-select-lg" id="target_interface" disabled>
+                                    <option value="" selected>请选择网卡</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="form-text">点击上方网卡卡片进行选择，或使用下拉菜单选择</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧配置区域 -->
+        <div class="col-lg-8">
+            <!-- 扫描配置卡片 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>扫描配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scan_target_ip" class="form-label">目标IP地址 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="scan_target_ip" placeholder="例如: 192.168.1.100" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scan_port_range" class="form-label">端口范围 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="scan_port_range" placeholder="例如: 1-1000 或 80,443,8080" required>
+                                <div class="form-text">支持范围格式（如：1-1000）或逗号分隔（如：80,443,8080）</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scan_timeout" class="form-label">超时时间（秒）</label>
+                                <input type="number" class="form-control" id="scan_timeout" value="1" min="0.3" max="10" step="0.1" placeholder="例如: 1">
+                                <div class="form-text">建议值：0.5-2秒，越小扫描越快但可能漏掉慢响应端口</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scan_threads" class="form-label">并发线程数</label>
+                                <input type="number" class="form-control" id="scan_threads" value="200" min="1" max="500" placeholder="例如: 200">
+                                <div class="form-text">建议值：100-300，越大扫描越快但占用资源更多</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="scan_type" class="form-label">扫描类型 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="scan_type" required>
+                                    <option value="tcp_syn" selected>TCP SYN扫描（半开放扫描，推荐）</option>
+                                    <option value="tcp_fin">TCP FIN扫描（隐蔽扫描）</option>
+                                    <option value="tcp_rst">TCP RST扫描</option>
+                                    <option value="tcp_connect">TCP连接扫描（完整连接）</option>
+                                </select>
+                                <div class="form-text">
+                                    <strong>TCP SYN扫描：</strong>发送SYN包，收到SYN+ACK表示开放，收到RST表示关闭，无响应表示过滤（快速，需要代理程序）<br>
+                                    <strong>TCP FIN扫描：</strong>发送FIN包，收到RST表示关闭，无响应表示开放/过滤（隐蔽，需要代理程序）<br>
+                                    <strong>TCP RST扫描：</strong>发送RST包，用于检测防火墙规则（需要代理程序）<br>
+                                    <strong>TCP连接扫描：</strong>通过建立完整TCP连接检测端口（最准确，无需代理程序）
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <button id="start_scan" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-play me-2"></i>开始扫描
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 扫描结果卡片 -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>扫描结果</h5>
+                    <button id="clear_results" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-trash me-2"></i>清空结果
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="scan_results" class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>端口</th>
+                                    <th>状态</th>
+                                    <th>服务</th>
+                                    <th>响应时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scan_results_body">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">暂无扫描结果</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">开放端口</h6>
+                                        <h4 class="mb-0 text-success" id="open_ports_count">0</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">关闭端口</h6>
+                                        <h4 class="mb-0 text-danger" id="closed_ports_count">0</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">已扫描</h6>
+                                        <h4 class="mb-0 text-info" id="scanned_ports_count">0</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧操作日志 -->
+        <div class="col-lg-4">
+            <div class="card operation-log-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>操作日志</h5>
+                    <button id="clear_log" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-trash me-2"></i>清空
+                    </button>
+                </div>
+                <div class="operation-log-body" id="scan_log">
+                    <div class="text-muted">等待开始扫描...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #scan_log {
+        scrollbar-width: thin;
+        scrollbar-color: #555 #1e1e1e;
+    }
+    #scan_log::-webkit-scrollbar {
+        width: 8px;
+    }
+    #scan_log::-webkit-scrollbar-track {
+        background: #1e1e1e;
+    }
+    #scan_log::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 4px;
+    }
+    #scan_log::-webkit-scrollbar-thumb:hover {
+        background: #777;
+    }
+    .log-entry {
+        margin-bottom: 4px;
+        word-wrap: break-word;
+    }
+    .log-info { color: #4ec9b0; }
+    .log-success { color: #4ec9b0; }
+    .log-warning { color: #dcdcaa; }
+    .log-error { color: #f48771; }
+    .log-port-open { color: #4ec9b0; }
+    .log-port-closed { color: #808080; }
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ========== 连接相关元素 ==========
+    const connectAgentBtn = document.getElementById('connect_agent');
+    const connectHostBtn = document.getElementById('connect_host');
+    const refreshBtn = document.getElementById('refresh_interfaces');
+    const clearLogBtn = document.getElementById('clear_log');
+    const interfacesList = document.getElementById('interfaces_list');
+    const targetInterface = document.getElementById('target_interface');
+    const scanLog = document.getElementById('scan_log');
+    
+    // 连接方式选择
+    const connectionTypeRadios = document.querySelectorAll('input[name="connection_type"]');
+    const agentConfig = document.getElementById('agent_connection_config');
+    const sshConfig = document.getElementById('ssh_connection_config');
+    
+    // 扫描相关元素
+    const startScanBtn = document.getElementById('start_scan');
+    const clearResultsBtn = document.getElementById('clear_results');
+    const scanTypeSelect = document.getElementById('scan_type');
+    
+    // ========== 全局变量 ==========
+    let isConnected = false;
+    let connectionType = 'agent'; // 'agent' or 'ssh'
+    let currentAgentUrl = '';
+    let currentHost = '';
+    let currentUsername = '';
+    let currentPassword = '';
+    let currentPort = 22;
+    let interfacesData = [];
+    let isScanning = false;
+    let scanCancelToken = null;
+    let currentScanId = null;
+    let progressInterval = null;
+    let lastScannedCount = 0;
+    let lastOpenCount = 0;
+    let displayedResults = new Set();
+    
+    // 测试环境相关
+    let testEnvironments = [];
+    
+    // ========== 工具函数 ==========
+    // 获取CSRF Token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // HTML转义函数
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // 添加日志条目
+    function addLogEntry(message, type = 'info') {
+        if (!scanLog) return;
+        
+        const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        const colors = {
+            'info': '#4ec9b0',
+            'success': '#4ec9b0',
+            'warning': '#dcdcaa',
+            'danger': '#f48771',
+            'port-open': '#4ec9b0',
+            'port-closed': '#808080'
+        };
+        const icons = {
+            'info': 'fa-info-circle',
+            'success': 'fa-check-circle',
+            'warning': 'fa-exclamation-triangle',
+            'danger': 'fa-times-circle',
+            'port-open': 'fa-check-circle',
+            'port-closed': 'fa-times-circle'
+        };
+        
+        // 清空初始提示
+        if (scanLog.querySelector('.text-muted')) {
+            scanLog.innerHTML = '';
+        }
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        logEntry.innerHTML = `
+            <span style="color: #888;">[${timestamp}]</span>
+            <i class="fas ${icons[type] || icons.info}" style="color: ${colors[type] || colors.info};"></i>
+            <span style="color: ${colors[type] || colors.info};">${escapeHtml(message)}</span>
+        `;
+        scanLog.appendChild(logEntry);
+        scanLog.scrollTop = scanLog.scrollHeight;
+    }
+    
+    // 获取选中网卡的MAC地址
+    function getSelectedInterfaceMac() {
+        const selectedInterface = targetInterface ? targetInterface.value : '';
+        if (!selectedInterface) return null;
+        
+        const iface = interfacesData.find(i => {
+            const ifaceName = typeof i === 'string' ? i : (i.name || i);
+            return ifaceName === selectedInterface;
+        });
+        
+        if (iface && typeof iface === 'object') {
+            return iface.mac || null;
+        }
+        return null;
+    }
+    
+    // ========== 测试环境相关 ==========
+    // 加载测试环境列表
+    function loadTestEnvironments() {
+        fetch('/api/test_env/list/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const envs = data.environments.map(env => ({
+                        id: env.id.toString(),
+                        name: env.name,
+                        ip: env.ip,
+                        type: env.type,
+                        user: env.ssh_user,
+                        password: env.ssh_password,
+                        port: env.ssh_port
+                    }));
+                    testEnvironments = envs;
+                    const select = document.getElementById('agent_test_env_select');
+                    if (!select) return;
+                    select.innerHTML = '<option value="">请选择测试环境</option>';
+                    envs.forEach(env => {
+                        const option = document.createElement('option');
+                        option.value = env.id;
+                        option.textContent = `${env.name} (${env.ip}) - ${env.type === 'windows' ? 'Windows' : 'Linux'}`;
+                        option.dataset.env = JSON.stringify(env);
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(err => console.error('加载环境列表失败:', err));
+    }
+    
+    // 设备来源切换事件
+    document.querySelectorAll('input[name="agent_device_source"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const isTestEnv = this.value === 'test_env';
+            document.getElementById('agent_test_env_select_container').style.display = isTestEnv ? 'block' : 'none';
+            document.getElementById('agent_custom_ip_container').style.display = isTestEnv ? 'none' : 'block';
+        });
+    });
+    
+    // 测试环境选择变化时自动填充IP
+    document.getElementById('agent_test_env_select')?.addEventListener('change', function() {
+        const envId = this.value;
+        if (envId) {
+            const env = testEnvironments.find(e => e.id === envId);
+            if (env) {
+                document.getElementById('agent_ip').value = env.ip;
+            }
+        }
+    });
+    
+    // 页面加载时加载测试环境
+    loadTestEnvironments();
+    
+    // ========== 连接方式切换 ==========
+    connectionTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            connectionType = this.value;
+            if (connectionType === 'agent') {
+                agentConfig.style.display = 'block';
+                sshConfig.style.display = 'none';
+            } else {
+                agentConfig.style.display = 'none';
+                sshConfig.style.display = 'block';
+            }
+            isConnected = false;
+            resetConnectionUI();
+        });
+    });
+    
+    // ========== 连接代理程序 ==========
+    if (connectAgentBtn) {
+        connectAgentBtn.addEventListener('click', function() {
+            const deviceSource = document.querySelector('input[name="agent_device_source"]:checked')?.value || 'test_env';
+            let agentIp = '';
+            
+            if (deviceSource === 'test_env') {
+                const envId = document.getElementById('agent_test_env_select').value;
+                if (!envId) {
+                    addLogEntry('请选择测试环境', 'warning');
+                    return;
+                }
+                const env = testEnvironments.find(e => e.id === envId);
+                if (!env) {
+                    addLogEntry('测试环境不存在', 'warning');
+                    return;
+                }
+                agentIp = env.ip;
+            } else {
+                agentIp = document.getElementById('agent_ip').value.trim();
+                if (!agentIp) {
+                    addLogEntry('请输入代理程序IP地址', 'warning');
+                    return;
+                }
+            }
+            
+            const agentPort = '8888';
+            const agentUrl = `http://${agentIp}:${agentPort}`;
+            
+            connectAgentBtn.disabled = true;
+            connectAgentBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>连接中...';
+            addLogEntry(`正在连接代理程序: ${agentUrl}...`, 'info');
+            
+            fetch('/api/agent/interfaces/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    agent_url: agentUrl
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isConnected = true;
+                    connectionType = 'agent';
+                    currentAgentUrl = agentUrl;
+                    
+                    connectAgentBtn.innerHTML = '<i class="fas fa-check me-2"></i>已连接';
+                    connectAgentBtn.classList.remove('btn-primary');
+                    connectAgentBtn.classList.add('btn-success');
+                    connectAgentBtn.disabled = true;
+                    
+                    if (refreshBtn) refreshBtn.disabled = false;
+                    if (targetInterface) targetInterface.disabled = false;
+                    
+                    addLogEntry('成功连接到代理程序', 'success');
+                    displayInterfaces(data.interfaces || []);
+                } else {
+                    addLogEntry(`连接失败: ${data.error}`, 'danger');
+                    connectAgentBtn.disabled = false;
+                    connectAgentBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+                }
+            })
+            .catch(error => {
+                addLogEntry(`连接出错: ${error.message}`, 'danger');
+                connectAgentBtn.disabled = false;
+                connectAgentBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+            });
+        });
+    }
+    
+    // ========== 显示网卡列表 ==========
+    function displayInterfaces(interfaces) {
+        interfacesData = interfaces || [];
+        
+        if (!interfaces || interfaces.length === 0) {
+            if (interfacesList) {
+                interfacesList.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2 opacity-50"></i>
+                        <p>未找到可用网卡</p>
+                    </div>
+                `;
+            }
+            if (targetInterface) {
+                targetInterface.innerHTML = '<option value="" selected>未找到网卡</option>';
+            }
+            const targetSection = document.getElementById('target_interface_section');
+            if (targetSection) targetSection.style.display = 'none';
+            return;
+        }
+        
+        let html = '<div class="row g-3">';
+        interfaces.forEach((iface, index) => {
+            const ifaceName = typeof iface === 'string' ? iface : (iface.name || iface);
+            const displayName = typeof iface === 'object' ? (iface.display_name || iface.name || iface) : iface;
+            const ifaceIp = typeof iface === 'object' ? (iface.ip || '') : '';
+            const ifaceMac = typeof iface === 'object' ? (iface.mac || '') : '';
+            
+            let friendlyName = displayName;
+            if (displayName && displayName.startsWith('\\Device\\NPF_')) {
+                if (ifaceMac) {
+                    const macShort = ifaceMac.replace(/:/g, '').substring(6, 12).toUpperCase();
+                    friendlyName = `网卡 ${macShort}`;
+                } else {
+                    friendlyName = '网卡 ' + (index + 1);
+                }
+            }
+            
+            html += `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card interface-card border h-100" data-interface="${ifaceName}" style="cursor: pointer; transition: all 0.3s;">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-network-wired text-primary fa-2x"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-2 fw-bold">${friendlyName}</h6>
+                                    ${ifaceIp ? `<div class="mb-1"><i class="fas fa-globe text-info me-1"></i><small>IP: ${ifaceIp}</small></div>` : ''}
+                                    ${ifaceMac ? `<div class="mb-0"><i class="fas fa-fingerprint text-success me-1"></i><small>MAC: ${ifaceMac}</small></div>` : ''}
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-check-circle text-success selection-indicator" style="display: none;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        if (interfacesList) {
+            interfacesList.innerHTML = html;
+        }
+        
+        // 添加点击事件
+        const interfaceCards = interfacesList.querySelectorAll('.interface-card');
+        interfaceCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const ifaceName = this.getAttribute('data-interface');
+                interfaceCards.forEach(c => {
+                    c.classList.remove('border-success', 'bg-light');
+                    c.querySelector('.selection-indicator').style.display = 'none';
+                });
+                this.classList.add('border-success', 'bg-light');
+                this.querySelector('.selection-indicator').style.display = 'block';
+                const currentTargetInterface = document.getElementById('target_interface');
+                if (currentTargetInterface) {
+                    currentTargetInterface.value = ifaceName;
+                    currentTargetInterface.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                addLogEntry(`已选择网卡: ${this.querySelector('h6').textContent}`, 'success');
+            });
+            
+            card.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('border-success')) {
+                    this.classList.add('border-primary', 'shadow-sm');
+                }
+            });
+            card.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('border-success')) {
+                    this.classList.remove('border-primary', 'shadow-sm');
+                }
+            });
+        });
+        
+        // 更新下拉选择框
+        const targetSection = document.getElementById('target_interface_section');
+        const currentTargetInterface = document.getElementById('target_interface');
+        if (currentTargetInterface && targetSection) {
+            const currentValue = currentTargetInterface.value;
+            currentTargetInterface.innerHTML = '<option value="">请选择网卡</option>';
+            interfaces.forEach(iface => {
+                const ifaceName = typeof iface === 'string' ? iface : (iface.name || iface);
+                const displayName = typeof iface === 'object' ? (iface.display_name || iface.name || iface) : iface;
+                let friendlyName = displayName;
+                if (displayName && displayName.startsWith('\\Device\\NPF_')) {
+                    const ifaceMac = typeof iface === 'object' ? (iface.mac || '') : '';
+                    if (ifaceMac) {
+                        const macShort = ifaceMac.replace(/:/g, '').substring(6, 12).toUpperCase();
+                        friendlyName = `网卡 ${macShort}`;
+                    } else {
+                        friendlyName = '网卡 ' + (interfaces.indexOf(iface) + 1);
+                    }
+                }
+                const option = document.createElement('option');
+                option.value = ifaceName;
+                option.textContent = friendlyName;
+                currentTargetInterface.appendChild(option);
+            });
+            
+            if (currentValue) {
+                const optionExists = Array.from(currentTargetInterface.options).some(opt => opt.value === currentValue);
+                if (optionExists) {
+                    currentTargetInterface.value = currentValue;
+                    currentTargetInterface.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            
+            targetSection.style.display = 'block';
+            currentTargetInterface.disabled = false;
+        }
+    }
+    
+    // ========== 重置连接UI ==========
+    function resetConnectionUI() {
+        isConnected = false;
+        if (refreshBtn) refreshBtn.disabled = true;
+        if (targetInterface) targetInterface.disabled = true;
+        if (connectAgentBtn) {
+            connectAgentBtn.disabled = false;
+            connectAgentBtn.innerHTML = '<i class="fas fa-plug me-2"></i>连接';
+            connectAgentBtn.classList.remove('btn-success');
+            connectAgentBtn.classList.add('btn-primary');
+        }
+        if (interfacesList) {
+            interfacesList.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-info-circle fa-2x mb-2 opacity-50"></i>
+                    <p>请先连接远程主机以获取网卡信息</p>
+                </div>
+            `;
+        }
+        if (targetInterface) {
+            targetInterface.innerHTML = '<option value="" selected>请先获取网卡信息</option>';
+        }
+    }
+    
+    // ========== 刷新网卡信息 ==========
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (!isConnected) return;
+            
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>刷新中...';
+            addLogEntry('正在刷新网卡信息...', 'info');
+            
+            let apiUrl, requestBody;
+            if (connectionType === 'agent') {
+                apiUrl = '/api/agent/interfaces/';
+                requestBody = { agent_url: currentAgentUrl };
+            } else {
+                apiUrl = '/api/get_interfaces/';
+                requestBody = {
+                    host: currentHost,
+                    port: currentPort,
+                    username: currentUsername,
+                    password: currentPassword
+                };
+            }
+            
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLogEntry('网卡信息刷新成功', 'success');
+                    displayInterfaces(data.interfaces || []);
+                } else {
+                    addLogEntry(`刷新失败: ${data.error}`, 'danger');
+                }
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>刷新';
+                }
+            })
+            .catch(error => {
+                addLogEntry(`刷新出错: ${error.message}`, 'danger');
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>刷新';
+                }
+            });
+        });
+    }
+    
+    // ========== 端口扫描相关 ==========
+    // 解析端口范围
+    function parsePortRange(portRange) {
+        const ports = new Set();
+        const parts = portRange.split(',');
+        
+        for (const part of parts) {
+            const trimmed = part.trim();
+            if (trimmed.includes('-')) {
+                const [start, end] = trimmed.split('-').map(p => parseInt(p.trim()));
+                if (!isNaN(start) && !isNaN(end) && start > 0 && end <= 65535 && start <= end) {
+                    for (let i = start; i <= end; i++) {
+                        ports.add(i);
+                    }
+                }
+            } else {
+                const port = parseInt(trimmed);
+                if (!isNaN(port) && port > 0 && port <= 65535) {
+                    ports.add(port);
+                }
+            }
+        }
+        
+        return Array.from(ports).sort((a, b) => a - b);
+    }
+    
+    // 更新统计信息
+    function updateStatistics() {
+        const tbody = document.getElementById('scan_results_body');
+        const rows = tbody.querySelectorAll('tr[data-port]');
+        let openCount = 0;
+        let closedCount = 0;
+        
+        rows.forEach(row => {
+            const status = row.querySelector('td:nth-child(2)')?.textContent;
+            if (status && status.includes('开放')) {
+                openCount++;
+            } else if (status && status.includes('关闭')) {
+                closedCount++;
+            }
+        });
+        
+        document.getElementById('open_ports_count').textContent = openCount;
+        document.getElementById('closed_ports_count').textContent = closedCount;
+    }
+    
+    // 添加扫描结果
+    function addScanResult(port, status, service = '', responseTime = '') {
+        const tbody = document.getElementById('scan_results_body');
+        
+        const emptyRow = tbody.querySelector('tr:not([data-port])');
+        if (emptyRow) {
+            emptyRow.remove();
+        }
+        
+        let row = tbody.querySelector(`tr[data-port="${port}"]`);
+        if (!row) {
+            row = document.createElement('tr');
+            row.setAttribute('data-port', port);
+            tbody.appendChild(row);
+        }
+        
+        const statusClass = status === '开放' ? 'text-success' : (status === '关闭' ? 'text-warning' : 'text-danger');
+        const statusIcon = status === '开放' ? '<i class="fas fa-check-circle"></i>' : 
+                          (status === '关闭' ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-question-circle"></i>');
+        
+        row.innerHTML = `
+            <td><strong>${port}</strong></td>
+            <td class="${statusClass}">${statusIcon} ${status}</td>
+            <td>${service || '-'}</td>
+            <td>${responseTime || '-'}</td>
+        `;
+        
+        updateStatistics();
+    }
+    
+    // 清空结果
+    if (clearResultsBtn) {
+        clearResultsBtn.addEventListener('click', function() {
+            document.getElementById('scan_results_body').innerHTML = '<tr><td colspan="4" class="text-center text-muted">暂无扫描结果</td></tr>';
+            document.getElementById('open_ports_count').textContent = '0';
+            document.getElementById('closed_ports_count').textContent = '0';
+            document.getElementById('scanned_ports_count').textContent = '0';
+            displayedResults.clear();
+        });
+    }
+    
+    // 清空日志
+    if (clearLogBtn) {
+        clearLogBtn.addEventListener('click', function() {
+            scanLog.innerHTML = '<div class="text-muted">日志已清空</div>';
+        });
+    }
+    
+    // ========== 开始扫描 ==========
+    if (startScanBtn) {
+        startScanBtn.addEventListener('click', function() {
+            if (isScanning) {
+                // 停止扫描
+                if (currentScanId) {
+                    fetch('/api/port_scan/stop/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            scan_id: currentScanId,
+                            agent_url: currentAgentUrl || undefined
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            addLogEntry('扫描已停止', 'warning');
+                        } else {
+                            addLogEntry(`停止扫描失败: ${data.error || '未知错误'}`, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        addLogEntry(`停止扫描出错: ${error.message}`, 'error');
+                    });
+                }
+                
+                if (scanCancelToken) {
+                    scanCancelToken.abort();
+                }
+                
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                
+                isScanning = false;
+                currentScanId = null;
+                this.innerHTML = '<i class="fas fa-play me-2"></i>开始扫描';
+                this.classList.remove('btn-danger');
+                this.classList.add('btn-primary');
+                return;
+            }
+            
+            const targetIp = document.getElementById('scan_target_ip').value.trim();
+            const portRange = document.getElementById('scan_port_range').value.trim();
+            const timeout = parseFloat(document.getElementById('scan_timeout').value) || 1;
+            const threads = parseInt(document.getElementById('scan_threads').value) || 200;
+            const scanType = document.getElementById('scan_type').value;
+            
+            if (!targetIp) {
+                addLogEntry('请输入目标IP地址', 'error');
+                return;
+            }
+            
+            if (!portRange) {
+                addLogEntry('请输入端口范围', 'error');
+                return;
+            }
+            
+            // 如果使用代理程序扫描，检查连接和网卡
+            if (scanType === 'tcp_syn' || scanType === 'tcp_fin' || scanType === 'tcp_rst') {
+                if (!isConnected || !currentAgentUrl) {
+                    addLogEntry('请先连接代理程序', 'error');
+                    return;
+                }
+                const selectedInterface = targetInterface ? targetInterface.value : '';
+                if (!selectedInterface) {
+                    addLogEntry('请选择扫描网卡', 'error');
+                    return;
+                }
+            }
+            
+            // 解析端口范围
+            const ports = parsePortRange(portRange);
+            if (ports.length === 0) {
+                addLogEntry('端口范围格式错误，请检查输入', 'error');
+                return;
+            }
+            
+            addLogEntry(`开始扫描 ${targetIp}，端口范围：${ports.length} 个端口`, 'info');
+            const scanTypeNames = {
+                'tcp_connect': 'TCP连接扫描',
+                'tcp_syn': 'TCP SYN扫描',
+                'tcp_fin': 'TCP FIN扫描',
+                'tcp_rst': 'TCP RST扫描'
+            };
+            addLogEntry(`扫描类型：${scanTypeNames[scanType] || scanType}，超时：${timeout}秒，并发：${threads}线程`, 'info');
+            
+            // 更新按钮状态
+            isScanning = true;
+            this.innerHTML = '<i class="fas fa-stop me-2"></i>停止扫描';
+            this.classList.remove('btn-primary');
+            this.classList.add('btn-danger');
+            
+            // 清空之前的结果
+            document.getElementById('scan_results_body').innerHTML = '<tr><td colspan="4" class="text-center text-muted">扫描中...</td></tr>';
+            document.getElementById('open_ports_count').textContent = '0';
+            document.getElementById('closed_ports_count').textContent = '0';
+            document.getElementById('scanned_ports_count').textContent = '0';
+            displayedResults.clear();
+            
+            // 创建取消令牌
+            scanCancelToken = new AbortController();
+            
+            // 发送扫描请求
+            fetch('/api/port_scan/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    target_ip: targetIp,
+                    ports: ports,
+                    timeout: timeout,
+                    threads: threads,
+                    scan_type: scanType,
+                    agent_url: (scanType === 'tcp_syn' || scanType === 'tcp_fin' || scanType === 'tcp_rst') ? currentAgentUrl : undefined,
+                    interface: (scanType === 'tcp_syn' || scanType === 'tcp_fin' || scanType === 'tcp_rst') 
+                        ? (targetInterface ? targetInterface.value : '') : undefined
+                }),
+                signal: scanCancelToken.signal
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    currentScanId = data.scan_id;
+                    addLogEntry(`扫描已启动，扫描ID: ${data.scan_id}`, 'success');
+                    if (data.message) {
+                        addLogEntry(data.message, 'info');
+                    }
+                    startProgressPolling(data.scan_id);
+                } else {
+                    addLogEntry(`扫描启动失败: ${data.error || '未知错误'}`, 'error');
+                    isScanning = false;
+                    scanCancelToken = null;
+                    startScanBtn.innerHTML = '<i class="fas fa-play me-2"></i>开始扫描';
+                    startScanBtn.classList.remove('btn-danger');
+                    startScanBtn.classList.add('btn-primary');
+                }
+            })
+            .catch(error => {
+                if (error.name === 'AbortError') {
+                    addLogEntry('扫描已取消', 'warning');
+                } else {
+                    addLogEntry(`扫描出错: ${error.message}`, 'error');
+                }
+                isScanning = false;
+                scanCancelToken = null;
+                startScanBtn.innerHTML = '<i class="fas fa-play me-2"></i>开始扫描';
+                startScanBtn.classList.remove('btn-danger');
+                startScanBtn.classList.add('btn-primary');
+            });
+        });
+    }
+    
+    // ========== 实时更新扫描进度 ==========
+    function startProgressPolling(scanId) {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+        
+        lastScannedCount = 0;
+        lastOpenCount = 0;
+        displayedResults.clear();
+        window.lastProgressUpdate = Date.now();
+        window.progressErrorCount = 0;
+        window.scanStartTime = Date.now(); // 记录扫描开始时间
+        
+        progressInterval = setInterval(() => {
+            // 始终使用Django后端的进度API，Django后端会处理代理程序的进度查询
+            fetch(`/api/port_scan/progress/?scan_id=${scanId}`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Django后端直接返回这些字段，而不是嵌套在progress对象中
+                    const scanned = data.scanned || 0;
+                    const total = data.total_ports || 0;
+                    const open_ports = data.open_ports || [];
+                    const closed_ports = data.closed_ports || [];
+                    const results = data.results || [];
+                    const percentage = total > 0 ? Math.round((scanned / total) * 100) : 0;
+                    
+                    document.getElementById('scanned_ports_count').textContent = scanned;
+                    
+                    const now = Date.now();
+                    const shouldUpdate = scanned > lastScannedCount && (
+                        (now - (window.lastProgressUpdate || 0)) >= 5000 ||
+                        open_ports.length > lastOpenCount ||
+                        scanned % 50 === 0
+                    );
+                    
+                    if (shouldUpdate) {
+                        window.lastProgressUpdate = now;
+                        const progressText = `扫描进度: ${scanned}/${total} (${percentage}%) - 开放: ${open_ports.length} - 关闭: ${closed_ports.length}`;
+                        addLogEntry(progressText, 'info');
+                        lastScannedCount = scanned;
+                        lastOpenCount = open_ports.length;
+                    }
+                    
+                    if (results && results.length > 0) {
+                        results.forEach(result => {
+                            if (!displayedResults.has(result.port)) {
+                                displayedResults.add(result.port);
+                                
+                                if (result.status === 'open') {
+                                    addLogEntry(`端口 ${result.port} 开放 ${result.service ? '(' + result.service + ')' : ''} ${result.response_time ? '- 响应时间: ' + result.response_time + 'ms' : ''}`, 'port-open');
+                                    addScanResult(
+                                        result.port,
+                                        '开放',
+                                        result.service || '',
+                                        result.response_time ? `${result.response_time}ms` : ''
+                                    );
+                                } else if (result.status === 'closed') {
+                                    addScanResult(
+                                        result.port,
+                                        '关闭',
+                                        result.service || '',
+                                        result.response_time ? `${result.response_time}ms` : ''
+                                    );
+                                }
+                            }
+                        });
+                    }
+                    
+                    if (data.completed) {
+                        clearInterval(progressInterval);
+                        progressInterval = null;
+                        
+                        isScanning = false;
+                        currentScanId = null;
+                        startScanBtn.innerHTML = '<i class="fas fa-play me-2"></i>开始扫描';
+                        startScanBtn.classList.remove('btn-danger');
+                        startScanBtn.classList.add('btn-primary');
+                        
+                        if (data.cancelled) {
+                            addLogEntry('扫描已停止', 'warning');
+                        } else {
+                            const totalScanned = data.total_ports || scanned;
+                            const openCount = data.open_ports ? data.open_ports.length : 0;
+                            const closedCount = data.closed_ports ? data.closed_ports.length : 0;
+                            addLogEntry(`扫描完成！共扫描 ${totalScanned} 个端口，发现 ${openCount} 个开放端口，${closedCount} 个关闭端口`, 'success');
+                            
+                            document.getElementById('scanned_ports_count').textContent = totalScanned;
+                            document.getElementById('open_ports_count').textContent = openCount;
+                            document.getElementById('closed_ports_count').textContent = closedCount;
+                            
+                            if (data.open_ports && data.open_ports.length > 0) {
+                                addLogEntry(`开放端口列表: ${data.open_ports.join(', ')}`, 'success');
+                            } else {
+                                addLogEntry('未发现开放端口', 'info');
+                            }
+                        }
+                    }
+                } else {
+                    // 如果是"扫描会话不存在"错误，可能是扫描还没启动，继续轮询
+                    const errorMsg = data.error || '未知错误';
+                    if (errorMsg.includes('扫描会话不存在')) {
+                        // 扫描可能还没启动，继续轮询（最多等待30秒）
+                        const elapsed = (Date.now() - window.scanStartTime) / 1000;
+                        if (elapsed > 30) {
+                            clearInterval(progressInterval);
+                            progressInterval = null;
+                            addLogEntry('扫描启动超时，请检查代理程序状态', 'error');
+                            isScanning = false;
+                            currentScanId = null;
+                            startScanBtn.innerHTML = '<i class="fas fa-play me-2"></i>开始扫描';
+                            startScanBtn.classList.remove('btn-danger');
+                            startScanBtn.classList.add('btn-primary');
+                        } else {
+                            // 继续轮询，不记录错误（避免日志刷屏）
+                            console.log('扫描会话尚未创建，继续等待...');
+                        }
+                    } else {
+                        addLogEntry(`获取扫描进度失败: ${errorMsg}`, 'error');
+                        if (!window.progressErrorCount) {
+                            window.progressErrorCount = 0;
+                        }
+                        window.progressErrorCount++;
+                        if (window.progressErrorCount > 5) {
+                            clearInterval(progressInterval);
+                            progressInterval = null;
+                            addLogEntry('进度获取连续失败，已停止轮询', 'error');
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error('获取扫描进度失败:', error);
+                    addLogEntry(`获取进度出错: ${error.message}`, 'error');
+                    if (!window.progressErrorCount) {
+                        window.progressErrorCount = 0;
+                    }
+                    window.progressErrorCount++;
+                    if (window.progressErrorCount > 5) {
+                        clearInterval(progressInterval);
+                        progressInterval = null;
+                        addLogEntry('进度获取连续失败，已停止轮询', 'error');
+                    }
+                }
+            });
+        }, 2000); // 每2秒轮询一次
+        
+        addLogEntry('正在扫描，请稍候...', 'info');
+    }
+});
+</script>
+{% endblock %}

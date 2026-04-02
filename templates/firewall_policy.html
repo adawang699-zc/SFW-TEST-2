@@ -1,0 +1,2306 @@
+{% extends "base.html" %}
+
+{% block title %}防火墙策略 - 测试系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-2"><i class="fas fa-shield-alt text-primary me-2"></i>防火墙策略</h2>
+            <p class="text-muted mb-0">配置和执行防火墙策略测试</p>
+        </div>
+    </div>
+
+    <!-- Tab导航 -->
+    <ul class="nav nav-tabs mb-3" id="firewallTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="policy-tab" data-bs-toggle="tab" data-bs-target="#policy-pane" type="button" role="tab" aria-controls="policy-pane" aria-selected="true">
+                <i class="fas fa-sliders-h me-2"></i>策略配置
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="object-tab" data-bs-toggle="tab" data-bs-target="#object-pane" type="button" role="tab" aria-controls="object-pane" aria-selected="false">
+                <i class="fas fa-cube me-2"></i>对象管理
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab内容 -->
+    <div class="tab-content" id="firewallTabContent">
+        <!-- 策略配置Tab -->
+        <div class="tab-pane fade show active" id="policy-pane" role="tabpanel" aria-labelledby="policy-tab">
+    <!-- 全局输入区域 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>全局配置</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="ip_address" class="form-label">IP地址</label>
+                        <input type="text" class="form-control" id="ip_address" placeholder="例如: 192.168.1.1">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="request_type" class="form-label">请求类型</label>
+                        <select class="form-select" id="request_type">
+                            <option value="" selected disabled>请选择请求类型</option>
+                            <option value="custom_service">自定义服务</option>
+                            <option value="service_group">服务组</option>
+                            <option value="l2_custom_service">二层自定义服务</option>
+                            <option value="addrlist">地址列表</option>
+                            <option value="addrgroup">地址组列表</option>
+                            <option value="l2_addrlist">二层地址列表</option>
+                            <option value="l2_addrgroup">二层地址组列表</option>
+                            <option value="packet_filter">包过滤策略</option>
+                            <option value="deep_check">深度解析策略</option>
+                            <option value="ipsecvpn">VPN策略</option>
+                            <option value="custom_protocol">自定义协议</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="request_count" class="form-label">请求数量</label>
+                        <input type="number" class="form-control" id="request_count" min="1" placeholder="例如: 100">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 表单区域 -->
+    <div class="row">
+        <!-- 左侧表单 -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>策略配置</h5>
+                    <div id="request_type_badge" class="badge bg-secondary">未选择请求类型</div>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- 自定义服务表单 -->
+                    <div id="custom_service_form" class="request-form" style="display: none;">
+                        <h6>自定义服务配置</h6>
+                        <div class="mb-3">
+                            <label for="custom_service_id" class="form-label">ID</label>
+                            <input type="text" class="form-control" id="custom_service_id" value="" placeholder="服务ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom_service_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="custom_service_loginuser" value="secadmin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom_service_name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="custom_service_name" value="service0" placeholder="服务名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom_service_desc" class="form-label">描述</label>
+                            <input type="text" class="form-control" id="custom_service_desc" value="desc" placeholder="服务描述">
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom_service_content" class="form-label">内容</label>
+                            <input type="text" class="form-control" id="custom_service_content" value="tcp;40000;0;0" placeholder="例如: tcp;3334;0;0">
+                            <div class="form-text">格式: 协议;端口;起始端口;结束端口</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 服务组表单 -->
+                    <div id="service_group_form" class="request-form" style="display: none;">
+                        <h6>服务组配置</h6>
+                        <div class="mb-3">
+                            <label for="service_group_id" class="form-label">ID</label>
+                            <input type="text" class="form-control" id="service_group_id" value="0" placeholder="服务组ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="service_group_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="service_group_loginuser" value="secadmin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="service_group_name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="service_group_name" value="group1" placeholder="服务组名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="service_group_desc" class="form-label">描述</label>
+                            <input type="text" class="form-control" id="service_group_desc" value="desc" placeholder="服务组描述">
+                        </div>
+                        <div class="mb-3">
+                            <label for="service_group_member" class="form-label">成员</label>
+                            <input type="text" class="form-control" id="service_group_member" value="2,3" placeholder="例如: 2,3">
+                            <div class="form-text">多个成员ID用逗号分隔</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 二层自定义服务表单 -->
+                    <div id="l2_custom_service_form" class="request-form" style="display: none;">
+                        <h6>二层自定义服务配置</h6>
+                        <div class="mb-3">
+                            <label for="l2_custom_service_id" class="form-label">ID</label>
+                            <input type="text" class="form-control" id="l2_custom_service_id" value="" placeholder="服务ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_custom_service_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="l2_custom_service_loginuser" value="secadmin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_custom_service_name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="l2_custom_service_name" value="l2_custom_service" placeholder="服务名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_custom_service_desc" class="form-label">描述</label>
+                            <input type="text" class="form-control" id="l2_custom_service_desc" value="desc" placeholder="服务描述">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_custom_service_content" class="form-label">内容</label>
+                            <input type="text" class="form-control" id="l2_custom_service_content" value='{"eth_type":"0x0899"}' placeholder='例如: {"eth_type":"0x0899"}'>
+                            <div class="form-text">JSON格式的以太网类型</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 地址列表表单 -->
+                    <div id="addrlist_form" class="request-form" style="display: none;">
+                        <h6>地址列表配置</h6>
+                        <div class="mb-3">
+                            <label for="addrlist_id" class="form-label">ID</label>
+                            <input type="text" class="form-control" id="addrlist_id" value="" placeholder="地址ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrlist_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="addrlist_loginuser" value="secadmin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrlist_name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="addrlist_name" value="addr" placeholder="地址名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrlist_desc" class="form-label">描述</label>
+                            <input type="text" class="form-control" id="addrlist_desc" value="desc" placeholder="地址描述">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrlist_iptype" class="form-label">IP类型</label>
+                            <input type="number" class="form-control" id="addrlist_iptype" value="4" placeholder="例如: 4">
+                            <div class="form-text">4表示IPv4，6表示IPv6</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrlist_info" class="form-label">IP地址</label>
+                            <input type="text" class="form-control" id="addrlist_info" value="1.1.1.1" placeholder="例如: 1.1.1.1">
+                        </div>
+                    </div>
+                    
+                    <!-- 地址组列表表单 -->
+                    <div id="addrgroup_form" class="request-form" style="display: none;">
+                        <h6>地址组列表配置</h6>
+                        <div class="mb-3">
+                            <label for="addrgroup_id" class="form-label">ID</label>
+                            <input type="text" class="form-control" id="addrgroup_id" value="0" placeholder="地址组ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrgroup_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="addrgroup_loginuser" value="secadmin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrgroup_name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="addrgroup_name" value="group" placeholder="地址组名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrgroup_desc" class="form-label">描述</label>
+                            <input type="text" class="form-control" id="addrgroup_desc" value="desc" placeholder="地址组描述">
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrgroup_iptype" class="form-label">IP类型</label>
+                            <input type="number" class="form-control" id="addrgroup_iptype" value="4" placeholder="例如: 4">
+                            <div class="form-text">4表示IPv4，6表示IPv6</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addrgroup_member" class="form-label">成员</label>
+                            <input type="text" class="form-control" id="addrgroup_member" value="30,29" placeholder="例如: 30,29">
+                            <div class="form-text">多个成员ID用逗号分隔</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 二层地址列表表单 -->
+                    <div id="l2_addrlist_form" class="request-form" style="display: none;">
+                        <h6>二层地址列表配置</h6>
+                        <div class="mb-3">
+                            <label for="l2_addrlist_id" class="form-label">ID</label>
+                            <input type="text" class="form-control" id="l2_addrlist_id" value="" placeholder="地址ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrlist_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="l2_addrlist_loginuser" value="secadmin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrlist_name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="l2_addrlist_name" value="mac" placeholder="MAC地址名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrlist_desc" class="form-label">描述</label>
+                            <input type="text" class="form-control" id="l2_addrlist_desc" value="desc" placeholder="地址描述">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrlist_info" class="form-label">MAC地址</label>
+                            <input type="text" class="form-control" id="l2_addrlist_info" value="11:22:33:44:55:66" placeholder="例如: 11:22:33:44:55:66">
+                            <div class="form-text">MAC地址格式: XX:XX:XX:XX:XX:XX</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 二层地址组列表表单 -->
+                    <div id="l2_addrgroup_form" class="request-form" style="display: none;">
+                        <h6>二层地址组列表配置</h6>
+                        <div class="mb-3">
+                            <label for="l2_addrgroup_id" class="form-label">ID</label>
+                            <input type="text" class="form-control" id="l2_addrgroup_id" value="0" placeholder="地址组ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrgroup_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="l2_addrgroup_loginuser" value="secadmin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrgroup_name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="l2_addrgroup_name" value="groups" placeholder="地址组名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrgroup_desc" class="form-label">描述</label>
+                            <input type="text" class="form-control" id="l2_addrgroup_desc" value="desc" placeholder="地址组描述">
+                        </div>
+                        <div class="mb-3">
+                            <label for="l2_addrgroup_member" class="form-label">成员</label>
+                            <input type="text" class="form-control" id="l2_addrgroup_member" value="3,4" placeholder="例如: 3,4">
+                            <div class="form-text">多个成员ID用逗号分隔</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 包过滤策略表单 -->
+                    <div id="packet_filter_form" class="request-form" style="display: none;">
+                        <h6>包过滤策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="packet_filter_id" class="form-label">ID</label>
+                                    <input type="text" class="form-control" id="packet_filter_id" value="100" placeholder="策略ID">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_name" class="form-label">名称</label>
+                                    <input type="text" class="form-control" id="packet_filter_name" value="test11123" placeholder="策略名称">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_desc" class="form-label">描述</label>
+                                    <input type="text" class="form-control" id="packet_filter_desc" value="" placeholder="描述">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_iptype" class="form-label">IP类型</label>
+                                    <input type="number" class="form-control" id="packet_filter_iptype" value="4" placeholder="4=IPv4, 6=IPv6">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_proto" class="form-label">协议</label>
+                                    <input type="text" class="form-control" id="packet_filter_proto" value="tcp_any" placeholder="例如: tcp_any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_action" class="form-label">动作</label>
+                                    <input type="number" class="form-control" id="packet_filter_action" value="1" placeholder="1=允许, 0=拒绝">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="packet_filter_smacflag" class="form-label">源MAC标志</label>
+                                    <input type="number" class="form-control" id="packet_filter_smacflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_saddr" class="form-label">源MAC地址</label>
+                                    <input type="text" class="form-control" id="packet_filter_saddr" value="" placeholder="源MAC地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_sflag" class="form-label">源IP标志</label>
+                                    <input type="number" class="form-control" id="packet_filter_sflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_sip" class="form-label">源IP地址</label>
+                                    <input type="text" class="form-control" id="packet_filter_sip" value="" placeholder="源IP地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_sp" class="form-label">源端口</label>
+                                    <input type="number" class="form-control" id="packet_filter_sp" value="0" placeholder="源端口">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_input" class="form-label">输入接口</label>
+                                    <input type="text" class="form-control" id="packet_filter_input" value="" placeholder="输入接口">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="packet_filter_dmacflag" class="form-label">目的MAC标志</label>
+                                    <input type="number" class="form-control" id="packet_filter_dmacflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_daddr" class="form-label">目的MAC地址</label>
+                                    <input type="text" class="form-control" id="packet_filter_daddr" value="" placeholder="目的MAC地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_dflag" class="form-label">目的IP标志</label>
+                                    <input type="number" class="form-control" id="packet_filter_dflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_dip" class="form-label">目的IP地址</label>
+                                    <input type="text" class="form-control" id="packet_filter_dip" value="" placeholder="目的IP地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_output" class="form-label">输出接口</label>
+                                    <input type="text" class="form-control" id="packet_filter_output" value="" placeholder="输出接口">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="packet_filter_timeobj" class="form-label">时间对象</label>
+                                    <input type="text" class="form-control" id="packet_filter_timeobj" value="0" placeholder="时间对象">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_deep_content" class="form-label">深度内容</label>
+                                    <input type="text" class="form-control" id="packet_filter_deep_content" value="" placeholder="深度内容">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_loginuser" class="form-label">登录用户</label>
+                                    <input type="text" class="form-control" id="packet_filter_loginuser" value="secadmin">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_enable" class="form-label">启用</label>
+                                    <input type="number" class="form-control" id="packet_filter_enable" value="1" placeholder="1=启用, 0=禁用">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="packet_filter_logged" class="form-label">日志</label>
+                                    <input type="number" class="form-control" id="packet_filter_logged" value="0" placeholder="0=关闭, 1=开启">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 深度解析策略表单 -->
+                    <div id="deep_check_form" class="request-form" style="display: none;">
+                        <h6>深度解析策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="deep_check_id" class="form-label">ID</label>
+                                    <input type="text" class="form-control" id="deep_check_id" value="100" placeholder="策略ID">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_name" class="form-label">名称</label>
+                                    <input type="text" class="form-control" id="deep_check_name" value="modbus1" placeholder="策略名称">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_desc" class="form-label">描述</label>
+                                    <input type="text" class="form-control" id="deep_check_desc" value="" placeholder="描述">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_iptype" class="form-label">IP类型</label>
+                                    <input type="number" class="form-control" id="deep_check_iptype" value="4" placeholder="4=IPv4, 6=IPv6">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_proto" class="form-label">协议</label>
+                                    <input type="text" class="form-control" id="deep_check_proto" value="modbus" placeholder="例如: modbus">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_action" class="form-label">动作</label>
+                                    <input type="number" class="form-control" id="deep_check_action" value="2" placeholder="动作类型">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_deep_content" class="form-label">深度内容</label>
+                                    <input type="text" class="form-control" id="deep_check_deep_content" value="1^1^0^99^^^^1;1^5^0^88^1^65280^222^1" placeholder="深度内容">
+                                    <div class="form-text">格式: 规则1;规则2 (用分号分隔)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="deep_check_smacflag" class="form-label">源MAC标志</label>
+                                    <input type="number" class="form-control" id="deep_check_smacflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_saddr" class="form-label">源MAC地址</label>
+                                    <input type="text" class="form-control" id="deep_check_saddr" value="" placeholder="源MAC地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_sflag" class="form-label">源IP标志</label>
+                                    <input type="number" class="form-control" id="deep_check_sflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_sip" class="form-label">源IP地址</label>
+                                    <input type="text" class="form-control" id="deep_check_sip" value="" placeholder="源IP地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_sp" class="form-label">源端口</label>
+                                    <input type="number" class="form-control" id="deep_check_sp" value="0" placeholder="源端口">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_input" class="form-label">输入接口</label>
+                                    <input type="text" class="form-control" id="deep_check_input" value="" placeholder="输入接口">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_dmacflag" class="form-label">目的MAC标志</label>
+                                    <input type="number" class="form-control" id="deep_check_dmacflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_daddr" class="form-label">目的MAC地址</label>
+                                    <input type="text" class="form-control" id="deep_check_daddr" value="" placeholder="目的MAC地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_dflag" class="form-label">目的IP标志</label>
+                                    <input type="number" class="form-control" id="deep_check_dflag" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_dip" class="form-label">目的IP地址</label>
+                                    <input type="text" class="form-control" id="deep_check_dip" value="" placeholder="目的IP地址">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_output" class="form-label">输出接口</label>
+                                    <input type="text" class="form-control" id="deep_check_output" value="" placeholder="输出接口">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_timeobj" class="form-label">时间对象</label>
+                                    <input type="text" class="form-control" id="deep_check_timeobj" value="0" placeholder="时间对象">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_loginuser" class="form-label">登录用户</label>
+                                    <input type="text" class="form-control" id="deep_check_loginuser" value="secadmin">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_enable" class="form-label">启用</label>
+                                    <input type="number" class="form-control" id="deep_check_enable" value="1" placeholder="1=启用, 0=禁用">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="deep_check_logged" class="form-label">日志</label>
+                                    <input type="number" class="form-control" id="deep_check_logged" value="0" placeholder="0=关闭, 1=开启">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 自定义协议表单 -->
+                    <div id="custom_protocol_form" class="request-form" style="display: none;">
+                        <h6>自定义协议配置</h6>
+                        <div class="mb-3">
+                            <label for="custom_protocol_loginuser" class="form-label">登录用户</label>
+                            <input type="text" class="form-control" id="custom_protocol_loginuser" value="zhangc" placeholder="登录用户名">
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom_protocol_file" class="form-label">协议文件</label>
+                            <select class="form-select" id="custom_protocol_file">
+                                <option value="" selected disabled>请选择协议文件</option>
+                            </select>
+                            <div class="form-text">从 cus_prot 目录中选择协议文件</div>
+                        </div>
+                    </div>
+                    
+                    <!-- VPN策略表单 -->
+                    <div id="ipsecvpn_form" class="request-form" style="display: none;">
+                        <h6>VPN策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="mt-3 mb-2">基本信息</h6>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_id" class="form-label">ID</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_id" value="1" placeholder="VPN ID">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_name" class="form-label">名称</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_name" value="testc" placeholder="VPN名称">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_type" class="form-label">类型</label>
+                                    <input type="number" class="form-control" id="ipsecvpn_type" value="2" placeholder="类型">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_status" class="form-label">状态</label>
+                                    <input type="number" class="form-control" id="ipsecvpn_status" value="1" placeholder="状态">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_version" class="form-label">版本</label>
+                                    <input type="number" class="form-control" id="ipsecvpn_version" value="1" placeholder="版本">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_protocol" class="form-label">协议</label>
+                                    <input type="number" class="form-control" id="ipsecvpn_protocol" value="4" placeholder="协议">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_interface" class="form-label">接口</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_interface" value="Virtual0" placeholder="接口名称">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_remote_gateway" class="form-label">远程网关</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_remote_gateway" value="" placeholder="远程网关">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_auth_method" class="form-label">认证方法</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_auth_method" value="PSK" placeholder="例如: PSK">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_local_cert" class="form-label">本地证书</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_local_cert" value="" placeholder="本地证书">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_negotiation_mode" class="form-label">协商模式</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_negotiation_mode" value="MAIN" placeholder="例如: MAIN">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mt-3 mb-2">标识信息</h6>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_my_identifier" class="form-label">本端标识</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_my_identifier" value="address" placeholder="例如: address">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_my_identifier_info" class="form-label">本端标识信息</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_my_identifier_info" value="1.1.1.1" placeholder="例如: 1.1.1.1">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_peer_identifier" class="form-label">对端标识</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_peer_identifier" value="address" placeholder="例如: address">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_peer_identifier_info" class="form-label">对端标识信息</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_peer_identifier_info" value="2.2.2.2" placeholder="例如: 2.2.2.2">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_pre_shared_key" class="form-label">预共享密钥</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_pre_shared_key" value="12345678" placeholder="预共享密钥">
+                                </div>
+                                <h6 class="mt-3 mb-2">阶段1配置</h6>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p1_encryption_alg" class="form-label">P1加密算法</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_p1_encryption_alg" value="aes256" placeholder="例如: aes256">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p1_hash_alg" class="form-label">P1哈希算法</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_p1_hash_alg" value="md5" placeholder="例如: md5">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p1_dh_group" class="form-label">P1 DH组</label>
+                                    <input type="number" class="form-control" id="ipsecvpn_p1_dh_group" value="1" placeholder="DH组">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p1_life_time" class="form-label">P1生存时间</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_p1_life_time" value="0" placeholder="生存时间">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_mode" class="form-label">模式</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_mode" value="TUNNEL" placeholder="例如: TUNNEL">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_local_net" class="form-label">本地网络</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_local_net" value="1.1.1.1/24" placeholder="例如: 1.1.1.1/24">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_remote_net" class="form-label">远程网络</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_remote_net" value="3.3.3.3/24" placeholder="例如: 3.3.3.3/24">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="mt-3 mb-2">阶段2配置</h6>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p2_protocol" class="form-label">P2协议</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_p2_protocol" value="ESP" placeholder="例如: ESP">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p2_encryption_alg" class="form-label">P2加密算法</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_p2_encryption_alg" value="aes256" placeholder="例如: aes256">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p2_hash_alg" class="form-label">P2哈希算法</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_p2_hash_alg" value="md5" placeholder="例如: md5">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_pfs_key_group" class="form-label">PFS密钥组</label>
+                                    <input type="number" class="form-control" id="ipsecvpn_pfs_key_group" value="0" placeholder="PFS密钥组">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_p2_lifetime" class="form-label">P2生存时间</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_p2_lifetime" value="0" placeholder="生存时间">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_ca" class="form-label">CA</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_ca" value="" placeholder="CA">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ipsecvpn_loginuser" class="form-label">登录用户</label>
+                                    <input type="text" class="form-control" id="ipsecvpn_loginuser" value="secadmin">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 默认提示 -->
+                    <div id="default_form" class="text-center text-muted py-5">
+                        <i class="fas fa-hand-pointer fa-3x mb-3 text-primary opacity-50"></i>
+                        <p class="fs-5">请先选择请求类型</p>
+                        <p class="small">从上方下拉菜单中选择要配置的策略类型</p>
+                    </div>
+
+                    <!-- 发送按钮 -->
+                    <div class="d-flex justify-content-end mt-4">
+                        <button id="send_request" class="btn btn-primary btn-lg" disabled>
+                            <i class="fas fa-paper-plane me-2"></i>发送请求
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧实时显示区域 -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>实时显示</h5>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="auto_scroll" checked>
+                        <label class="form-check-label" for="auto_scroll">自动滚动</label>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="realtime_display" class="p-3" style="height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; background-color: #1e1e1e; color: #d4d4d4; border-radius: 0 0 10px 10px;">
+                        <div class="text-muted text-center py-5">
+                            <i class="fas fa-terminal fa-2x mb-2 opacity-50"></i>
+                            <p>等待请求数据...</p>
+                            <p class="small">日志将在此处实时显示</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const requestTypeSelect = document.getElementById('request_type');
+    const requestTypeBadge = document.getElementById('request_type_badge');
+    const sendButton = document.getElementById('send_request');
+    const realtimeDisplay = document.getElementById('realtime_display');
+    const autoScrollCheckbox = document.getElementById('auto_scroll');
+    
+    // 格式化响应内容（解析JSON并显示）
+    function formatResponse(responseText) {
+        if (!responseText) return '';
+        
+        try {
+            // 尝试解析JSON
+            const jsonObj = JSON.parse(responseText);
+            
+            // 格式化显示
+            let formatted = '响应内容:\n';
+            for (const key in jsonObj) {
+                if (jsonObj.hasOwnProperty(key)) {
+                    const value = jsonObj[key];
+                    // 如果是Unicode转义的字符串，会自动解析
+                    formatted += `  ${key}: ${value}\n`;
+                }
+            }
+            return formatted.trim();
+        } catch (e) {
+            // 如果不是JSON，直接返回原文本
+            return `响应内容: ${responseText}`;
+        }
+    }
+    
+    // 加载cus_prot目录中的文件列表
+    function loadProtocolFiles() {
+        const fileSelect = document.getElementById('custom_protocol_file');
+        if (!fileSelect) return;
+        
+        fetch('/api/get_protocol_files/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.files) {
+                fileSelect.innerHTML = '<option value="" selected disabled>请选择协议文件</option>';
+                data.files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file;
+                    option.textContent = file;
+                    fileSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('加载协议文件列表失败:', error);
+        });
+    }
+    
+    // 页面加载时加载文件列表
+    loadProtocolFiles();
+    
+    // 获取请求类型对应的徽章颜色（先定义，供后续函数使用）
+    function getBadgeColor(type) {
+        const colors = {
+            'custom_service': 'dark',
+            'service_group': 'info',
+            'l2_custom_service': 'warning',
+            'addrlist': 'success',
+            'addrgroup': 'primary',
+            'l2_addrlist': 'danger',
+            'l2_addrgroup': 'secondary',
+            'packet_filter': 'warning',
+            'deep_check': 'info',
+            'ipsecvpn': 'dark',
+            'custom_protocol': 'success'
+        };
+        return colors[type] || 'secondary';
+    }
+    
+    // 更新表单显示的函数
+    function updateFormDisplay() {
+        const selectedType = requestTypeSelect ? requestTypeSelect.value : '';
+        console.log('请求类型已更改:', selectedType);
+        
+        // 隐藏所有表单
+        document.querySelectorAll('.request-form').forEach(form => {
+            form.style.display = 'none';
+        });
+        
+        // 隐藏默认提示
+        const defaultForm = document.getElementById('default_form');
+        if (defaultForm) {
+            defaultForm.style.display = 'none';
+        }
+        
+        // 显示对应的表单
+        if (selectedType) {
+            const targetForm = document.getElementById(`${selectedType}_form`);
+            console.log(`尝试显示表单: ${selectedType}_form`);
+            console.log(`表单元素:`, targetForm);
+            
+            if (targetForm) {
+                targetForm.style.display = 'block';
+                console.log(`表单 ${selectedType}_form 已显示`);
+            } else {
+                console.error(`找不到表单: ${selectedType}_form`);
+            }
+            
+            if (requestTypeBadge) {
+            requestTypeBadge.textContent = selectedType.toUpperCase();
+            requestTypeBadge.className = `badge bg-${getBadgeColor(selectedType)}`;
+            }
+            if (sendButton) {
+            sendButton.disabled = false;
+            }
+        } else {
+            if (requestTypeBadge) {
+            requestTypeBadge.textContent = '未选择请求类型';
+            requestTypeBadge.className = 'badge bg-secondary';
+            }
+            if (defaultForm) {
+                defaultForm.style.display = 'block';
+            }
+            if (sendButton) {
+            sendButton.disabled = true;
+        }
+        }
+    }
+    
+    // 根据请求类型显示对应的表单
+    if (requestTypeSelect) {
+        requestTypeSelect.addEventListener('change', updateFormDisplay);
+        // 页面加载时也执行一次，处理已有选择的情况
+        updateFormDisplay();
+    }
+    
+    // 发送请求按钮点击事件
+    if (sendButton) {
+    sendButton.addEventListener('click', function() {
+        const ipAddress = document.getElementById('ip_address').value;
+        const requestType = requestTypeSelect.value;
+        const requestCount = document.getElementById('request_count').value || 1;
+        
+        if (!ipAddress || !requestType) {
+            showNotification('请填写必要的配置信息', 'warning');
+            return;
+        }
+        
+        // 清空实时显示区域
+            if (realtimeDisplay) {
+        realtimeDisplay.innerHTML = '';
+            }
+        
+        // 首先获取cookie
+        addLogEntry(`正在获取 ${ipAddress} 的cookie...`, 'info');
+        
+        fetch('/api/get_cookie/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                ip_address: ipAddress
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.from_cache) {
+                    addLogEntry(`Cookie获取成功 (来自缓存): ${data.cookie}`, 'success');
+                } else {
+                    addLogEntry(`Cookie获取成功 (新获取): ${data.cookie}`, 'success');
+                }
+                addLogEntry(`状态码: ${data.status_code}`, 'info');
+                
+                // 显示响应内容
+                if (data.response_text) {
+                        const formattedResponse = formatResponse(data.response_text);
+                        addLogEntry(formattedResponse, 'info');
+                }
+                
+                // 检查cookie是否为空
+                if (!data.cookie) {
+                    addLogEntry(`警告: 获取到的cookie为空，请检查Django服务器控制台输出`, 'warning');
+                    addLogEntry(`可能的原因: 1. 目标服务器未返回Set-Cookie头 2. 认证失败 3. 网络问题`, 'warning');
+                }
+                
+                // 显示请求信息
+                addLogEntry(`开始发送 ${requestCount} 个 ${requestType.toUpperCase()} 请求到 ${ipAddress}...`, 'info');
+                
+                // 检查cookie是否有效，如果无效则不发送请求
+                if (!data.cookie) {
+                    addLogEntry(`由于cookie为空，取消发送请求`, 'warning');
+                    return;
+                }
+
+                // 调用模拟请求函数
+                simulateRequests(ipAddress, requestType, requestCount, data.cookie);
+            } else {
+                addLogEntry(`Cookie 获取失败：${data.error}`, 'danger');
+            }
+        })
+        .catch(error => {
+            addLogEntry(`请求出错：${error.message}`, 'danger');
+        });
+    });
+    }
+
+    // ========== 通用请求发送函数 ==========
+    const API_ENDPOINTS = {
+        'custom_service': '/api/send_custom_service/',
+        'service_group': '/api/send_service_group/',
+        'l2_custom_service': '/api/send_l2_custom_service/',
+        'addrlist': '/api/send_addrlist/',
+        'addrgroup': '/api/send_addrgroup/',
+        'l2_addrlist': '/api/send_l2_addrlist/',
+        'l2_addrgroup': '/api/send_l2_addrgroup/',
+        'packet_filter': '/api/send_packet_filter/',
+        'deep_check': '/api/send_deep_check/',
+        'ipsecvpn': '/api/send_ipsecvpn/',
+        'custom_protocol': '/api/send_custom_protocol/'
+    };
+
+    // 获取表单数据
+    function getFormData(type) {
+        const maps = {
+            'custom_service': ['custom_service_id', 'custom_service_loginuser', 'custom_service_name', 'custom_service_desc', 'custom_service_content'],
+            'service_group': ['service_group_id', 'service_group_loginuser', 'service_group_name', 'service_group_desc', 'service_group_member'],
+            'l2_custom_service': ['l2_custom_service_id', 'l2_custom_service_loginuser', 'l2_custom_service_name', 'l2_custom_service_desc', 'l2_custom_service_content'],
+            'addrlist': ['addrlist_id', 'addrlist_loginuser', 'addrlist_name', 'addrlist_desc', 'addrlist_iptype', 'addrlist_info'],
+            'addrgroup': ['addrgroup_id', 'addrgroup_loginuser', 'addrgroup_name', 'addrgroup_desc', 'addrgroup_iptype', 'addrgroup_member'],
+            'l2_addrlist': ['l2_addrlist_id', 'l2_addrlist_loginuser', 'l2_addrlist_name', 'l2_addrlist_desc', 'l2_addrlist_info'],
+            'l2_addrgroup': ['l2_addrgroup_id', 'l2_addrgroup_loginuser', 'l2_addrgroup_name', 'l2_addrgroup_desc', 'l2_addrgroup_member'],
+            'packet_filter': ['packet_filter_id', 'packet_filter_loginuser', 'packet_filter_name', 'packet_filter_desc', 'packet_filter_iptype', 'packet_filter_proto', 'packet_filter_action', 'packet_filter_smacflag', 'packet_filter_saddr', 'packet_filter_sflag', 'packet_filter_sip', 'packet_filter_sp', 'packet_filter_input', 'packet_filter_dmacflag', 'packet_filter_daddr', 'packet_filter_dflag', 'packet_filter_dip', 'packet_filter_dp', 'packet_filter_output', 'packet_filter_timeobj', 'packet_filter_deep_content', 'packet_filter_enable', 'packet_filter_logged'],
+            'deep_check': ['deep_check_id', 'deep_check_loginuser', 'deep_check_name', 'deep_check_desc', 'deep_check_iptype', 'deep_check_proto', 'deep_check_action', 'deep_check_smacflag', 'deep_check_saddr', 'deep_check_sflag', 'deep_check_sip', 'deep_check_sp', 'deep_check_input', 'deep_check_dmacflag', 'deep_check_daddr', 'deep_check_dflag', 'deep_check_dip', 'deep_check_dp', 'deep_check_output', 'deep_check_timeobj', 'deep_check_deep_content', 'deep_check_enable', 'deep_check_logged'],
+            'ipsecvpn': ['ipsecvpn_id', 'ipsecvpn_name', 'ipsecvpn_type', 'ipsecvpn_status', 'ipsecvpn_version', 'ipsecvpn_protocol', 'ipsecvpn_interface', 'ipsecvpn_remote_gateway', 'ipsecvpn_auth_method', 'ipsecvpn_local_cert', 'ipsecvpn_negotiation_mode', 'ipsecvpn_my_identifier', 'ipsecvpn_my_identifier_info', 'ipsecvpn_peer_identifier', 'ipsecvpn_peer_identifier_info', 'ipsecvpn_pre_shared_key', 'ipsecvpn_p1_encryption_alg', 'ipsecvpn_p1_hash_alg', 'ipsecvpn_p1_dh_group', 'ipsecvpn_p1_life_time', 'ipsecvpn_mode', 'ipsecvpn_local_net', 'ipsecvpn_remote_net', 'ipsecvpn_p2_protocol', 'ipsecvpn_p2_encryption_alg', 'ipsecvpn_p2_hash_alg', 'ipsecvpn_pfs_key_group', 'ipsecvpn_p2_lifetime', 'ipsecvpn_ca'],
+            'custom_protocol': ['custom_protocol_loginuser', 'custom_protocol_file']
+        };
+        const ids = maps[type] || [];
+        const data = {};
+        const intFields = ['iptype', 'action', 'smacflag', 'sflag', 'sp', 'dmacflag', 'dflag', 'dp', 'timeobj', 'enable', 'logged', 'type', 'status', 'version', 'protocol', 'p1_dh_group', 'pfs_key_group'];
+        // 需要保持字符串类型的字段
+        const stringFields = ['info', 'content', 'member', 'deep_content', 'file'];
+        // 需要重命名的字段
+        const renameFields = {
+            'file': 'prototree_file'  // custom_protocol 的 file 字段需要重命名
+        };
+        ids.forEach((id, idx) => {
+            const el = document.getElementById(id);
+            if (el) {
+                let key = id.replace(/^(custom_service|service_group|l2_custom_service|addrlist|addrgroup|l2_addrlist|l2_addrgroup|packet_filter|deep_check|ipsecvpn|custom_protocol)_/, '');
+                if (intFields.includes(key)) {
+                    data[key] = parseInt(el.value) || 0;
+                } else if (stringFields.includes(key)) {
+                    // 确保这些字段是字符串类型
+                    data[key] = String(el.value);
+                } else {
+                    data[key] = el.value;
+                }
+            }
+        });
+        // 处理字段重命名
+        for (const [oldKey, newKey] of Object.entries(renameFields)) {
+            if (data.hasOwnProperty(oldKey)) {
+                data[newKey] = data[oldKey];
+                delete data[oldKey];
+            }
+        }
+        return data;
+    }
+
+    // 发送请求（带并发控制）
+    function sendRequests(ip, type, count, cookie) {
+        // 确保 count 是数字类型
+        count = parseInt(count) || 1;
+        const url = API_ENDPOINTS[type];
+        if (!url) {
+            addLogEntry(`未知请求类型：${type}`, 'danger');
+            return;
+        }
+        addLogEntry(`准备发送 ${count} 个 ${type.toUpperCase()} 请求到 ${ip}`, 'info');
+        let successCount = 0, failureCount = 0, completedCount = 0, currentIndex = 0, activeRequests = 0;
+        const msgCountMap = {}; // 统计每个 msg 内容的个数
+        const startTimestamp = new Date().toLocaleTimeString();
+        addLogEntry(`[${startTimestamp}] 开始发送 ${count} 个 ${type.toUpperCase()} 请求`, 'primary');
+
+        function sendNext() {
+            while (currentIndex < count && activeRequests < 5) {
+                const reqIdx = currentIndex + 1;
+                activeRequests++;
+                currentIndex++;
+                let data = getFormData(type);
+                if (count > 1 && data.name) data.name = data.name + "_" + reqIdx;
+                // 自定义服务：协议端口自增
+                if (count > 1 && type === 'custom_service' && data.content) {
+                    const p = data.content.split(";");
+                    if (p.length >= 2) data.content = p[0] + ";" + (parseInt(p[1]) + reqIdx - 1) + ";" + (p[2]||"0") + ";" + (p[3]||"0");
+                }
+                // 二层自定义服务：eth_type 自增
+                if (count > 1 && type === 'l2_custom_service' && data.content) {
+                    const p = data.content.split(";");
+                    if (p.length >= 1 && p[0].startsWith('0x')) {
+                        const baseVal = parseInt(p[0].substring(2), 16);
+                        data.content = '0x' + (baseVal + reqIdx - 1).toString(16).padStart(4, '0');
+                    }
+                }
+                // 地址列表：IP 地址自增
+                if (count > 1 && type === 'addrlist' && data.info) {
+                    const ipMatch = data.info.match(/(\d+)\.(\d+)\.(\d+)\.(\d+)/);
+                    if (ipMatch) {
+                        const baseIp = [parseInt(ipMatch[1]), parseInt(ipMatch[2]), parseInt(ipMatch[3]), parseInt(ipMatch[4])];
+                        const newLastOctet = baseIp[3] + reqIdx - 1;
+                        data.info = data.info.replace(/(\d+)\.(\d+)\.(\d+)\.(\d+)/,
+                            `${baseIp[0]}.${baseIp[1]}.${baseIp[2]}.${newLastOctet}`);
+                    }
+                }
+                // 二层地址列表：MAC 地址自增
+                if (count > 1 && type === 'l2_addrlist' && data.info) {
+                    const macMatch = data.info.match(/([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2})/);
+                    if (macMatch) {
+                        const baseMac = [parseInt(macMatch[1], 16), parseInt(macMatch[2], 16),
+                                        parseInt(macMatch[3], 16), parseInt(macMatch[4], 16),
+                                        parseInt(macMatch[5], 16), parseInt(macMatch[6], 16)];
+                        const newLastOctet = (baseMac[5] + reqIdx - 1) % 256;
+                        data.info = data.info.replace(/([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2})/,
+                            `${baseMac[0].toString(16).padStart(2,'0')}:${baseMac[1].toString(16).padStart(2,'0')}:${baseMac[2].toString(16).padStart(2,'0')}:${baseMac[3].toString(16).padStart(2,'0')}:${baseMac[4].toString(16).padStart(2,'0')}:${newLastOctet.toString(16).padStart(2,'0')}`);
+                    }
+                }
+                const ts = new Date().toLocaleTimeString();
+                const nameDisp = data.name ? ` (${data.name})` : '';
+                addLogEntry(`[${ts}] 正在发送请求 #${reqIdx}/${count}${nameDisp}...`, 'info');
+                fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+                    body: JSON.stringify({ip_address: ip, cookie: cookie, request_data: data})
+                })
+                .then(r => r.json())
+                .then(d => {
+                    completedCount++; activeRequests--;
+                    const t = new Date().toLocaleTimeString();
+                    if (d.success) {
+                        successCount++;
+                        addLogEntry(`[${t}] 请求 #${reqIdx} 成功${nameDisp}`, 'success');
+                        // 统计 msg 内容 - 优先从 d.response 获取，如果没有则从 d.msg 获取
+                        let msg = 'unknown';
+                        const responseText = d.response || '';
+                        if (responseText) {
+                            addLogEntry(formatResponse(responseText), 'info');
+                            try {
+                                // 尝试解析为 JSON
+                                const respObj = JSON.parse(responseText);
+                                msg = respObj.msg || respObj.message || 'unknown';
+                            } catch (e) {
+                                // 不是 JSON，尝试从文本中提取 msg
+                                const msgMatch = responseText.match(/msg:\s*([^\n]+)/i);
+                                if (msgMatch) {
+                                    msg = msgMatch[1].trim();
+                                } else {
+                                    // 尝试其他可能的格式
+                                    const statusMatch = responseText.match(/status:\s*([^\n]+)/i);
+                                    if (statusMatch) {
+                                        msg = 'status: ' + statusMatch[1].trim();
+                                    }
+                                }
+                            }
+                        }
+                        // 如果 d 本身包含 msg 字段
+                        if (msg === 'unknown' && d.msg) {
+                            msg = d.msg;
+                        }
+                        msgCountMap[msg] = (msgCountMap[msg] || 0) + 1;
+                    } else {
+                        failureCount++;
+                        addLogEntry(`[${t}] 请求 #${reqIdx} 失败${nameDisp}: ${d.error}`, 'danger');
+                        // 统计错误消息
+                        const errMsg = d.error || 'unknown error';
+                        msgCountMap[errMsg] = (msgCountMap[errMsg] || 0) + 1;
+                    }
+                    addLogEntry(`进度：${completedCount}/${count} (成功:${successCount}, 失败:${failureCount})`, 'info');
+                    if (completedCount === count) {
+                        const et = new Date().toLocaleTimeString();
+                        addLogEntry(`[${et}] 所有请求已完成`, 'success');
+                        addLogEntry(`总计：${count} 个请求，成功:${successCount} 个，失败:${failureCount} 个`, 'info');
+                        // 显示统计结果
+                        const stats = Object.entries(msgCountMap).map(([msg, cnt]) => `${msg}: ${cnt}个`).join('; ');
+                        if (stats) {
+                            addLogEntry(`消息统计：${stats}`, 'primary');
+                        }
+                    } else if (currentIndex < count) sendNext();
+                })
+                .catch(e => {
+                    completedCount++; activeRequests--; failureCount++;
+                    const t = new Date().toLocaleTimeString();
+                    addLogEntry(`[${t}] 请求 #${reqIdx} 出错：${e.message}`, 'danger');
+                    // 统计错误消息
+                    msgCountMap[e.message] = (msgCountMap[e.message] || 0) + 1;
+                    addLogEntry(`进度：${completedCount}/${count} (成功:${successCount}, 失败:${failureCount})`, 'info');
+                    if (completedCount === count) {
+                        const et = new Date().toLocaleTimeString();
+                        addLogEntry(`[${et}] 所有请求已完成`, 'success');
+                        addLogEntry(`总计：${count} 个请求，成功:${successCount} 个，失败:${failureCount} 个`, 'info');
+                        // 显示统计结果
+                        const stats = Object.entries(msgCountMap).map(([msg, cnt]) => `${msg}: ${cnt}个`).join('; ');
+                        if (stats) {
+                            addLogEntry(`消息统计：${stats}`, 'primary');
+                        }
+                    } else if (currentIndex < count) sendNext();
+                });
+            }
+        }
+        sendNext();
+    }
+
+    // 简化的 simulateRequests 函数
+    function simulateRequests(ip, type, count, cookie) {
+        sendRequests(ip, type, count, cookie);
+    }
+
+
+    function addLogEntry(message, type) {
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry mb-2 text-${type}`;
+        logEntry.innerHTML = message;
+        
+        if (realtimeDisplay) {
+        realtimeDisplay.appendChild(logEntry);
+        
+        // 自动滚动到底部
+            if (autoScrollCheckbox && autoScrollCheckbox.checked) {
+            realtimeDisplay.scrollTop = realtimeDisplay.scrollHeight;
+            }
+        }
+    }
+    
+    // 显示通知
+    function showNotification(message, type) {
+        console.log(`${type}: ${message}`);
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'warning' ? 'warning' : type === 'danger' ? 'danger' : 'info'} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+});
+</script>
+
+        </div> <!-- 结束策略配置Tab -->
+
+        <!-- 对象管理Tab -->
+        <div class="tab-pane fade" id="object-pane" role="tabpanel" aria-labelledby="object-tab">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-cube me-2"></i>对象管理 - 服务测试用例</h5>
+                            <div>
+                                <button class="btn btn-sm btn-primary" onclick="addTestCase()">
+                                    <i class="fas fa-plus me-1"></i>新增测试用例
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="batchTest()">
+                                    <i class="fas fa-play me-1"></i>批量测试
+                                </button>
+                                <button class="btn btn-sm btn-warning" onclick="createDefaultCases()">
+                                    <i class="fas fa-magic me-1"></i>生成默认用例
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="batchDelete()">
+                                    <i class="fas fa-trash me-1"></i>批量删除
+                                </button>
+                            </div>
+                        </div>
+                        <!-- 生成进度显示 -->
+                        <div id="generate_progress" style="display: none;" class="card-body border-top">
+                            <div class="mb-2">
+                                <strong>生成进度：</strong>
+                                <span id="progress_text">准备中...</span>
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div id="progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%">0%</div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- 筛选条件 -->
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">服务类型</label>
+                                    <select class="form-select form-select-sm" id="filter_service_type" onchange="loadTestCases(1)">
+                                        <option value="">全部</option>
+                                        <option value="custom_service">自定义服务</option>
+                                        <option value="l2_custom_service">二层自定义服务</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">操作类型</label>
+                                    <select class="form-select form-select-sm" id="filter_operation_type" onchange="loadTestCases(1)">
+                                        <option value="">全部</option>
+                                        <option value="add">新增</option>
+                                        <option value="edit">编辑</option>
+                                        <option value="delete">删除</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">IP地址</label>
+                                    <input type="text" class="form-control form-control-sm" id="test_ip_address" placeholder="例如: 192.168.1.1">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button class="btn btn-sm btn-info w-100" onclick="getCookieForTest()">
+                                        <i class="fas fa-key me-1"></i>获取Cookie
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Cookie将自动获取，无需手动输入</small>
+                                </div>
+                            </div>
+                            
+                            <!-- 测试用例列表 -->
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover table-sm" style="table-layout: fixed;">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="30" style="width: 30px;" id="select_all_th">
+                                                <input type="checkbox" id="select_all" onchange="toggleSelectAll()">
+                                            </th>
+                                            <th style="width: 120px;">类型</th>
+                                            <th style="width: 70px;">操作</th>
+                                            <th style="width: 120px;">名称</th>
+                                            <th style="width: 100px;">描述</th>
+                                            <th style="width: 150px;">内容</th>
+                                            <th style="width: 80px;">期望状态码</th>
+                                            <th style="width: 100px;">期望响应</th>
+                                            <th style="width: 100px;">实际响应</th>
+                                            <th style="width: 80px;">测试结果</th>
+                                            <th style="width: 100px;">测试时间</th>
+                                            <th style="width: 120px;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="test_case_table_body">
+                                        <tr>
+                                            <td colspan="12" class="text-center text-muted">加载中...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- 分页控件 -->
+                            <nav aria-label="测试用例分页">
+                                <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination_controls">
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- 结束对象管理Tab -->
+    </div> <!-- 结束Tab内容 -->
+</div> <!-- 结束container-fluid -->
+
+<!-- 新增/编辑测试用例模态框 -->
+<div class="modal fade" id="testCaseModal" tabindex="-1" aria-labelledby="testCaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="testCaseModalLabel">新增测试用例</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="testCaseForm">
+                    <input type="hidden" id="test_case_id">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">服务类型 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="test_case_service_type" required>
+                                    <option value="">请选择</option>
+                                    <option value="custom_service">自定义服务</option>
+                                    <option value="l2_custom_service">二层自定义服务</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">操作类型 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="test_case_operation_type" required>
+                                    <option value="">请选择</option>
+                                    <option value="add">新增</option>
+                                    <option value="edit">编辑</option>
+                                    <option value="delete">删除</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="test_case_name" required
+                               placeholder="仅支持字母、数字、中文和下划线，最长32字节">
+                        <small class="form-text text-muted">仅支持字母、数字、中文和下划线，最长32字节</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-control" id="test_case_desc" 
+                               placeholder="最长64字节">
+                        <small class="form-text text-muted">最长64字节</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">内容 <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="test_case_content" rows="3" required 
+                                  placeholder="TCP/UDP: 协议类型;端口号;0;0&#10;ICMP: icmp;0,类型;编码&#10;其他: 协议号;0;0;0;"></textarea>
+                        <small class="form-text text-muted">
+                            格式：<br>
+                            1. TCP/UDP: 协议类型;端口号;0;0 (例如: tcp;80;0;0 或 tcp;80,443;0;0 或 tcp;80~100;0;0)<br>
+                            2. ICMP: icmp;0;类型;编码; (例如: icmp;0;3;1;)<br>
+                            3. 其他协议: 协议号;0;0;0; (例如: 50;0;0;0;)
+                        </small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">期望成功</label>
+                                <select class="form-select" id="test_case_expected_success">
+                                    <option value="true">是</option>
+                                    <option value="false">否</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">期望状态码</label>
+                                <input type="number" class="form-control" id="test_case_expected_status_code" value="200">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="test_case_enabled" checked>
+                                    <label class="form-check-label" for="test_case_enabled">启用</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">期望响应内容（可选）</label>
+                        <textarea class="form-control" id="test_case_expected_response" rows="2" 
+                                  placeholder="可选的期望响应内容，用于对比验证"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveTestCaseBtn" onclick="saveTestCase(event)">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 获取CSRF token（全局函数，供所有脚本使用）
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    // 如果从cookie中获取不到，尝试从meta标签获取
+    if (!cookieValue) {
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            cookieValue = metaTag.getAttribute('content');
+        }
+    }
+    // 如果还是获取不到，尝试从隐藏的input获取
+    if (!cookieValue) {
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            cookieValue = csrfInput.value;
+        }
+    }
+    return cookieValue;
+}
+
+// 对象管理相关JavaScript
+let testCases = [];
+let currentPage = 1;
+let totalPages = 1;
+let totalCount = 0;
+let testCookie = ''; // 存储获取到的cookie
+
+// 加载测试用例列表
+function loadTestCases(page = 1) {
+    currentPage = page;
+    const serviceType = document.getElementById('filter_service_type').value;
+    const operationType = document.getElementById('filter_operation_type').value;
+    
+    let url = '/api/service_test_case/list/';
+    const params = new URLSearchParams();
+    if (serviceType) params.append('service_type', serviceType);
+    if (operationType) params.append('operation_type', operationType);
+    params.append('page', page);
+    params.append('page_size', 10);
+    url += '?' + params.toString();
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                testCases = data.test_cases || [];
+                if (data.pagination) {
+                    currentPage = data.pagination.page || 1;
+                    totalPages = data.pagination.total_pages || 1;
+                    totalCount = data.pagination.total_count || 0;
+                } else {
+                    // 如果没有分页信息，使用默认值
+                    currentPage = 1;
+                    totalPages = 1;
+                    totalCount = testCases.length;
+                }
+                console.log(`加载测试用例: 当前页=${currentPage}, 每页=10, 总页数=${totalPages}, 总记录数=${totalCount}, 当前页记录数=${testCases.length}`);
+                renderTestCaseTable();
+                renderPagination();
+            } else {
+                alert('加载失败: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error('加载测试用例失败:', err);
+            alert('加载失败: ' + err.message);
+        });
+}
+
+// 渲染分页控件
+function renderPagination() {
+    const paginationEl = document.getElementById('pagination_controls');
+    if (!paginationEl) return;
+    
+    if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // 上一页
+    html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadTestCases(${currentPage - 1}); return false;">上一页</a>
+    </li>`;
+    
+    // 页码
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadTestCases(1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="loadTestCases(${i}); return false;">${i}</a>
+        </li>`;
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadTestCases(${totalPages}); return false;">${totalPages}</a></li>`;
+    }
+    
+    // 下一页
+    html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadTestCases(${currentPage + 1}); return false;">下一页</a>
+    </li>`;
+    
+    html += `<li class="page-item disabled">
+        <span class="page-link">共 ${totalCount} 条，第 ${currentPage}/${totalPages} 页</span>
+    </li>`;
+    
+    paginationEl.innerHTML = html;
+}
+
+// 渲染测试用例表格
+function renderTestCaseTable() {
+    const tbody = document.getElementById('test_case_table_body');
+    
+    if (testCases.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">暂无测试用例</td></tr>';
+        return;
+    }
+    
+    // 所有页面都显示勾选框
+    const selectAllTh = document.getElementById('select_all_th');
+    if (selectAllTh) {
+        selectAllTh.style.display = '';
+    }
+    
+    tbody.innerHTML = testCases.map((testCase, index) => {
+        const resultMatch = testCase.last_test_result === null ? null : testCase.last_test_result;
+        const resultClass = resultMatch === null ? '' : (resultMatch ? 'text-success' : 'text-danger');
+        const resultIcon = resultMatch === null ? '' : (resultMatch ? '✓' : '✗');
+        const resultText = resultMatch === null ? '未测试' : (resultMatch ? '通过' : '失败');
+        
+        // 描述字段，超过20字符显示省略号
+        const desc = testCase.desc || '';
+        const descDisplay = desc.length > 20 ? desc.substring(0, 20) + '...' : desc;
+        
+        // 实际响应字段 - 使用后端解码后的响应
+        let actualResponseDisplay = '';
+        let actualResponseFull = '';
+        
+        // 优先使用后端解码后的响应
+        if (testCase.last_test_response_decoded) {
+            actualResponseFull = testCase.last_test_response_decoded;
+        } else if (testCase.last_test_response) {
+            // 如果没有解码后的响应，使用原始响应（兼容旧数据）
+            actualResponseFull = testCase.last_test_response;
+        }
+        
+        // 截断显示，不显示省略号，直接截断（不显示那么多字符）
+        if (actualResponseFull) {
+            const maxLength = 30;
+            if (actualResponseFull.length > maxLength) {
+                actualResponseDisplay = actualResponseFull.substring(0, maxLength);
+            } else {
+                actualResponseDisplay = actualResponseFull;
+            }
+        }
+        
+        // 内容字段，超过30字符显示省略号
+        const contentDisplay = testCase.content.length > 30 ? testCase.content.substring(0, 30) + '...' : testCase.content;
+        
+        // 期望响应字段，超过20字符显示省略号
+        const expectedResponse = testCase.expected_response || '';
+        const expectedResponseDisplay = expectedResponse.length > 20 ? expectedResponse.substring(0, 20) + '...' : expectedResponse;
+        
+        // 判断是否为默认用例
+        const isDefault = testCase.is_default || false;
+        const deleteBtnDisabled = isDefault ? 'disabled' : '';
+        const deleteBtnTitle = isDefault ? '默认用例不能删除' : '删除';
+        
+        return `
+            <tr>
+                <td>
+                    <input type="checkbox" class="test-case-checkbox" value="${testCase.id}" ${isDefault ? 'data-is-default="true"' : ''}>
+                </td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(testCase.service_type_display)}"><small>${escapeHtml(testCase.service_type_display)}</small></td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(testCase.operation_type_display)}">${escapeHtml(testCase.operation_type_display)}</td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(testCase.name)}">${escapeHtml(testCase.name)}</td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(desc)}">${escapeHtml(descDisplay)}</td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(testCase.content)}"><small>${escapeHtml(contentDisplay)}</small></td>
+                <td style="white-space: nowrap;">${testCase.expected_status_code}</td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(expectedResponse)}"><small>${escapeHtml(expectedResponseDisplay)}</small></td>
+                <td style="white-space: nowrap; overflow: hidden;" title="${escapeHtml(actualResponseFull)}"><small>${escapeHtml(actualResponseDisplay)}</small></td>
+                <td class="${resultClass}" style="white-space: nowrap;">
+                    ${resultIcon} ${resultText}
+                    ${testCase.last_test_status_code ? `<br><small>${testCase.last_test_status_code}</small>` : ''}
+                </td>
+                <td style="white-space: nowrap;"><small>${testCase.last_test_time ? new Date(testCase.last_test_time).toLocaleString('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'}) : '-'}</small></td>
+                <td style="white-space: nowrap;">
+                    ${!isDefault ? `<button class="btn btn-sm btn-primary" onclick="editTestCase(${testCase.id})" title="编辑">
+                        <i class="fas fa-edit"></i>
+                    </button>` : '<span class="badge bg-secondary">默认</span>'}
+                    <button class="btn btn-sm btn-info" onclick="testSingleCase(${testCase.id})" title="测试">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    ${testCase.last_test_response ? `<button class="btn btn-sm btn-success" onclick="applyResponse(${testCase.id})" title="应用实际响应到期望响应">
+                        <i class="fas fa-check-double"></i>
+                    </button>` : ''}
+                    <button class="btn btn-sm btn-danger" onclick="deleteTestCase(${testCase.id})" ${deleteBtnDisabled} title="${deleteBtnTitle}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// 转义HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 全选/取消全选
+function toggleSelectAll() {
+    const selectAll = document.getElementById('select_all');
+    const checkboxes = document.querySelectorAll('.test-case-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    // 更新全选按钮状态
+    selectAll.checked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+}
+
+// 新增测试用例
+function addTestCase() {
+    document.getElementById('testCaseModalLabel').textContent = '新增测试用例';
+    document.getElementById('testCaseForm').reset();
+    document.getElementById('test_case_id').value = '';
+    document.getElementById('test_case_expected_success').value = 'true';
+    document.getElementById('test_case_expected_status_code').value = '200';
+    document.getElementById('test_case_enabled').checked = true;
+    const modal = new bootstrap.Modal(document.getElementById('testCaseModal'));
+    modal.show();
+}
+
+// 编辑测试用例
+function editTestCase(id) {
+    const testCase = testCases.find(tc => tc.id === id);
+    if (!testCase) return;
+    
+    document.getElementById('testCaseModalLabel').textContent = '编辑测试用例';
+    document.getElementById('test_case_id').value = testCase.id;
+    document.getElementById('test_case_service_type').value = testCase.service_type;
+    document.getElementById('test_case_operation_type').value = testCase.operation_type;
+    document.getElementById('test_case_name').value = testCase.name;
+    document.getElementById('test_case_desc').value = testCase.desc || '';
+    document.getElementById('test_case_content').value = testCase.content;
+    document.getElementById('test_case_expected_success').value = testCase.expected_success ? 'true' : 'false';
+    document.getElementById('test_case_expected_status_code').value = testCase.expected_status_code;
+    document.getElementById('test_case_expected_response').value = testCase.expected_response || '';
+    document.getElementById('test_case_enabled').checked = testCase.enabled;
+    
+    const modal = new bootstrap.Modal(document.getElementById('testCaseModal'));
+    modal.show();
+}
+
+// 验证名称格式
+function validateName(input) {
+    const name = input.value.trim();
+    const errorEl = document.getElementById('name_error');
+    
+    if (!name) {
+        errorEl.style.display = 'none';
+        input.classList.remove('is-invalid');
+        return true;
+    }
+    
+    // 检查长度（字节）
+    const byteLength = new Blob([name]).size;
+    if (byteLength > 32) {
+        errorEl.textContent = `名称长度不能超过32字节（当前: ${byteLength}字节）`;
+        errorEl.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+    
+    // 检查格式（字母、数字、中文、下划线）
+    if (!/^[\w\u4e00-\u9fa5]+$/.test(name)) {
+        errorEl.textContent = '名称只能包含字母、数字、中文和下划线';
+        errorEl.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+    
+    errorEl.style.display = 'none';
+    input.classList.remove('is-invalid');
+    return true;
+}
+
+// 验证描述格式
+function validateDesc(input) {
+    const desc = input.value.trim();
+    const errorEl = document.getElementById('desc_error');
+    
+    if (!desc) {
+        errorEl.style.display = 'none';
+        input.classList.remove('is-invalid');
+        return true;
+    }
+    
+    const byteLength = new Blob([desc]).size;
+    if (byteLength > 64) {
+        errorEl.textContent = `描述长度不能超过64字节（当前: ${byteLength}字节）`;
+        errorEl.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+    
+    errorEl.style.display = 'none';
+    input.classList.remove('is-invalid');
+    return true;
+}
+
+// 验证内容格式
+function validateContent(input) {
+    const content = input.value.trim();
+    const errorEl = document.getElementById('content_error');
+    
+    if (!content) {
+        errorEl.style.display = 'none';
+        input.classList.remove('is-invalid');
+        return true;
+    }
+    
+    let isValid = false;
+    let errorMsg = '';
+    
+    // 检查TCP/UDP格式: 协议类型;端口号;0;0
+    if (/^(tcp|udp);[^;]+;0;0$/.test(content.toLowerCase())) {
+        const parts = content.split(';');
+        const portPart = parts[1];
+        
+        // 检查端口格式：单个值、多个值（逗号分隔）、范围（~）
+        if (/^\d+$/.test(portPart)) {
+            // 单个值
+            const port = parseInt(portPart);
+            if (port >= 1 && port <= 65535) {
+                isValid = true;
+            } else {
+                errorMsg = '端口号必须在1-65535之间';
+            }
+        } else if (/^\d+,\d+(,\d+)*$/.test(portPart)) {
+            // 多个值（逗号分隔）
+            const ports = portPart.split(',').map(p => parseInt(p));
+            if (ports.every(p => p >= 1 && p <= 65535)) {
+                isValid = true;
+            } else {
+                errorMsg = '所有端口号必须在1-65535之间';
+            }
+        } else if (/^\d+~\d+$/.test(portPart)) {
+            // 范围（~）
+            const [start, end] = portPart.split('~').map(p => parseInt(p));
+            if (start >= 1 && start <= 65535 && end >= 1 && end <= 65535 && start <= end) {
+                isValid = true;
+            } else {
+                errorMsg = '端口范围必须在1-65535之间，且起始端口不能大于结束端口';
+            }
+        } else {
+            errorMsg = '端口号格式不正确，支持：单个值(1-65535)、多个值(逗号分隔)、范围(1~100)';
+        }
+    }
+    // 检查ICMP格式: icmp;0,类型;编码
+    else if (/^icmp;0,\d+;\d+$/i.test(content)) {
+        isValid = true;
+    }
+    // 检查其他协议格式: 协议号;0;0;0;
+    else if (/^\d+;0;0;0;$/.test(content)) {
+        isValid = true;
+    }
+    else {
+        errorMsg = '内容格式不正确。支持格式：1. TCP/UDP: 协议类型;端口号;0;0  2. ICMP: icmp;0,类型;编码  3. 其他: 协议号;0;0;0;';
+    }
+    
+    if (!isValid && errorMsg) {
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+    
+    errorEl.style.display = 'none';
+    input.classList.remove('is-invalid');
+    return true;
+}
+
+// 保存测试用例
+function saveTestCase(event) {
+    // 防止事件冒泡
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    // 先进行格式验证
+    const nameInput = document.getElementById('test_case_name');
+    const descInput = document.getElementById('test_case_desc');
+    const contentInput = document.getElementById('test_case_content');
+    
+    if (!nameInput || !descInput || !contentInput) {
+        alert('表单元素未找到，请刷新页面重试');
+        return;
+    }
+    
+    // 移除前端验证限制，允许自由输入
+    
+    const form = document.getElementById('testCaseForm');
+    if (!form) {
+        alert('表单未找到，请刷新页面重试');
+        return;
+    }
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const testCaseId = document.getElementById('test_case_id').value;
+    const data = {
+        service_type: document.getElementById('test_case_service_type').value,
+        operation_type: document.getElementById('test_case_operation_type').value,
+        name: nameInput.value.trim(),
+        desc: descInput.value.trim(),
+        content: contentInput.value.trim(),
+        expected_success: document.getElementById('test_case_expected_success').value === 'true',
+        expected_status_code: parseInt(document.getElementById('test_case_expected_status_code').value) || 200,
+        expected_response: document.getElementById('test_case_expected_response').value.trim(),
+        enabled: document.getElementById('test_case_enabled').checked,
+    };
+    
+    // 再次验证（双重保险）
+    if (new Blob([data.name]).size > 32) {
+        alert('名称长度不能超过32字节');
+        nameInput.focus();
+        return;
+    }
+    if (!/^[\w\u4e00-\u9fa5]+$/.test(data.name)) {
+        alert('名称只能包含字母、数字、中文和下划线');
+        nameInput.focus();
+        return;
+    }
+    if (data.desc && new Blob([data.desc]).size > 64) {
+        alert('描述长度不能超过64字节');
+        descInput.focus();
+        return;
+    }
+    
+    const url = testCaseId ? '/api/service_test_case/update/' : '/api/service_test_case/add/';
+    if (testCaseId) data.id = parseInt(testCaseId);
+    
+    // 打印请求内容
+    console.log(`[对象管理-${testCaseId ? '更新' : '新增'}测试用例] 请求内容:`, JSON.stringify(data, null, 2));
+    
+    // 显示加载状态
+    const saveBtn = document.getElementById('saveTestCaseBtn');
+    if (!saveBtn) {
+        alert('保存按钮未找到，请刷新页面重试');
+        return;
+    }
+    
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+    
+    // 获取CSRF token
+    const csrfToken = getCookie('csrftoken');
+    if (!csrfToken) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        alert('无法获取CSRF token，请刷新页面重试');
+        return;
+    }
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        // 确保响应是JSON格式
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(result => {
+        // 恢复按钮状态
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        
+        if (result.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('testCaseModal'));
+            if (modal) {
+                modal.hide();
+            }
+            loadTestCases(currentPage);
+        } else {
+            alert('保存失败: ' + (result.error || '未知错误'));
+        }
+    })
+    .catch(err => {
+        // 确保即使出错也恢复按钮状态
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        console.error('保存失败:', err);
+        alert('保存失败: ' + (err.message || '网络错误，请检查网络连接'));
+    });
+}
+
+// 删除测试用例
+// 应用实际响应到期望响应
+function applyResponse(id) {
+    const testCase = testCases.find(tc => tc.id === id);
+    if (!testCase) {
+        alert('测试用例不存在');
+        return;
+    }
+    
+    if (!testCase.last_test_response) {
+        alert('没有实际响应数据，请先执行测试');
+        return;
+    }
+    
+    if (!confirm('确定要将实际响应应用到期望响应吗？\n\n实际响应：' + (testCase.last_test_response.length > 50 ? testCase.last_test_response.substring(0, 50) + '...' : testCase.last_test_response))) {
+        return;
+    }
+    
+    const applyData = { id: id };
+    console.log('[对象管理-应用响应] 请求内容:', JSON.stringify(applyData, null, 2));
+    
+    fetch('/api/service_test_case/apply/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(applyData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('应用成功！期望响应已更新为实际响应');
+            loadTestCases(currentPage);
+        } else {
+            alert('应用失败: ' + result.error);
+        }
+    })
+    .catch(err => {
+        console.error('应用响应失败:', err);
+        alert('应用失败: ' + err.message);
+    });
+}
+
+function deleteTestCase(id) {
+    // 检查是否为默认用例
+    const testCase = testCases.find(tc => tc.id === id);
+    if (testCase && testCase.is_default) {
+        alert('默认用例不能删除');
+        return;
+    }
+    
+    if (!confirm('确定要删除这个测试用例吗？')) return;
+    
+    const deleteData = { id: id };
+    // 打印请求内容
+    console.log('[对象管理-删除测试用例] 请求内容:', JSON.stringify(deleteData, null, 2));
+    
+    fetch('/api/service_test_case/delete/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(deleteData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            loadTestCases(currentPage);
+        } else {
+            alert('删除失败: ' + result.error);
+        }
+    })
+    .catch(err => {
+        console.error('删除失败:', err);
+        alert('删除失败: ' + err.message);
+    });
+}
+
+// 获取Cookie（用于测试）
+function getCookieForTest() {
+    const ipAddress = document.getElementById('test_ip_address').value.trim();
+    if (!ipAddress) {
+        alert('请先输入IP地址');
+        return;
+    }
+    
+    const requestData = {
+        ip_address: ipAddress
+    };
+    
+    // 打印请求内容
+    console.log('[对象管理-获取Cookie] 请求内容:', JSON.stringify(requestData, null, 2));
+    
+    fetch('/api/get_cookie/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            testCookie = data.cookie || '';
+            if (testCookie) {
+                alert('Cookie获取成功！');
+            } else {
+                alert('警告: 获取到的cookie为空，请检查登录配置');
+            }
+        } else {
+            alert('Cookie获取失败: ' + data.error);
+        }
+    })
+    .catch(err => {
+        console.error('获取Cookie失败:', err);
+        alert('获取Cookie失败: ' + err.message);
+    });
+}
+
+// 测试单个用例
+function testSingleCase(id) {
+    const ipAddress = document.getElementById('test_ip_address').value.trim();
+    if (!ipAddress) {
+        alert('请先输入IP地址');
+        return;
+    }
+    
+    // 如果没有cookie，先尝试获取
+    if (!testCookie) {
+        if (!confirm('Cookie未获取，是否先获取Cookie？')) {
+            return;
+        }
+        getCookieForTest();
+        // 等待一下再继续
+        setTimeout(() => {
+            if (testCookie) {
+                performTest(id, ipAddress);
+            } else {
+                alert('Cookie获取失败，无法进行测试');
+            }
+        }, 1000);
+        return;
+    }
+    
+    performTest(id, ipAddress);
+}
+
+// 执行测试
+function performTest(id, ipAddress) {
+    const requestData = {
+        test_case_id: id,
+        ip_address: ipAddress,
+        cookie: testCookie
+    };
+    
+    // 打印请求内容（不包含cookie）
+    const logData = {
+        test_case_id: id,
+        ip_address: ipAddress,
+        cookie: '[已隐藏]'
+    };
+    console.log('[对象管理-单个测试] 请求内容:', JSON.stringify(logData, null, 2));
+    
+    fetch('/api/service_test_case/test/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(`测试完成！\n结果匹配: ${result.test_result.result_match ? '是' : '否'}\n状态码: ${result.test_result.status_code}`);
+            loadTestCases(currentPage);
+        } else {
+            alert('测试失败: ' + result.error);
+        }
+    })
+    .catch(err => {
+        console.error('测试失败:', err);
+        alert('测试失败: ' + err.message);
+    });
+}
+
+// 批量测试
+function batchTest() {
+    const checkboxes = document.querySelectorAll('.test-case-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('请至少选择一个测试用例');
+        return;
+    }
+    
+    const ipAddress = document.getElementById('test_ip_address').value.trim();
+    if (!ipAddress) {
+        alert('请先输入IP地址');
+        return;
+    }
+    
+    // 如果没有cookie，先尝试获取
+    if (!testCookie) {
+        if (!confirm('Cookie未获取，是否先获取Cookie？')) {
+            return;
+        }
+        getCookieForTest();
+        // 等待一下再继续
+        setTimeout(() => {
+            if (testCookie) {
+                performBatchTest(checkboxes, ipAddress);
+            } else {
+                alert('Cookie获取失败，无法进行测试');
+            }
+        }, 1000);
+        return;
+    }
+    
+    performBatchTest(checkboxes, ipAddress);
+}
+
+// 执行批量测试
+function performBatchTest(checkboxes, ipAddress) {
+    const testCaseIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (!confirm(`确定要测试 ${testCaseIds.length} 个用例吗？`)) return;
+    
+    const requestData = {
+        test_case_ids: testCaseIds,
+        ip_address: ipAddress,
+        cookie: testCookie
+    };
+    
+    // 打印请求内容（不包含cookie）
+    const logData = {
+        test_case_ids: testCaseIds,
+        ip_address: ipAddress,
+        cookie: '[已隐藏]'
+    };
+    console.log('[对象管理-批量测试] 请求内容:', JSON.stringify(logData, null, 2));
+    
+    fetch('/api/service_test_case/batch_test/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            const successCount = result.results.filter(r => r.result_match).length;
+            alert(`批量测试完成！\n成功: ${successCount}/${result.results.length}`);
+            loadTestCases(currentPage);
+        } else {
+            alert('批量测试失败: ' + result.error);
+        }
+    })
+    .catch(err => {
+        console.error('批量测试失败:', err);
+        alert('批量测试失败: ' + err.message);
+    });
+}
+
+// 生成默认用例
+function createDefaultCases() {
+    if (!confirm('确定要生成/更新默认测试用例吗？\n这将删除所有旧的默认用例，并创建新的默认用例。')) {
+        return;
+    }
+    
+    const csrfToken = getCookie('csrftoken');
+    if (!csrfToken) {
+        alert('无法获取CSRF token，请刷新页面重试');
+        return;
+    }
+    
+    // 显示进度条
+    const progressDiv = document.getElementById('generate_progress');
+    const progressBar = document.getElementById('progress_bar');
+    const progressText = document.getElementById('progress_text');
+    progressDiv.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressBar.textContent = '0%';
+    progressText.textContent = '准备中...';
+    
+    console.log('[对象管理-生成默认用例] 开始生成...');
+    
+    // 模拟进度更新
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += 10;
+        if (progress > 90) progress = 90; // 最多到90%，等待实际完成
+        progressBar.style.width = progress + '%';
+        progressBar.textContent = progress + '%';
+        progressText.textContent = `正在生成... ${progress}%`;
+    }, 200);
+    
+    fetch('/api/service_test_case/create_defaults/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(result => {
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressBar.textContent = '100%';
+        progressText.textContent = '完成！';
+        
+        setTimeout(() => {
+            if (result.success) {
+                alert(`默认用例生成成功！\n删除: ${result.deleted_count} 个旧用例\n创建: ${result.created_count} 个新用例`);
+                loadTestCases(1);  // 重新加载列表
+            } else {
+                alert('生成默认用例失败: ' + result.error);
+            }
+            progressDiv.style.display = 'none';
+        }, 500);
+    })
+    .catch(err => {
+        clearInterval(progressInterval);
+        progressDiv.style.display = 'none';
+        console.error('生成默认用例失败:', err);
+        alert('生成默认用例失败: ' + err.message);
+    });
+}
+
+// 批量删除
+function batchDelete() {
+    const checkboxes = document.querySelectorAll('.test-case-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('请至少选择一个测试用例');
+        return;
+    }
+    
+    // 检查是否包含默认用例
+    const testCaseIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const selectedCases = testCases.filter(tc => testCaseIds.includes(tc.id));
+    const defaultCases = selectedCases.filter(tc => tc.is_default);
+    const normalCases = selectedCases.filter(tc => !tc.is_default);
+    
+    if (defaultCases.length > 0) {
+        if (normalCases.length > 0) {
+            alert(`选中的用例中包含 ${defaultCases.length} 个默认用例，默认用例不能删除。\n将只删除 ${normalCases.length} 个非默认用例。`);
+            // 只删除非默认用例
+            const normalIds = normalCases.map(tc => tc.id);
+            if (!confirm(`确定要删除选中的 ${normalIds.length} 个非默认测试用例吗？\n此操作不可恢复！`)) {
+                return;
+            }
+            performBatchDelete(normalIds);
+        } else {
+            alert('选中的用例全部为默认用例，默认用例不能删除');
+            return;
+        }
+    } else {
+        if (!confirm(`确定要删除选中的 ${checkboxes.length} 个测试用例吗？\n此操作不可恢复！`)) {
+            return;
+        }
+        performBatchDelete(testCaseIds);
+    }
+}
+
+// 执行批量删除
+function performBatchDelete(testCaseIds) {
+    const csrfToken = getCookie('csrftoken');
+    if (!csrfToken) {
+        alert('无法获取CSRF token，请刷新页面重试');
+        return;
+    }
+    
+    console.log('[对象管理-批量删除] 删除用例:', testCaseIds);
+    
+    // 批量删除（逐个调用删除API）
+    let successCount = 0;
+    let failCount = 0;
+    const total = testCaseIds.length;
+    let completed = 0;
+    
+    const deletePromises = testCaseIds.map(id => {
+        return fetch('/api/service_test_case/delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ id: id })
+        })
+        .then(response => response.json())
+        .then(result => {
+            completed++;
+            if (result.success) {
+                successCount++;
+            } else {
+                failCount++;
+                console.error(`删除用例 ${id} 失败:`, result.error);
+            }
+        })
+        .catch(err => {
+            completed++;
+            failCount++;
+            console.error(`删除用例 ${id} 失败:`, err);
+        });
+    });
+    
+    Promise.all(deletePromises).then(() => {
+        if (failCount === 0) {
+            alert(`成功删除 ${successCount} 个测试用例`);
+        } else {
+            alert(`删除完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+        }
+        loadTestCases(currentPage);  // 重新加载当前页
+    });
+}
+
+// 页面加载时加载测试用例列表
+document.addEventListener('DOMContentLoaded', function() {
+    // 切换到对象管理tab时加载数据
+    const objectTab = document.getElementById('object-tab');
+    if (objectTab) {
+        objectTab.addEventListener('shown.bs.tab', function() {
+            loadTestCases(1);  // 明确传入页码1
+        });
+    }
+});
+</script>
+{% endblock %}
+

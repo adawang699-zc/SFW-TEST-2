@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Project specific
+logs/
+cookie_cache/
+dump.rdb
+.claude/
+.planning/
+packet_agent/mail_storage/
+packet_agent/build/
+packet_agent/dist/
+*.spec
+
+# OS
+.DS_Store
+Thumbs.db

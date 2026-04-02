@@ -1,0 +1,12 @@
+from django.urls import path
+from . import views
+
+# 注意：此文件已不再使用，请使用 urls_with_cache.py
+# app_name = 'main'  # 已注释，避免命名空间冲突
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('firewall/', views.firewall_policy, name='firewall_policy'),
+    path('api/get_cookie/', views.get_cookie, name='get_cookie'),
+    path('api/send_custom_service/', views.send_custom_service, name='send_custom_service'),
+]

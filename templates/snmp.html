@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+{% block title %}SNMP管理{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-network-wired me-2"></i>SNMP管理</h2>
+    
+    <div class="row">
+        <!-- SNMP GET -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-search me-2"></i>SNMP查询</h5>
+                </div>
+                <div class="card-body">
+                    <form id="snmp_get_form">
+                        <div class="mb-3">
+                            <label class="form-label">设备IP <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <select class="form-select" id="device_ip_select" style="max-width: 200px;">
+                                    <option value="">从设备列表选择</option>
+                                </select>
+                                <input type="text" class="form-control" id="snmp_ip" placeholder="或直接输入IP地址" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">SNMP版本 <span class="text-danger">*</span></label>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="snmp_version" id="version_v1" value="v1">
+                                <label class="btn btn-outline-primary" for="version_v1">V1</label>
+                                
+                                <input type="radio" class="btn-check" name="snmp_version" id="version_v2c" value="v2c" checked>
+                                <label class="btn btn-outline-primary" for="version_v2c">V2C</label>
+                                
+                                <input type="radio" class="btn-check" name="snmp_version" id="version_v3" value="v3">
+                                <label class="btn btn-outline-primary" for="version_v3">V3</label>
+                            </div>
+                        </div>
+                        
+                        <!-- V1/V2C配置 -->
+                        <div id="v1_v2c_config">
+                            <div class="mb-3">
+                                <label class="form-label">Community</label>
+                                <input type="text" class="form-control" id="snmp_community" value="public" placeholder="public">
+                            </div>
+                        </div>
+                        
+                        <!-- V3配置 -->
+                        <div id="v3_config" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">安全用户名 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="snmp_security_username" placeholder="请输入安全用户名">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">安全级别 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="snmp_security_level">
+                                    <option value="noAuthNoPriv">不认证不加密</option>
+                                    <option value="authNoPriv">只认证不加密</option>
+                                    <option value="authPriv">既认证又加密</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">认证方式</label>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="snmp_auth_protocol" id="auth_md5" value="MD5" checked>
+                                    <label class="btn btn-outline-primary" for="auth_md5">MD5</label>
+                                    
+                                    <input type="radio" class="btn-check" name="snmp_auth_protocol" id="auth_sha" value="SHA">
+                                    <label class="btn btn-outline-primary" for="auth_sha">SHA</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">认证密码</label>
+                                <input type="password" class="form-control" id="snmp_auth_password" placeholder="不支持中文及?<> \"%'&#,长">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">加密方式</label>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="snmp_priv_protocol" id="priv_des" value="DES" checked>
+                                    <label class="btn btn-outline-primary" for="priv_des">DES</label>
+                                    
+                                    <input type="radio" class="btn-check" name="snmp_priv_protocol" id="priv_aes" value="AES">
+                                    <label class="btn btn-outline-primary" for="priv_aes">AES</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">加密密码</label>
+                                <input type="password" class="form-control" id="snmp_priv_password" placeholder="不支持中文及?<> \"%'&#,长">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">端口</label>
+                            <input type="number" class="form-control" id="snmp_port" value="161" min="1" max="65535">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">OID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="snmp_oid" placeholder="例如: 1.3.6.1.2.1.1.1.0" required>
+                            <div class="form-text">常用OID: 1.3.6.1.2.1.1.1.0 (系统描述), 1.3.6.1.2.1.1.3.0 (系统运行时间)</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="snmp_walk">
+                                <label class="form-check-label" for="snmp_walk">
+                                    使用WALK（获取OID子树的所有值）
+                                </label>
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>查询
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-4">
+                        <label class="form-label">查询结果</label>
+                        <div class="border rounded p-3 bg-light" style="min-height: 200px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem;" id="snmp_result">
+                            <div class="text-muted">等待查询...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SNMPTRAP接收 -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-bell me-2"></i>SNMPTRAP接收</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">监听端口</label>
+                        <input type="number" class="form-control" id="trap_port" value="162" min="1" max="65535">
+                    </div>
+                    
+                    <!-- SNMPv3 TRAP配置 -->
+                    <div class="mb-3">
+                        <label class="form-label">安全用户名（SNMPv3）</label>
+                        <input type="text" class="form-control" id="trap_security_username" placeholder="留空则接受所有v3用户">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">安全级别（SNMPv3）</label>
+                        <select class="form-select" id="trap_security_level">
+                            <option value="noAuthNoPriv">不认证不加密</option>
+                            <option value="authNoPriv">只认证不加密</option>
+                            <option value="authPriv">既认证又加密</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">认证方式（SNMPv3）</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="trap_auth_protocol" id="trap_auth_md5" value="MD5" checked>
+                            <label class="btn btn-outline-primary" for="trap_auth_md5">MD5</label>
+                            
+                            <input type="radio" class="btn-check" name="trap_auth_protocol" id="trap_auth_sha" value="SHA">
+                            <label class="btn btn-outline-primary" for="trap_auth_sha">SHA</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">认证密码（SNMPv3）</label>
+                        <input type="password" class="form-control" id="trap_auth_password" placeholder="不支持中文及?<> \"%'&#,长">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">加密方式（SNMPv3）</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="trap_priv_protocol" id="trap_priv_des" value="DES" checked>
+                            <label class="btn btn-outline-primary" for="trap_priv_des">DES</label>
+                            
+                            <input type="radio" class="btn-check" name="trap_priv_protocol" id="trap_priv_aes" value="AES">
+                            <label class="btn btn-outline-primary" for="trap_priv_aes">AES</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">加密密码（SNMPv3）</label>
+                        <input type="password" class="form-control" id="trap_priv_password" placeholder="不支持中文及?<> \"%'&#,长">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-success" id="btn_start_trap">
+                                <i class="fas fa-play me-2"></i>启动
+                            </button>
+                            <button class="btn btn-danger" id="btn_stop_trap">
+                                <i class="fas fa-stop me-2"></i>停止
+                            </button>
+                            <button class="btn btn-warning" id="btn_clear_traps">
+                                <i class="fas fa-eraser me-2"></i>清屏
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-secondary" id="trap_status_badge">
+                                <i class="fas fa-circle me-1"></i>未运行
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-striped table-sm">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th style="width: 150px;">时间</th>
+                                    <th style="width: 130px;">来源IP</th>
+                                    <th>OID值</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trap_tbody">
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-4">暂无TRAP</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let trapUpdateInterval = null;
+
+// 加载设备列表
+function loadDeviceList() {
+    fetch('/api/device/list/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const select = document.getElementById('device_ip_select');
+                select.innerHTML = '<option value="">从设备列表选择</option>';
+                data.devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.ip;
+                    option.textContent = `${device.name} (${device.ip})`;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(err => console.error('加载设备列表失败:', err));
+}
+
+// 设备IP选择变化
+document.getElementById('device_ip_select').addEventListener('change', function() {
+    if (this.value) {
+        document.getElementById('snmp_ip').value = this.value;
+    }
+});
+
+// SNMP版本切换
+document.querySelectorAll('input[name="snmp_version"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const version = this.value;
+        const v1v2c = document.getElementById('v1_v2c_config');
+        const v3 = document.getElementById('v3_config');
+        
+        if (version === 'v3') {
+            v1v2c.style.display = 'none';
+            v3.style.display = 'block';
+        } else {
+            v1v2c.style.display = 'block';
+            v3.style.display = 'none';
+        }
+    });
+});
+
+// SNMP查询
+document.getElementById('snmp_get_form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const ip = document.getElementById('snmp_ip').value.trim();
+    const oid = document.getElementById('snmp_oid').value.trim();
+    const version = document.querySelector('input[name="snmp_version"]:checked').value;
+    const community = document.getElementById('snmp_community').value.trim() || 'public';
+    const port = parseInt(document.getElementById('snmp_port').value) || 161;
+    const walk = document.getElementById('snmp_walk').checked;
+    
+    // V3参数
+    const security_username = document.getElementById('snmp_security_username').value.trim();
+    const security_level = document.getElementById('snmp_security_level').value;
+    const auth_protocol = document.querySelector('input[name="snmp_auth_protocol"]:checked').value;
+    const auth_password = document.getElementById('snmp_auth_password').value;
+    const priv_protocol = document.querySelector('input[name="snmp_priv_protocol"]:checked').value;
+    const priv_password = document.getElementById('snmp_priv_password').value;
+    
+    if (!ip || !oid) {
+        alert('请填写IP地址和OID');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('snmp_result');
+    resultDiv.innerHTML = '<div class="text-info">查询中...</div>';
+    
+    const payload = {
+        ip: ip,
+        oid: oid,
+        version: version,
+        port: port,
+        walk: walk
+    };
+    
+    if (version === 'v1' || version === 'v2c') {
+        payload.community = community;
+    } else {
+        payload.security_username = security_username;
+        payload.security_level = security_level;
+        payload.auth_protocol = auth_protocol;
+        payload.auth_password = auth_password;
+        payload.priv_protocol = priv_protocol;
+        payload.priv_password = priv_password;
+    }
+    
+    fetch('/api/snmp/get/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (Array.isArray(data.data) && data.data.length > 0) {
+                let html = '<table class="table table-sm table-bordered">';
+                html += '<thead><tr><th>OID</th><th>值</th><th>类型</th></tr></thead><tbody>';
+                data.data.forEach(item => {
+                    html += `<tr><td>${escapeHtml(item.oid)}</td><td>${escapeHtml(item.value)}</td><td>${escapeHtml(item.type)}</td></tr>`;
+                });
+                html += '</tbody></table>';
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.innerHTML = '<div class="text-muted">无数据</div>';
+            }
+        } else {
+            resultDiv.innerHTML = `<div class="text-danger">错误: ${escapeHtml(data.error)}</div>`;
+        }
+    })
+    .catch(error => {
+        console.error('查询失败:', error);
+        resultDiv.innerHTML = `<div class="text-danger">查询失败: ${escapeHtml(error.message)}</div>`;
+    });
+});
+
+// TRAP接收器控制（在DOMContentLoaded中绑定）
+function bindTrapControls() {
+    const btnStart = document.getElementById('btn_start_trap');
+    const btnStop = document.getElementById('btn_stop_trap');
+    const btnClear = document.getElementById('btn_clear_traps');
+    
+    if (!btnStart || !btnStop || !btnClear) {
+        console.error('TRAP控制按钮未找到');
+        return;
+    }
+    
+    // 直接绑定事件（如果已经绑定过，先移除）
+    // 使用 once: false 确保可以多次绑定
+    btnStart.onclick = null;  // 清除旧的事件
+    btnStop.onclick = null;
+    btnClear.onclick = null;
+    
+    // 绑定启动按钮
+    btnStart.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const port = parseInt(document.getElementById('trap_port').value) || 162;
+        const security_username = document.getElementById('trap_security_username').value.trim();
+        const security_level = document.getElementById('trap_security_level').value;
+        const auth_protocol = document.querySelector('input[name="trap_auth_protocol"]:checked')?.value || 'MD5';
+        const auth_password = document.getElementById('trap_auth_password').value;
+        const priv_protocol = document.querySelector('input[name="trap_priv_protocol"]:checked')?.value || 'DES';
+        const priv_password = document.getElementById('trap_priv_password').value;
+        
+        if (!port || port < 1 || port > 65535) {
+            alert('请输入有效的端口号（1-65535）');
+            return;
+        }
+        
+        console.log('启动TRAP接收器，端口:', port);
+        
+        // 禁用按钮，防止重复点击
+        const startBtn = document.getElementById('btn_start_trap');
+        startBtn.disabled = true;
+        const originalText = startBtn.innerHTML;
+        startBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>启动中...';
+        
+        const requestData = {
+            action: 'start',
+            port: port,
+            security_username: security_username,
+            security_level: security_level,
+            auth_protocol: auth_protocol,
+            auth_password: auth_password,
+            priv_protocol: priv_protocol,
+            priv_password: priv_password
+        };
+        
+        console.log('发送请求数据:', requestData);
+        
+        fetch('/api/snmp/trap/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => {
+            console.log('响应状态:', response.status, response.statusText);
+            if (!response.ok) {
+                throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('响应数据:', data);
+            if (data.success) {
+                alert('启动成功: ' + (data.message || ''));
+                // 立即更新状态（状态更新会自动启动TRAP数据轮询）
+                setTimeout(() => {
+                    fetchTrapStatus();
+                }, 200);
+            } else {
+                alert('启动失败: ' + (data.error || data.message || '未知错误'));
+                startBtn.disabled = false;
+                startBtn.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('启动失败:', error);
+            let errorMsg = error.message;
+            if (error.name === 'AbortError') {
+                errorMsg = '请求被中止，请重试';
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMsg = '网络请求失败，请检查后端服务是否正常运行';
+            }
+            alert('启动失败: ' + errorMsg);
+            startBtn.disabled = false;
+            startBtn.innerHTML = originalText;
+        });
+    });
+    
+    // 绑定停止按钮
+    btnStop.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        fetch('/api/snmp/trap/control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                action: 'stop'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('停止成功');
+                fetchTrapStatus();
+                if (trapUpdateInterval) {
+                    clearInterval(trapUpdateInterval);
+                    trapUpdateInterval = null;
+                }
+            } else {
+                alert('停止失败: ' + (data.error || data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('停止失败:', error);
+            alert('停止失败: ' + error.message);
+        });
+    });
+    
+    // 绑定清屏按钮
+    btnClear.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        fetch('/api/snmp/trap/clear/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('清屏成功');
+                fetchTraps();
+            } else {
+                alert('清屏失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('清屏失败:', error);
+            alert('清屏失败: ' + error.message);
+        });
+    });
+}
+
+function fetchTrapStatus() {
+    return fetch('/api/snmp/trap/status/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const status = data.status;
+                const badge = document.getElementById('trap_status_badge');
+                
+                if (status.running) {
+                    badge.className = 'badge bg-success';
+                    badge.innerHTML = `<i class="fas fa-circle me-1"></i>运行中 (端口: ${status.port})`;
+                    document.getElementById('btn_start_trap').disabled = true;
+                    document.getElementById('btn_stop_trap').disabled = false;
+                    document.getElementById('trap_port').disabled = true;
+                    
+                    // 只有在运行中时才启动TRAP数据轮询
+                    if (!trapUpdateInterval) {
+                        trapUpdateInterval = setInterval(fetchTraps, 1000);
+                    }
+                } else {
+                    badge.className = 'badge bg-secondary';
+                    badge.innerHTML = '<i class="fas fa-circle me-1"></i>未运行';
+                    document.getElementById('btn_start_trap').disabled = false;
+                    document.getElementById('btn_stop_trap').disabled = true;
+                    document.getElementById('trap_port').disabled = false;
+                    
+                    // 停止时清除轮询
+                    if (trapUpdateInterval) {
+                        clearInterval(trapUpdateInterval);
+                        trapUpdateInterval = null;
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('获取状态失败:', error);
+        });
+}
+
+function fetchTraps() {
+    fetch('/api/snmp/trap/traps/?limit=1000')
+        .then(response => response.json())
+        .then(data => {
+            console.log('获取TRAP数据:', data);
+            if (data.success) {
+                console.log('TRAP数量:', data.traps ? data.traps.length : 0);
+                renderTraps(data.traps || []);
+            } else {
+                console.error('获取TRAP失败:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('获取TRAP失败:', error);
+        });
+}
+
+function renderTraps(traps) {
+    const tbody = document.getElementById('trap_tbody');
+    
+    if (!tbody) {
+        console.error('trap_tbody 元素未找到');
+        return;
+    }
+    
+    console.log('渲染TRAP数据，数量:', traps ? traps.length : 0);
+    
+    if (!traps || traps.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">暂无TRAP</td></tr>';
+        return;
+    }
+    
+    traps = traps.reverse(); // 最新的在前
+    
+    tbody.innerHTML = traps.map(trap => {
+        const oidValues = (trap.oid_values || []).map(item => 
+            `${escapeHtml(item.oid || '')} = ${escapeHtml(item.value || '')}`
+        ).join('<br>');
+        
+        return `
+            <tr>
+                <td class="text-nowrap">${escapeHtml(trap.timestamp || '')}</td>
+                <td><span class="badge bg-primary">${escapeHtml(trap.source_ip || 'unknown')}</span></td>
+                <td class="text-break small">${oidValues || '-'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 页面加载时初始化
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadDeviceList();
+    bindTrapControls();  // 绑定TRAP控制按钮
+    
+    // 首次加载时获取状态（状态检查会自动控制TRAP数据轮询）
+    fetchTrapStatus().then(() => {
+        // 状态获取后，如果运行中则开始轮询，否则只获取一次数据
+        fetchTraps();
+    });
+    
+    // 每5秒检查一次状态（状态检查会控制TRAP数据轮询）
+    setInterval(fetchTrapStatus, 5000);
+    
+    // 确保按钮事件监听器已绑定
+    console.log('页面加载完成，按钮ID:', {
+        start: document.getElementById('btn_start_trap') ? '存在' : '不存在',
+        stop: document.getElementById('btn_stop_trap') ? '存在' : '不存在',
+        clear: document.getElementById('btn_clear_traps') ? '存在' : '不存在'
+    });
+});
+</script>
+{% endblock %}
+

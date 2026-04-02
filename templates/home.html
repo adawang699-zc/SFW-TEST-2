@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 测试系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-5 text-center">
+                    <i class="fas fa-shield-alt fa-4x text-primary mb-4"></i>
+                    <h1 class="display-4 mb-3">欢迎使用防火墙测试系统</h1>
+                    <p class="lead text-muted mb-4">专业的防火墙策略配置与测试平台</p>
+                    <a href="{% url 'main:firewall_policy' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-arrow-right me-2"></i>开始使用
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>功能说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <h6><i class="fas fa-check-circle text-success me-2"></i>已实现功能</h6>
+                            <ul class="list-unstyled ms-4">
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>防火墙策略配置</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>批量请求发送</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>实时日志显示</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>多种请求类型支持</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h6><i class="fas fa-list me-2"></i>支持的请求类型</h6>
+                            <ul class="list-unstyled ms-4">
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>自定义服务</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>服务组</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>地址列表/地址组</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>包过滤策略</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>深度解析策略</li>
+                                <li><i class="fas fa-chevron-right text-primary me-2"></i>VPN策略</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

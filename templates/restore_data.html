@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}数据恢复工具{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-database me-2"></i>数据恢复工具</h4>
+                    <small class="text-muted">用于在不同访问地址间迁移localStorage数据</small>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6>问题说明：</h6>
+                        <p class="mb-0">当Django监听地址从 <code>127.0.0.1:8000</code> 改为 <code>0.0.0.0:8000</code> 后，
+                        浏览器访问地址发生变化，导致localStorage数据无法访问。</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>1. 导出数据</h5>
+                            <p class="text-muted">从旧地址导出数据</p>
+                            <button class="btn btn-primary" onclick="exportData()">
+                                <i class="fas fa-download me-1"></i>导出数据
+                            </button>
+                            <div class="mt-3">
+                                <textarea id="exportData" class="form-control" rows="10" placeholder="导出的数据将显示在这里..."></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>2. 导入数据</h5>
+                            <p class="text-muted">将数据导入到新地址</p>
+                            <textarea id="importData" class="form-control mb-3" rows="10" placeholder="粘贴导出的数据到这里..."></textarea>
+                            <button class="btn btn-success" onclick="importData()">
+                                <i class="fas fa-upload me-1"></i>导入数据
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>3. 当前数据状态</h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6>测试环境</h6>
+                                            <span class="badge bg-primary" id="envCount">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6>测试设备</h6>
+                                            <span class="badge bg-success" id="deviceCount">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6>邮件配置</h6>
+                                            <span class="badge bg-info" id="mailConfig">无</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="alert alert-warning">
+                            <h6>使用说明：</h6>
+                            <ol class="mb-0">
+                                <li>在旧地址（如 <code>http://127.0.0.1:8000/restore-data/</code>）打开此页面，点击"导出数据"</li>
+                                <li>复制导出的数据</li>
+                                <li>在新地址（如 <code>http://192.168.81.43:8000/restore-data/</code>）打开此页面</li>
+                                <li>粘贴数据到导入框，点击"导入数据"</li>
+                                <li>刷新测试环境和设备监控页面</li>
+                            </ol>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'test_env' %}" class="btn btn-outline-primary">
+                                <i class="fas fa-server me-1"></i>测试环境管理
+                            </a>
+                            <a href="{% url 'device_monitor' %}" class="btn btn-outline-success">
+                                <i class="fas fa-desktop me-1"></i>设备监控
+                            </a>
+                            <a href="{% url 'service_deploy' %}" class="btn btn-outline-info">
+                                <i class="fas fa-cogs me-1"></i>服务部署
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 更新数据状态显示
+    function updateDataStatus() {
+        const testEnvs = JSON.parse(localStorage.getItem('test_environments') || '[]');
+        const devices = JSON.parse(localStorage.getItem('device_list') || '[]');
+        const mailConfig = localStorage.getItem('mail_client_config');
+        
+        document.getElementById('envCount').textContent = testEnvs.length;
+        document.getElementById('deviceCount').textContent = devices.length;
+        document.getElementById('mailConfig').textContent = mailConfig ? '已配置' : '无';
+        
+        // 更新badge颜色
+        const envBadge = document.getElementById('envCount');
+        const deviceBadge = document.getElementById('deviceCount');
+        const mailBadge = document.getElementById('mailConfig');
+        
+        envBadge.className = testEnvs.length > 0 ? 'badge bg-primary' : 'badge bg-secondary';
+        deviceBadge.className = devices.length > 0 ? 'badge bg-success' : 'badge bg-secondary';
+        mailBadge.className = mailConfig ? 'badge bg-info' : 'badge bg-secondary';
+    }
+    
+    // 导出数据
+    function exportData() {
+        const data = {
+            test_environments: localStorage.getItem('test_environments'),
+            device_list: localStorage.getItem('device_list'),
+            mail_client_config: localStorage.getItem('mail_client_config'),
+            exported_at: new Date().toISOString(),
+            exported_from: window.location.origin
+        };
+        
+        const jsonData = JSON.stringify(data, null, 2);
+        document.getElementById('exportData').value = jsonData;
+        
+        // 自动选中文本
+        document.getElementById('exportData').select();
+        document.getElementById('exportData').setSelectionRange(0, 99999);
+        
+        // 尝试复制到剪贴板
+        try {
+            document.execCommand('copy');
+            alert('数据已导出并复制到剪贴板！');
+        } catch (e) {
+            alert('数据已导出！请手动复制文本框中的内容。');
+        }
+    }
+    
+    // 导入数据
+    function importData() {
+        const importText = document.getElementById('importData').value.trim();
+        if (!importText) {
+            alert('请粘贴要导入的数据');
+            return;
+        }
+        
+        try {
+            const data = JSON.parse(importText);
+            
+            // 验证数据格式
+            if (!data.exported_at) {
+                throw new Error('数据格式不正确');
+            }
+            
+            let importCount = 0;
+            
+            // 导入数据
+            if (data.test_environments) {
+                localStorage.setItem('test_environments', data.test_environments);
+                importCount++;
+            }
+            if (data.device_list) {
+                localStorage.setItem('device_list', data.device_list);
+                importCount++;
+            }
+            if (data.mail_client_config) {
+                localStorage.setItem('mail_client_config', data.mail_client_config);
+                importCount++;
+            }
+            
+            updateDataStatus();
+            
+            alert(`数据导入成功！\n导入项目: ${importCount} 项\n导出时间: ${new Date(data.exported_at).toLocaleString()}\n导出来源: ${data.exported_from}`);
+            
+            // 清空导入框
+            document.getElementById('importData').value = '';
+            
+        } catch (e) {
+            alert('数据格式错误，请检查导入的数据是否正确：' + e.message);
+        }
+    }
+    
+    // 页面加载时更新状态
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDataStatus();
+        
+        // 定期更新状态
+        setInterval(updateDataStatus, 2000);
+    });
+</script>
+{% endblock %}

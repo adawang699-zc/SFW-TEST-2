@@ -1,0 +1,955 @@
+{% extends "base.html" %}
+
+{% block title %}报文回放 - 测试系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="mb-2"><i class="fas fa-redo text-primary me-2"></i>报文回放</h2>
+            <p class="text-muted mb-0">回放packets目录下的报文文件</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div id="running_replay_alert" class="alert alert-warning mb-0" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>检测到正在回放的报文</strong>
+                    </span>
+                    <button class="btn btn-sm btn-danger" onclick="stopAllReplays()">
+                        <i class="fas fa-stop me-2"></i>停止所有回放
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧配置区域 -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>回放配置</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 设备选择 -->
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="fas fa-server me-2"></i>选择回放设备</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">设备来源</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="device_source" id="device_source_test_env" value="test_env" checked>
+                                        <label class="btn btn-outline-primary" for="device_source_test_env">测试环境</label>
+                                        <input type="radio" class="btn-check" name="device_source" id="device_source_custom" value="custom">
+                                        <label class="btn btn-outline-primary" for="device_source_custom">指定IP</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="test_env_select_container">
+                                <div class="mb-3">
+                                    <label for="test_env_select" class="form-label">测试环境</label>
+                                    <select class="form-select" id="test_env_select">
+                                        <option value="">请选择测试环境</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="custom_ip_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="custom_ip" class="form-label">IP地址</label>
+                                    <input type="text" class="form-control" id="custom_ip" placeholder="例如: 192.168.1.100">
+                                </div>
+                            </div>
+                            <div class="col-md-3" id="custom_user_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="custom_user" class="form-label">SSH用户名</label>
+                                    <input type="text" class="form-control" id="custom_user" placeholder="例如: root">
+                                </div>
+                            </div>
+                            <div class="col-md-3" id="custom_password_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="custom_password" class="form-label">SSH密码</label>
+                                    <input type="password" class="form-control" id="custom_password" placeholder="SSH密码">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <button class="btn btn-sm btn-outline-primary" id="connect_device_btn" onclick="connectDevice()">
+                                <i class="fas fa-plug me-2"></i>连接设备
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 网口选择 -->
+                    <div class="mb-4" id="interface_section" style="display: none;">
+                        <h6 class="mb-3"><i class="fas fa-network-wired me-2"></i>选择网口</h6>
+                        <div class="mb-3">
+                            <label for="interface_select" class="form-label">网口</label>
+                            <select class="form-select" id="interface_select">
+                                <option value="">请先连接设备</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 设备类型和报文选择 -->
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="fas fa-file me-2"></i>选择报文</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="device_type" class="form-label">设备类型</label>
+                                    <select class="form-select" id="device_type">
+                                        <option value="">请选择设备类型</option>
+                                        <option value="firewall">防火墙</option>
+                                        <option value="audit">审计</option>
+                                        <option value="ids">IDS</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="packet_file" class="form-label">报文文件</label>
+                                    <div id="packet_file_search_container" style="display: none;">
+                                        <input type="text" class="form-control mb-2" id="packet_file_search" placeholder="搜索报文文件...">
+                                        <select class="form-select" id="packet_file_select" size="10" multiple style="min-height: 200px;">
+                                        </select>
+                                        <small class="form-text text-muted">按住Ctrl/Cmd键可多选，选择"全部"将回放所有报文</small>
+                                    </div>
+                                    <div id="packet_file_placeholder" class="text-muted">
+                                        请先选择设备类型
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 回放参数 -->
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="fas fa-sliders-h me-2"></i>回放参数</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="replay_rate" class="form-label">回放速率</label>
+                                    <select class="form-select" id="replay_rate">
+                                        <option value="1">1x (原始速率)</option>
+                                        <option value="10">10x</option>
+                                        <option value="100">100x</option>
+                                        <option value="1000">1000x</option>
+                                        <option value="max">最大速率</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="replay_count" class="form-label">回放次数</label>
+                                    <input type="number" class="form-control" id="replay_count" value="1" min="1" placeholder="回放次数">
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="replay_loop">
+                                        <label class="form-check-label" for="replay_loop">循环回放</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="replay_throughput" class="form-label">指定吞吐 (Mbps)</label>
+                                    <input type="number" class="form-control" id="replay_throughput" min="0" step="0.1" placeholder="留空则不限制">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 控制按钮 -->
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-primary" id="start_replay_btn" onclick="startReplay()" disabled>
+                            <i class="fas fa-play me-2"></i>开始回放
+                        </button>
+                        <button class="btn btn-danger" id="stop_replay_btn" onclick="stopReplay()" disabled>
+                            <i class="fas fa-stop me-2"></i>停止回放
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted" id="start_button_hint">请先连接设备、选择网口、设备类型和报文文件</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧状态显示区域 -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>回放状态</h5>
+                </div>
+                <div class="card-body">
+                    <div id="replay_status" class="text-center py-5">
+                        <i id="replay_status_icon" class="fas fa-pause-circle fa-3x mb-3 opacity-50"></i>
+                        <p id="replay_status_text" class="text-muted">等待开始回放</p>
+                    </div>
+                    <div id="replay_stats" style="display: none;">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>已回放报文数:</span>
+                                <strong id="packets_sent">0</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>回放速率:</span>
+                                <strong id="replay_rate_display">0 pps</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>回放进度:</span>
+                                <strong id="replay_progress">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>回放日志</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="replay_logs" class="p-3" style="height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; background-color: #1e1e1e; color: #d4d4d4;">
+                        <div class="text-muted text-center py-5">
+                            <i class="fas fa-terminal fa-2x mb-2 opacity-50"></i>
+                            <p>等待回放开始...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentDevice = null;
+    let replayStatusInterval = null;
+    let testEnvironments = [];
+
+    // 加载测试环境列表
+    function loadTestEnvironments() {
+        fetch('/api/test_env/list/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const envs = data.environments.map(env => ({
+                        id: env.id.toString(),
+                        name: env.name,
+                        ip: env.ip,
+                        type: env.type,
+                        user: env.ssh_user,
+                        password: env.ssh_password,
+                        port: env.ssh_port
+                    }));
+                    testEnvironments = envs;
+                    const select = document.getElementById('test_env_select');
+                    select.innerHTML = '<option value="">请选择测试环境</option>';
+                    envs.forEach(env => {
+                        const option = document.createElement('option');
+                        option.value = env.id;
+                        option.textContent = `${env.name} (${env.ip}) - ${env.type === 'windows' ? 'Windows' : 'Linux'}`;
+                        option.dataset.env = JSON.stringify(env);
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(err => console.error('加载环境列表失败:', err));
+    }
+
+    // 设备来源切换
+    document.querySelectorAll('input[name="device_source"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const isTestEnv = this.value === 'test_env';
+            document.getElementById('test_env_select_container').style.display = isTestEnv ? 'block' : 'none';
+            document.getElementById('custom_ip_container').style.display = isTestEnv ? 'none' : 'block';
+            document.getElementById('custom_user_container').style.display = isTestEnv ? 'none' : 'block';
+            document.getElementById('custom_password_container').style.display = isTestEnv ? 'none' : 'block';
+        });
+    });
+
+    // 设备类型变化时加载报文文件
+    document.getElementById('device_type').addEventListener('change', function() {
+        const deviceType = this.value;
+        const container = document.getElementById('packet_file_search_container');
+        const placeholder = document.getElementById('packet_file_placeholder');
+        
+        if (deviceType) {
+            container.style.display = 'block';
+            placeholder.style.display = 'none';
+            loadPacketFiles(deviceType);
+        } else {
+            container.style.display = 'none';
+            placeholder.style.display = 'block';
+        }
+    });
+
+    // 报文文件搜索
+    document.getElementById('packet_file_search').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const select = document.getElementById('packet_file_select');
+        const options = Array.from(select.options);
+        options.forEach(option => {
+            option.style.display = option.textContent.toLowerCase().includes(searchTerm) ? 'block' : 'none';
+        });
+    });
+
+    // 连接设备
+    window.connectDevice = function() {
+        const deviceSource = document.querySelector('input[name="device_source"]:checked').value;
+        let deviceInfo = null;
+
+        if (deviceSource === 'test_env') {
+            const envId = document.getElementById('test_env_select').value;
+            if (!envId) {
+                alert('请选择测试环境');
+                return;
+            }
+            const env = testEnvironments.find(e => e.id === envId);
+            if (!env) {
+                alert('测试环境不存在');
+                return;
+            }
+            deviceInfo = {
+                ip: env.ip,
+                user: env.user,
+                password: env.password,
+                port: env.port || 22,
+                type: env.type
+            };
+        } else {
+            const ip = document.getElementById('custom_ip').value.trim();
+            const user = document.getElementById('custom_user').value.trim();
+            const password = document.getElementById('custom_password').value;
+            if (!ip || !user || !password) {
+                alert('请填写完整的连接信息');
+                return;
+            }
+            deviceInfo = {
+                ip: ip,
+                user: user,
+                password: password,
+                port: 22,
+                type: 'linux' // 默认Linux，可以通过检测确定
+            };
+        }
+
+        addLog('正在连接设备...', 'info');
+        fetch('/api/packet_replay/connect/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(deviceInfo)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentDevice = deviceInfo;
+                addLog('设备连接成功', 'success');
+                loadInterfaces(deviceInfo);
+                checkStartButtonState();
+            } else {
+                addLog('设备连接失败: ' + data.error, 'danger');
+                checkStartButtonState();
+            }
+        })
+        .catch(error => {
+            addLog('连接设备出错: ' + error.message, 'danger');
+        });
+    };
+
+    // 加载网口列表
+    function loadInterfaces(deviceInfo) {
+        addLog('正在获取网口列表...', 'info');
+        fetch('/api/packet_replay/interfaces/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(deviceInfo)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const select = document.getElementById('interface_select');
+                select.innerHTML = '<option value="">请选择网口</option>';
+                data.interfaces.forEach(iface => {
+                    const option = document.createElement('option');
+                    option.value = iface.name;
+                    
+                    // 生成友好的显示名称
+                    let displayText = '';
+                    if (iface.display_name) {
+                        displayText = iface.display_name;
+                    } else if (iface.description) {
+                        displayText = iface.description;
+                    } else {
+                        displayText = iface.name;
+                    }
+                    
+                    // 如果名称是Windows NPF设备，生成友好名称
+                    if (displayText.startsWith('\\Device\\NPF_')) {
+                        if (iface.mac) {
+                            const macShort = iface.mac.replace(/[:-]/g, '').substring(6, 12).toUpperCase();
+                            displayText = `网卡 ${macShort}`;
+                        } else {
+                            displayText = '网卡 ' + (select.options.length);
+                        }
+                    }
+                    
+                    // 添加IP和MAC信息
+                    let infoParts = [displayText];
+                    if (iface.ip) {
+                        infoParts.push(`IP: ${iface.ip}`);
+                    }
+                    if (iface.mac) {
+                        infoParts.push(`MAC: ${iface.mac}`);
+                    }
+                    
+                    option.textContent = infoParts.join(' - ');
+                    select.appendChild(option);
+                });
+                document.getElementById('interface_section').style.display = 'block';
+                addLog(`获取到 ${data.interfaces.length} 个网口`, 'success');
+                
+                // 启用开始回放按钮（如果其他条件也满足）
+                checkStartButtonState();
+            } else {
+                addLog('获取网口列表失败: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            addLog('获取网口列表出错: ' + error.message, 'danger');
+        });
+    }
+
+    // 加载报文文件列表
+    function loadPacketFiles(deviceType) {
+        const packetDir = deviceType === 'firewall' ? 'SFW' : 'IMAP';
+        addLog(`正在加载 ${packetDir} 目录下的报文文件...`, 'info');
+        fetch(`/api/packet_replay/files/?device_type=${deviceType}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const container = document.getElementById('packet_file_search_container');
+                const select = document.getElementById('packet_file_select');
+                const placeholder = document.getElementById('packet_file_placeholder');
+                
+                select.innerHTML = '';
+                
+                if (data.files && data.files.length > 0) {
+                    // 添加"全部"选项
+                    const allOption = document.createElement('option');
+                    allOption.value = '__ALL__';
+                    allOption.textContent = '【全部】回放目录下所有报文';
+                    allOption.style.fontWeight = 'bold';
+                    select.appendChild(allOption);
+                    
+                    // 添加文件选项
+                    data.files.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file;
+                        option.textContent = file;
+                        select.appendChild(option);
+                    });
+                    
+                    container.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    addLog(`加载到 ${data.files.length} 个报文文件`, 'success');
+                } else {
+                    container.style.display = 'none';
+                    placeholder.style.display = 'block';
+                    placeholder.textContent = '该目录下没有找到报文文件';
+                    addLog('该目录下没有找到报文文件', 'warning');
+                }
+            } else {
+                const container = document.getElementById('packet_file_search_container');
+                const placeholder = document.getElementById('packet_file_placeholder');
+                container.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.textContent = '加载失败: ' + (data.error || '未知错误');
+                addLog('加载报文文件失败: ' + (data.error || '未知错误'), 'danger');
+            }
+            
+            // 更新按钮状态
+            checkStartButtonState();
+        })
+        .catch(error => {
+            addLog('加载报文文件出错: ' + error.message, 'danger');
+            checkStartButtonState();
+        });
+    }
+
+    // 开始回放
+    window.startReplay = function() {
+        if (!currentDevice) {
+            alert('请先连接设备');
+            return;
+        }
+        const interface = document.getElementById('interface_select').value;
+        if (!interface) {
+            alert('请选择网口');
+            return;
+        }
+        const deviceType = document.getElementById('device_type').value;
+        if (!deviceType) {
+            alert('请选择设备类型');
+            return;
+        }
+        const packetSelect = document.getElementById('packet_file_select');
+        if (!packetSelect || packetSelect.options.length === 0) {
+            alert('请先选择设备类型并加载报文文件');
+            return;
+        }
+        
+        const selectedFiles = Array.from(packetSelect.selectedOptions).map(opt => opt.value);
+        if (selectedFiles.length === 0) {
+            alert('请选择至少一个报文文件（可多选）');
+            return;
+        }
+        const replayRate = document.getElementById('replay_rate').value;
+        const replayCount = parseInt(document.getElementById('replay_count').value) || 1;
+        const replayLoop = document.getElementById('replay_loop').checked;
+        const replayThroughput = document.getElementById('replay_throughput').value;
+
+        const config = {
+            device: currentDevice,
+            interface: interface,
+            device_type: deviceType,
+            packet_files: selectedFiles,
+            replay_rate: replayRate,
+            replay_count: replayLoop ? -1 : replayCount,
+            replay_throughput: replayThroughput ? parseFloat(replayThroughput) : null
+        };
+
+        addLog('正在启动回放...', 'info');
+        fetch('/api/packet_replay/start/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(config)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog('回放已启动', 'success');
+                document.getElementById('start_replay_btn').disabled = true;
+                document.getElementById('stop_replay_btn').disabled = false;
+                // 更新状态显示为正在回放
+                updateReplayStatus('running', 0, 0, '-');
+                startStatusPolling();
+            } else {
+                addLog('启动回放失败: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            addLog('启动回放出错: ' + error.message, 'danger');
+        });
+    };
+
+    // 停止回放
+    window.stopReplay = function() {
+        addLog('正在停止回放...', 'info');
+        fetch('/api/packet_replay/stop/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog('回放已停止', 'success');
+                
+                // 隐藏提示
+                const alert = document.getElementById('running_replay_alert');
+                if (alert) {
+                    alert.style.display = 'none';
+                }
+                
+                // 更新按钮状态
+                document.getElementById('start_replay_btn').disabled = false;
+                document.getElementById('stop_replay_btn').disabled = true;
+                
+                // 停止状态轮询
+                if (replayStatusInterval) {
+                    clearInterval(replayStatusInterval);
+                    replayStatusInterval = null;
+                }
+                
+                // 获取最新状态以显示停止信息
+                fetch('/api/packet_replay/status/', {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(statusData => {
+                    const status = statusData.status || 'stopped';
+                    updateReplayStatus(status, statusData.packets_sent || 0, statusData.rate || 0, statusData.progress || '-');
+                })
+                .catch(error => {
+                    console.error('获取停止后状态出错:', error);
+                    updateReplayStatus('stopped', 0, 0, '-');
+                });
+                
+                // 更新按钮状态
+                checkStartButtonState();
+            } else {
+                addLog('停止回放失败: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            addLog('停止回放出错: ' + error.message, 'danger');
+        });
+    };
+
+    // 更新回放状态显示
+    function updateReplayStatus(status, packetsSent, rate, progress) {
+        const statusIcon = document.getElementById('replay_status_icon');
+        const statusText = document.getElementById('replay_status_text');
+        const statusDiv = document.getElementById('replay_status');
+        const statsDiv = document.getElementById('replay_stats');
+        
+        // 移除所有可能的类
+        statusIcon.className = 'fas fa-3x mb-3';
+        statusText.className = '';
+        statusDiv.className = 'text-center py-5';
+        
+        switch(status) {
+            case 'waiting':
+                statusIcon.className += ' fa-pause-circle opacity-50';
+                statusText.className = 'text-muted';
+                statusText.textContent = '等待开始回放';
+                statusDiv.className += ' text-muted';
+                if (statsDiv) statsDiv.style.display = 'none';
+                break;
+                
+            case 'running':
+                statusIcon.className += ' fa-play-circle text-primary';
+                statusText.className = 'text-primary';
+                statusText.textContent = '正在回放';
+                statusDiv.className += ' text-primary';
+                if (statsDiv) {
+                    statsDiv.style.display = 'block';
+                    document.getElementById('packets_sent').textContent = packetsSent;
+                    document.getElementById('replay_rate_display').textContent = rate + ' pps';
+                    document.getElementById('replay_progress').textContent = progress;
+                }
+                break;
+                
+            case 'completed':
+                statusIcon.className += ' fa-check-circle text-success';
+                statusText.className = 'text-success';
+                statusText.textContent = '回放已完成（循环次数完成）';
+                statusDiv.className += ' text-success';
+                if (statsDiv) {
+                    statsDiv.style.display = 'block';
+                    document.getElementById('packets_sent').textContent = packetsSent;
+                    document.getElementById('replay_rate_display').textContent = rate + ' pps';
+                    document.getElementById('replay_progress').textContent = progress;
+                }
+                break;
+                
+            case 'stopped':
+                statusIcon.className += ' fa-stop-circle text-warning';
+                statusText.className = 'text-warning';
+                statusText.textContent = '回放手动中断（点击停止回放）';
+                statusDiv.className += ' text-warning';
+                if (statsDiv) {
+                    statsDiv.style.display = 'block';
+                    document.getElementById('packets_sent').textContent = packetsSent;
+                    document.getElementById('replay_rate_display').textContent = rate + ' pps';
+                    document.getElementById('replay_progress').textContent = progress;
+                }
+                break;
+                
+            default:
+                statusIcon.className += ' fa-pause-circle opacity-50';
+                statusText.className = 'text-muted';
+                statusText.textContent = '等待开始回放';
+                statusDiv.className += ' text-muted';
+                if (statsDiv) statsDiv.style.display = 'none';
+        }
+    }
+
+    // 开始状态轮询
+    function startStatusPolling() {
+        if (replayStatusInterval) {
+            clearInterval(replayStatusInterval);
+        }
+        replayStatusInterval = setInterval(() => {
+            fetch('/api/packet_replay/status/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('获取回放状态失败:', data.error);
+                    return;
+                }
+                
+                const status = data.status || 'waiting';
+                
+                if (data.running) {
+                    // 正在回放 - 确保状态是 'running'
+                    updateReplayStatus('running', data.packets_sent || 0, data.rate || 0, data.progress || '-');
+                    
+                    // 更新按钮状态
+                    document.getElementById('start_replay_btn').disabled = true;
+                    document.getElementById('stop_replay_btn').disabled = false;
+                } else {
+                    // 回放已停止，根据状态显示不同信息
+                    // 如果状态是 'waiting'，说明可能是刚启动，暂时不更新
+                    if (status !== 'waiting') {
+                        updateReplayStatus(status, data.packets_sent || 0, data.rate || 0, data.progress || '-');
+                    }
+                    
+                    // 更新按钮状态
+                    document.getElementById('start_replay_btn').disabled = false;
+                    document.getElementById('stop_replay_btn').disabled = true;
+                    
+                    // 隐藏警告提示
+                    const alert = document.getElementById('running_replay_alert');
+                    if (alert) {
+                        alert.style.display = 'none';
+                    }
+                    
+                    // 停止轮询（只有在非 waiting 状态时才停止）
+                    if (status !== 'waiting' && replayStatusInterval) {
+                        clearInterval(replayStatusInterval);
+                        replayStatusInterval = null;
+                    }
+                    
+                    // 更新按钮状态
+                    checkStartButtonState();
+                }
+            })
+            .catch(error => {
+                console.error('获取回放状态出错:', error);
+            });
+        }, 1000);
+    }
+
+    // 添加日志
+    function addLog(message, type) {
+        const logsDiv = document.getElementById('replay_logs');
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement('div');
+        logEntry.className = `mb-1 text-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : 'info'}`;
+        logEntry.textContent = `[${timestamp}] ${message}`;
+        
+        // 清除初始提示
+        if (logsDiv.querySelector('.text-muted')) {
+            logsDiv.innerHTML = '';
+        }
+        
+        logsDiv.insertBefore(logEntry, logsDiv.firstChild);
+        
+        // 限制日志数量
+        while (logsDiv.children.length > 100) {
+            logsDiv.removeChild(logsDiv.lastChild);
+        }
+    }
+
+    // 获取CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // 检查开始回放按钮状态
+    function checkStartButtonState() {
+        const startBtn = document.getElementById('start_replay_btn');
+        const hint = document.getElementById('start_button_hint');
+        
+        if (!startBtn) return;
+        
+        const hasDevice = currentDevice !== null;
+        const hasInterface = document.getElementById('interface_select')?.value || false;
+        const hasDeviceType = document.getElementById('device_type')?.value || false;
+        const hasPacketFiles = document.getElementById('packet_file_select')?.options.length > 1; // 大于1因为有"全部"选项
+        const hasSelectedFiles = document.getElementById('packet_file_select')?.selectedOptions.length > 0;
+        
+        const canStart = hasDevice && hasInterface && hasDeviceType && hasPacketFiles && hasSelectedFiles;
+        
+        startBtn.disabled = !canStart;
+        
+        if (hint) {
+            if (canStart) {
+                hint.textContent = '所有条件已满足，可以开始回放';
+                hint.className = 'text-success';
+            } else {
+                const missing = [];
+                if (!hasDevice) missing.push('连接设备');
+                if (!hasInterface) missing.push('选择网口');
+                if (!hasDeviceType) missing.push('选择设备类型');
+                if (!hasPacketFiles) missing.push('加载报文文件');
+                if (!hasSelectedFiles) missing.push('选择报文文件');
+                hint.textContent = '缺少: ' + missing.join('、');
+                hint.className = 'text-muted';
+            }
+        }
+    }
+    
+    // 监听相关字段变化，更新按钮状态
+    const interfaceSelect = document.getElementById('interface_select');
+    const deviceTypeSelect = document.getElementById('device_type');
+    const packetFileSelect = document.getElementById('packet_file_select');
+    
+    if (interfaceSelect) {
+        interfaceSelect.addEventListener('change', checkStartButtonState);
+    }
+    if (deviceTypeSelect) {
+        deviceTypeSelect.addEventListener('change', function() {
+            checkStartButtonState();
+            // 设备类型变化时会加载文件，文件加载完成后也会调用checkStartButtonState
+        });
+    }
+    if (packetFileSelect) {
+        packetFileSelect.addEventListener('change', checkStartButtonState);
+    }
+    
+    // 检查是否有正在回放的报文
+    function checkRunningReplay() {
+        fetch('/api/packet_replay/status/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.running) {
+                // 显示正在回放的提示
+                const alert = document.getElementById('running_replay_alert');
+                if (alert) {
+                    alert.style.display = 'block';
+                    alert.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>检测到正在回放的报文</strong>
+                                <small class="ms-2">已发送: ${data.packets_sent || 0} 个报文，速率: ${data.rate || 0} pps</small>
+                            </span>
+                            <button class="btn btn-sm btn-danger" onclick="stopAllReplays()">
+                                <i class="fas fa-stop me-2"></i>停止所有回放
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                // 更新回放状态显示
+                updateReplayStatus('running', data.packets_sent || 0, data.rate || 0, data.progress || '-');
+                
+                // 更新按钮状态
+                document.getElementById('start_replay_btn').disabled = true;
+                document.getElementById('stop_replay_btn').disabled = false;
+                
+                // 开始状态轮询
+                startStatusPolling();
+                
+                addLog('检测到正在回放的报文，已恢复状态显示', 'warning');
+            } else {
+                // 显示当前状态（可能是已完成或已停止）
+                const status = data.status || 'waiting';
+                updateReplayStatus(status, data.packets_sent || 0, data.rate || 0, data.progress || '-');
+                
+                // 隐藏提示
+                const alert = document.getElementById('running_replay_alert');
+                if (alert) {
+                    alert.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('检查回放状态出错:', error);
+        });
+    }
+    
+    // 停止所有回放
+    window.stopAllReplays = function() {
+        if (!confirm('确定要停止所有正在回放的报文吗？')) {
+            return;
+        }
+        
+        addLog('正在停止所有回放...', 'info');
+        fetch('/api/packet_replay/stop/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog('所有回放已停止', 'success');
+                
+                // 隐藏提示
+                const alert = document.getElementById('running_replay_alert');
+                if (alert) {
+                    alert.style.display = 'none';
+                }
+                
+                // 更新按钮状态
+                document.getElementById('start_replay_btn').disabled = false;
+                document.getElementById('stop_replay_btn').disabled = true;
+                
+                // 停止状态轮询
+                if (replayStatusInterval) {
+                    clearInterval(replayStatusInterval);
+                    replayStatusInterval = null;
+                }
+                
+                // 重置状态显示
+                document.getElementById('replay_stats').style.display = 'none';
+                document.getElementById('packets_sent').textContent = '0';
+                document.getElementById('replay_rate_display').textContent = '0 pps';
+                document.getElementById('replay_progress').textContent = '-';
+                
+                // 更新按钮状态
+                checkStartButtonState();
+            } else {
+                addLog('停止回放失败: ' + (data.error || '未知错误'), 'danger');
+            }
+        })
+        .catch(error => {
+            addLog('停止回放出错: ' + error.message, 'danger');
+        });
+    };
+    
+    // 初始化
+    loadTestEnvironments();
+    checkStartButtonState();
+    checkRunningReplay(); // 检查是否有正在回放的报文
+});
+</script>
+{% endblock %}
+

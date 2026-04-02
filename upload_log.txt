@@ -1,0 +1,47 @@
+D:\apps\python\Lib\site-packages\paramiko\pkey.py:100: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from cryptography.hazmat.primitives.ciphers.algorithms in 48.0.0.
+  "cipher": algorithms.TripleDES,
+D:\apps\python\Lib\site-packages\paramiko\transport.py:259: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from cryptography.hazmat.primitives.ciphers.algorithms in 48.0.0.
+  "class": algorithms.TripleDES,
+上传修复后的 Agent 文件并重启...
+
+============================================================
+处理主机：10.40.30.35
+============================================================
+正在连接...
+连接成功
+本地 MD5: 2d0e71a9ca109ed0145803f09f7f81d7
+正在上传...
+上传结果：文件存在但无法验证大小
+远程 MD5: 2d0e71a9ca109ed0145803f09f7f81d7
+MD5 匹配，文件上传成功
+正在停止 agent 进程...
+Agent 进程已停止
+正在启动新 agent 进程...
+Agent 进程已启动
+警告：Agent 可能未启动
+连接已关闭 10.40.30.35
+
+[OK] 10.40.30.35 处理成功
+
+============================================================
+处理主机：10.40.30.34
+============================================================
+正在连接...
+连接成功
+本地 MD5: 2d0e71a9ca109ed0145803f09f7f81d7
+正在上传...
+上传结果：文件存在但无法验证大小
+远程 MD5: 2d0e71a9ca109ed0145803f09f7f81d7
+MD5 匹配，文件上传成功
+正在停止 agent 进程...
+Agent 进程已停止
+正在启动新 agent 进程...
+Agent 进程已启动
+警告：Agent 可能未启动
+连接已关闭 10.40.30.34
+
+[OK] 10.40.30.34 处理成功
+
+============================================================
+所有主机处理完成!
+============================================================

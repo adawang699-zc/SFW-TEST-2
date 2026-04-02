@@ -1,0 +1,1559 @@
+{% extends "base.html" %}
+
+{% block title %}测试环境 - 测试系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-2"><i class="fas fa-vial text-primary me-2"></i>测试环境管理</h2>
+            <p class="text-muted mb-0">管理测试环境设备，部署并启动agent程序</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>测试环境列表</h5>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addEnvModal" onclick="resetEnvForm()">
+                        <i class="fas fa-plus me-2"></i>添加环境
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="env_list" class="list-group">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                            <p>暂无测试环境，请添加环境</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 常见命令说明模态框 -->
+<div class="modal fade" id="commonCommandsModal" tabindex="-1" data-bs-backdrop="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-book me-2"></i>常见命令说明</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3" id="commandTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="windows-tab" data-bs-toggle="tab" 
+                                data-bs-target="#windows-commands" type="button" role="tab">
+                            <i class="fab fa-windows me-1"></i>Windows
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="linux-tab" data-bs-toggle="tab" 
+                                data-bs-target="#linux-commands" type="button" role="tab">
+                            <i class="fab fa-linux me-1"></i>Linux
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="commandTabsContent">
+                    <!-- Windows命令 -->
+                    <div class="tab-pane fade show active" id="windows-commands" role="tabpanel">
+                        <div class="accordion" id="windowsCommandsAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#win-view-ip">
+                                        <i class="fas fa-eye me-2"></i>查看IP地址
+                                    </button>
+                                </h2>
+                                <div id="win-view-ip" class="accordion-collapse collapse show" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ipconfig</code><br>
+                                        <code>ipconfig /all</code> - 查看详细信息<br>
+                                        <small class="text-muted">查看所有网络接口的IP配置信息</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-add-ip">
+                                        <i class="fas fa-plus me-2"></i>添加IP地址
+                                    </button>
+                                </h2>
+                                <div id="win-add-ip" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>netsh interface ip add address "以太网" 192.168.1.100 255.255.255.0</code><br>
+                                        <small class="text-muted">为指定网卡添加IP地址（不删除原有IP）</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-set-ip">
+                                        <i class="fas fa-edit me-2"></i>覆盖IP地址
+                                    </button>
+                                </h2>
+                                <div id="win-set-ip" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>netsh interface ip set address "以太网" static 192.168.1.100 255.255.255.0 192.168.1.1</code><br>
+                                        <small class="text-muted">设置静态IP地址（会覆盖原有IP），最后一个是网关</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-del-ip">
+                                        <i class="fas fa-trash me-2"></i>清除IP地址
+                                    </button>
+                                </h2>
+                                <div id="win-del-ip" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>netsh interface ip delete address "以太网" 192.168.1.100</code><br>
+                                        <small class="text-muted">删除指定网卡的指定IP地址</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-view-route">
+                                        <i class="fas fa-route me-2"></i>查看路由表
+                                    </button>
+                                </h2>
+                                <div id="win-view-route" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>route print</code><br>
+                                        <code>route print -4</code> - 仅显示IPv4路由<br>
+                                        <code>route print -6</code> - 仅显示IPv6路由<br>
+                                        <small class="text-muted">显示系统路由表</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-add-route">
+                                        <i class="fas fa-plus-circle me-2"></i>配置路由
+                                    </button>
+                                </h2>
+                                <div id="win-add-route" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>route add 192.168.2.0 mask 255.255.255.0 192.168.1.1</code><br>
+                                        <code>route add 192.168.2.0 mask 255.255.255.0 192.168.1.1 metric 1 if 2</code><br>
+                                        <small class="text-muted">添加路由：目标网络 子网掩码 网关 [metric 跃点数] [if 接口索引]</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-del-route">
+                                        <i class="fas fa-minus-circle me-2"></i>删除路由
+                                    </button>
+                                </h2>
+                                <div id="win-del-route" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>route delete 192.168.2.0</code><br>
+                                        <small class="text-muted">删除指定目标网络的路由</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-view-arp">
+                                        <i class="fas fa-network-wired me-2"></i>查看ARP表
+                                    </button>
+                                </h2>
+                                <div id="win-view-arp" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>arp -a</code><br>
+                                        <code>arp -a -N 192.168.1.1</code> - 查看指定接口的ARP表<br>
+                                        <small class="text-muted">显示ARP缓存表</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#win-view-port">
+                                        <i class="fas fa-plug me-2"></i>查看端口监听
+                                    </button>
+                                </h2>
+                                <div id="win-view-port" class="accordion-collapse collapse" data-bs-parent="#windowsCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>netstat -an</code> - 显示所有连接和监听端口<br>
+                                        <code>netstat -ano</code> - 显示进程ID<br>
+                                        <code>netstat -ano | findstr :8888</code> - 查看指定端口<br>
+                                        <small class="text-muted">显示网络连接和监听端口信息</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Linux命令 -->
+                    <div class="tab-pane fade" id="linux-commands" role="tabpanel">
+                        <div class="accordion" id="linuxCommandsAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#linux-view-ip">
+                                        <i class="fas fa-eye me-2"></i>查看IP地址
+                                    </button>
+                                </h2>
+                                <div id="linux-view-ip" class="accordion-collapse collapse show" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip addr show</code><br>
+                                        <code>ifconfig</code><br>
+                                        <code>ip addr show eth0</code> - 查看指定网卡<br>
+                                        <small class="text-muted">查看所有网络接口的IP配置信息</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-add-ip">
+                                        <i class="fas fa-plus me-2"></i>添加IP地址
+                                    </button>
+                                </h2>
+                                <div id="linux-add-ip" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip addr add 192.168.1.100/24 dev eth0</code><br>
+                                        <code>ifconfig eth0:0 192.168.1.100 netmask 255.255.255.0</code><br>
+                                        <small class="text-muted">为指定网卡添加IP地址（不删除原有IP）</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-set-ip">
+                                        <i class="fas fa-edit me-2"></i>覆盖IP地址
+                                    </button>
+                                </h2>
+                                <div id="linux-set-ip" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip addr flush dev eth0 && ip addr add 192.168.1.100/24 dev eth0</code><br>
+                                        <code>ifconfig eth0 192.168.1.100 netmask 255.255.255.0</code><br>
+                                        <small class="text-muted">设置IP地址（会覆盖原有IP）</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-del-ip">
+                                        <i class="fas fa-trash me-2"></i>清除IP地址
+                                    </button>
+                                </h2>
+                                <div id="linux-del-ip" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip addr del 192.168.1.100/24 dev eth0</code><br>
+                                        <code>ifconfig eth0:0 down</code> - 删除别名IP<br>
+                                        <small class="text-muted">删除指定网卡的指定IP地址</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-view-route">
+                                        <i class="fas fa-route me-2"></i>查看路由表
+                                    </button>
+                                </h2>
+                                <div id="linux-view-route" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip route show</code><br>
+                                        <code>route -n</code><br>
+                                        <code>netstat -rn</code><br>
+                                        <small class="text-muted">显示系统路由表</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-add-route">
+                                        <i class="fas fa-plus-circle me-2"></i>配置路由
+                                    </button>
+                                </h2>
+                                <div id="linux-add-route" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip route add 192.168.2.0/24 via 192.168.1.1 dev eth0</code><br>
+                                        <code>route add -net 192.168.2.0/24 gw 192.168.1.1 dev eth0</code><br>
+                                        <small class="text-muted">添加路由：目标网络 via 网关 dev 接口</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-del-route">
+                                        <i class="fas fa-minus-circle me-2"></i>删除路由
+                                    </button>
+                                </h2>
+                                <div id="linux-del-route" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip route del 192.168.2.0/24</code><br>
+                                        <code>route del -net 192.168.2.0/24</code><br>
+                                        <small class="text-muted">删除指定目标网络的路由</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-view-arp">
+                                        <i class="fas fa-network-wired me-2"></i>查看ARP表
+                                    </button>
+                                </h2>
+                                <div id="linux-view-arp" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>ip neigh show</code><br>
+                                        <code>arp -a</code><br>
+                                        <code>arp -n</code> - 不解析主机名<br>
+                                        <small class="text-muted">显示ARP缓存表</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#linux-view-port">
+                                        <i class="fas fa-plug me-2"></i>查看端口监听
+                                    </button>
+                                </h2>
+                                <div id="linux-view-port" class="accordion-collapse collapse" data-bs-parent="#linuxCommandsAccordion">
+                                    <div class="accordion-body">
+                                        <code>netstat -tlnp</code> - 显示TCP监听端口和进程<br>
+                                        <code>ss -tlnp</code> - 使用ss命令（推荐）<br>
+                                        <code>lsof -i :8888</code> - 查看指定端口<br>
+                                        <code>netstat -tlnp | grep :8888</code> - 过滤指定端口<br>
+                                        <small class="text-muted">显示网络连接和监听端口信息</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 命令执行模态框 -->
+<div class="modal fade" id="commandModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-terminal me-2"></i>执行命令</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">环境信息</label>
+                    <div class="alert alert-info mb-0" id="command_env_info">
+                        <i class="fas fa-info-circle me-2"></i>正在加载环境信息...
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="command_input" class="form-label">
+                        命令 <span class="text-danger">*</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-2" 
+                                id="show_common_commands_btn" 
+                                style="font-size: 0.85rem; text-decoration: none; vertical-align: baseline;"
+                                title="查看常见命令">
+                            <i class="fas fa-question-circle text-info"></i> 常见命令
+                        </button>
+                    </label>
+                    <div class="position-relative">
+                        <textarea class="form-control font-monospace" id="command_input" rows="3" 
+                                  placeholder="输入要执行的命令（支持Windows和Linux）"
+                                  style="padding-right: 100px;"></textarea>
+                        <button type="button" class="btn btn-primary btn-sm position-absolute" 
+                                id="execute_command_btn" 
+                                style="bottom: 8px; right: 8px; z-index: 10;">
+                            <i class="fas fa-play me-1"></i>执行命令
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">执行结果</label>
+                    <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e;">
+                        <pre class="mb-0 font-monospace" id="command_output"
+                             style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem; color: #e0e0e0;">等待执行命令...</pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑环境模态框 -->
+<div class="modal fade" id="addEnvModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i><span id="modal_title">添加测试环境</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="env_form">
+                    <input type="hidden" id="env_id">
+                    <div class="mb-3">
+                        <label for="env_name" class="form-label">环境名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="env_name" placeholder="例如: Windows测试机-01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="env_ip" class="form-label">IP地址 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="env_ip" placeholder="例如: 192.168.1.100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="env_type" class="form-label">设备类型 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="env_type" required>
+                            <option value="">请选择设备类型</option>
+                            <option value="windows">Windows</option>
+                            <option value="linux">Linux</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="env_user" class="form-label">SSH用户名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="env_user" placeholder="例如: administrator" required autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="env_password" class="form-label">SSH密码 <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="env_password" placeholder="SSH密码" required autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="env_port" class="form-label">SSH端口</label>
+                        <input type="number" class="form-control" id="env_port" value="22" min="1" max="65535">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="test_connection_btn">
+                    <i class="fas fa-plug me-2"></i>测试连接
+                </button>
+                <button type="button" class="btn btn-success" id="save_env_btn">
+                    <i class="fas fa-save me-2"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 测试环境列表存储
+    let environments = [];
+    // 从localStorage加载agent状态（持久化）
+    let agentStatus = JSON.parse(localStorage.getItem('test_env_agent_status') || '{}');
+    // 定期刷新定时器
+    let statusRefreshInterval = null;
+
+    // 初始化
+    loadEnvironments();
+    
+    // 启动定期刷新（每10秒检查一次在线状态）
+    function startStatusRefresh() {
+        // 清除之前的定时器
+        if (statusRefreshInterval) {
+            clearInterval(statusRefreshInterval);
+        }
+        // 每10秒刷新一次在线状态
+        statusRefreshInterval = setInterval(() => {
+            console.log('定期刷新设备在线状态...');
+            environments.forEach(env => {
+                checkEnvironmentStatus(env.id, env, true); // true表示只检查在线状态
+            });
+        }, 10000); // 10秒
+    }
+    
+    // 停止定期刷新
+    function stopStatusRefresh() {
+        if (statusRefreshInterval) {
+            clearInterval(statusRefreshInterval);
+            statusRefreshInterval = null;
+        }
+    }
+
+    // 加载环境列表
+    function loadEnvironments() {
+        fetch('/api/test_env/list/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    environments = data.environments.map(env => ({
+                        id: env.id.toString(),
+                        name: env.name,
+                        ip: env.ip,
+                        type: env.type,
+                        user: env.ssh_user,
+                        password: env.ssh_password,
+                        port: env.ssh_port,
+                        created_at: env.created_at
+                    }));
+                    renderEnvList();
+                } else {
+                    console.error('加载环境列表失败:', data.error);
+                }
+            })
+            .catch(err => console.error('加载环境列表失败:', err));
+    }
+
+    // 添加/编辑环境
+    document.getElementById('save_env_btn').addEventListener('click', function() {
+        const envId = document.getElementById('env_id').value;
+        const name = document.getElementById('env_name').value.trim();
+        const ip = document.getElementById('env_ip').value.trim();
+        const type = document.getElementById('env_type').value;
+        const user = document.getElementById('env_user').value.trim();
+        const password = document.getElementById('env_password').value;
+        const port = parseInt(document.getElementById('env_port').value) || 22;
+
+        if (!name || !ip || !type || !user || !password) {
+            alert('请填写必填项');
+            return;
+        }
+
+        const url = envId ? '/api/test_env/update/' : '/api/test_env/add/';
+        const body = { name, ip, type, user, password, port };
+        if (envId) body.id = envId;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(body)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadEnvironments();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addEnvModal'));
+                modal.hide();
+                document.getElementById('env_form').reset();
+                document.getElementById('env_id').value = '';
+            } else {
+                alert('保存失败: ' + data.error);
+            }
+        })
+        .catch(err => alert('保存失败: ' + err.message));
+    });
+
+    // 测试连接
+    document.getElementById('test_connection_btn').addEventListener('click', function() {
+        const ip = document.getElementById('env_ip').value.trim();
+        const port = parseInt(document.getElementById('env_port').value) || 22;
+        const user = document.getElementById('env_user').value.trim();
+        const password = document.getElementById('env_password').value;
+
+        if (!ip || !user || !password) {
+            alert('请填写IP地址、用户名和密码');
+            return;
+        }
+
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>测试中...';
+
+        fetch('/api/test_env/test_connection/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ ip, port, user, password })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (data.success) {
+                alert('连接测试成功');
+            } else {
+                alert('连接测试失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            alert('连接测试失败: ' + err.message);
+        });
+    });
+
+    // 渲染环境列表
+    function renderEnvList() {
+        const envList = document.getElementById('env_list');
+        if (environments.length === 0) {
+            envList.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                    <p>暂无测试环境，请添加环境</p>
+                </div>
+            `;
+            return;
+        }
+
+        envList.innerHTML = environments.map(env => {
+            const typeNames = {
+                'windows': 'Windows',
+                'linux': 'Linux'
+            };
+            const typeName = typeNames[env.type] || '未知';
+
+            return `
+                <div class="list-group-item" data-env-id="${env.id}" id="env-item-${env.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <h6 class="mb-0 me-3">${escapeHtml(env.name)}</h6>
+                                <span class="badge me-2" id="connection-status-${env.id}">
+                                    <i class="fas fa-spinner fa-spin me-1"></i>检查连接...
+                                </span>
+                                <span class="badge" id="agent-status-${env.id}">
+                                    <i class="fas fa-spinner fa-spin me-1"></i>检查Agent...
+                                </span>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-network-wired me-1"></i>${env.ip}:${env.port} | 
+                                <i class="fas fa-tag me-1"></i>${typeName} | 
+                                <i class="fas fa-user me-1"></i>${env.user}
+                            </small>
+                        </div>
+                        <div class="d-flex flex-column align-items-end">
+                            <div class="btn-group mb-2" role="group">
+                                <button class="btn btn-sm btn-info" onclick="openCommandModal('${env.id}')" title="执行命令">
+                                    <i class="fas fa-terminal me-1"></i>命令
+                                </button>
+                                <button class="btn btn-sm btn-warning" onclick="editEnv('${env.id}')">
+                                    <i class="fas fa-edit me-1"></i>编辑
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteEnv('${env.id}')">
+                                    <i class="fas fa-trash me-1"></i>删除
+                                </button>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-success" id="start-agent-${env.id}" 
+                                        onclick="startAgentForEnv('${env.id}')" style="display: none;">
+                                    <i class="fas fa-play me-1"></i>启动Agent
+                                </button>
+                                <button class="btn btn-sm btn-danger" id="stop-agent-${env.id}" 
+                                        onclick="stopAgentForEnv('${env.id}')" style="display: none;">
+                                    <i class="fas fa-stop me-1"></i>停止Agent
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" 
+                                        onclick="toggleAgentLogs('${env.id}')">
+                                    <i class="fas fa-terminal me-1"></i>日志
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Agent日志区域 -->
+                    <div class="collapse mt-3" id="agent-logs-${env.id}">
+                        <div class="border rounded p-3" style="background-color: #1e1e1e;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small style="color: #b0b0b0;">Agent日志 - ${escapeHtml(env.name)}</small>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="refreshAgentLogsForEnv('${env.id}')">
+                                        <i class="fas fa-sync"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="clearAgentLogsForEnv('${env.id}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <pre class="mb-0" id="agent-logs-content-${env.id}"
+                                 style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap; background: transparent; color: #e0e0e0;">暂无日志...</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // 检查每个环境的状态（首次加载时完整检查）
+        environments.forEach(env => {
+            console.log('检查环境状态:', env.id, env);
+            checkEnvironmentStatus(env.id, env, false); // false表示完整检查
+        });
+        
+        // 启动定期刷新（每10秒检查一次在线状态）
+        startStatusRefresh();
+    }
+
+    // 编辑环境
+    window.editEnv = function(envId) {
+        const env = environments.find(e => e.id === envId);
+        if (!env) return;
+
+        document.getElementById('env_id').value = env.id;
+        document.getElementById('env_name').value = env.name;
+        document.getElementById('env_ip').value = env.ip;
+        document.getElementById('env_type').value = env.type;
+        document.getElementById('env_user').value = env.user;
+        document.getElementById('env_password').value = env.password;
+        document.getElementById('env_port').value = env.port;
+        document.getElementById('modal_title').textContent = '编辑测试环境';
+
+        const modal = new bootstrap.Modal(document.getElementById('addEnvModal'));
+        modal.show();
+    };
+
+    // 删除环境
+    window.deleteEnv = function(envId) {
+        if (!confirm('确定要删除该测试环境吗？')) return;
+
+        fetch('/api/test_env/delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ id: envId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadEnvironments();
+                delete agentStatus[envId];
+                localStorage.setItem('test_env_agent_status', JSON.stringify(agentStatus));
+            } else {
+                alert('删除失败: ' + data.error);
+            }
+        })
+        .catch(err => alert('删除失败: ' + err.message));
+    };
+
+    // 重置表单
+    window.resetEnvForm = function() {
+        document.getElementById('env_form').reset();
+        document.getElementById('env_id').value = '';
+        document.getElementById('env_port').value = '22';
+        document.getElementById('modal_title').textContent = '添加测试环境';
+    };
+
+    // 启动/关闭Agent
+    window.toggleAgent = function(envId) {
+        const env = environments.find(e => e.id === envId);
+        if (!env) return;
+
+        const isRunning = agentStatus[envId] || false;
+        const action = isRunning ? 'stop' : 'start';
+
+        const btn = document.getElementById(`agent_btn_${envId}`);
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>处理中...';
+
+        fetch('/api/test_env/agent_control/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                env_id: envId,
+                action: action,
+                env: env
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            if (data.success) {
+                agentStatus[envId] = !isRunning;
+                // 保存状态到localStorage
+                localStorage.setItem('test_env_agent_status', JSON.stringify(agentStatus));
+                renderEnvList();
+                alert(action === 'start' ? 'Agent启动成功' : 'Agent已关闭');
+            } else {
+                btn.innerHTML = originalText;
+                alert('操作失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            alert('操作失败: ' + err.message);
+        });
+    };
+
+    // 不再需要从后端加载状态，状态已从localStorage恢复
+    // Agent状态已持久化到localStorage，页面刷新后会自动恢复
+
+    // 打开添加模态框时重置表单
+    document.getElementById('addEnvModal').addEventListener('show.bs.modal', function(event) {
+        // 如果点击的是"添加环境"按钮，重置表单
+        const trigger = event.relatedTarget;
+        if (!trigger || !trigger.getAttribute('data-env-id')) {
+            document.getElementById('env_form').reset();
+            document.getElementById('env_id').value = '';
+            document.getElementById('env_port').value = '22';
+            document.getElementById('modal_title').textContent = '添加测试环境';
+        }
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // ==================== Agent管理功能 ====================
+    
+    let environmentConnections = {}; // 存储每个环境的连接状态
+    let logRefreshIntervals = {}; // 存储每个环境的日志刷新定时器
+    
+    // 检查环境状态（先检测在线状态，不通就不继续）
+    // onlyCheckOnline: 如果为true，只检查在线状态，不检查SSH和Agent
+    async function checkEnvironmentStatus(envId, envData, onlyCheckOnline = false) {
+        console.log(`=== 开始检查环境 ${envId} 的状态 ===`);
+        console.log('环境数据:', envData);
+        console.log(`检查参数: IP=${envData.ip}, 端口=${envData.port || 22}, 用户=${envData.user}`);
+        console.log(`仅检查在线状态: ${onlyCheckOnline}`);
+        
+        try {
+            // 第一步：网络连通性测试（ping检测）
+            updateConnectionStatus(envId, 'checking', '检查网络...');
+            console.log(`[${envId}] 开始网络连通性测试（ping）...`);
+            
+            const networkResponse = await fetch('/api/agent/test_network/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    host: envData.ip,
+                    port: envData.port || 22
+                })
+            });
+            
+            console.log(`[${envId}] 网络测试响应:`, networkResponse.status, networkResponse.statusText);
+            const networkResult = await networkResponse.json();
+            console.log(`[${envId}] 网络测试结果:`, networkResult);
+            
+            if (!networkResult.success) {
+                console.log(`[${envId}] ❌ 网络不通（ping失败）:`, networkResult.error);
+                updateConnectionStatus(envId, 'offline', '网络不通');
+                updateAgentStatus(envId, 'unknown', '无法检查');
+                hideAgentButtons(envId);
+                return; // 网络不通，直接返回，不继续检查
+            }
+            
+            console.log(`[${envId}] ✅ 网络连通（ping成功）`);
+            updateConnectionStatus(envId, 'online', '在线');
+            
+            // 如果只检查在线状态，就不继续检查SSH和Agent
+            if (onlyCheckOnline) {
+                console.log(`[${envId}] 仅检查在线状态模式，跳过SSH和Agent检查`);
+                return;
+            }
+            
+            console.log(`[${envId}] ✅ 网络连通，开始SSH认证测试...`);
+            
+            // 第二步：SSH认证测试
+            updateConnectionStatus(envId, 'checking', '检查SSH...');
+            console.log(`[${envId}] 开始SSH连接测试...`);
+            
+            // 构建请求数据
+            const requestData = {
+                host: envData.ip,
+                username: envData.user,
+                password: envData.password,
+                port: envData.port || 22
+            };
+            console.log(`[${envId}] 发送连接请求:`, requestData);
+            
+            // 尝试连接SSH端口来判断网络连通性
+            const connectResponse = await fetch('/api/agent/connect/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            console.log(`[${envId}] SSH连接响应状态:`, connectResponse.status, connectResponse.statusText);
+            
+            if (!connectResponse.ok) {
+                console.error(`[${envId}] HTTP请求失败:`, connectResponse.status, connectResponse.statusText);
+                throw new Error(`HTTP ${connectResponse.status}: ${connectResponse.statusText}`);
+            }
+            
+            const connectResult = await connectResponse.json();
+            console.log(`[${envId}] SSH连接结果:`, connectResult);
+            
+            if (connectResult.success) {
+                // SSH连接成功
+                console.log(`[${envId}] ✅ SSH连接成功，设备在线`);
+                updateConnectionStatus(envId, 'online', '在线');
+                environmentConnections[envId] = envData;
+                
+                // 检查Agent状态
+                updateAgentStatus(envId, 'checking', '检查Agent...');
+                console.log(`[${envId}] 开始检查Agent状态...`);
+                
+                try {
+                    const agentUrl = `/api/agent/status/?host=${envData.ip}&port=${envData.port || 22}&agent_port=8888`;
+                    console.log(`[${envId}] Agent状态检查URL:`, agentUrl);
+                    
+                    const agentResponse = await fetch(agentUrl);
+                    console.log(`[${envId}] Agent状态响应:`, agentResponse.status, agentResponse.statusText);
+                    
+                    const agentResult = await agentResponse.json();
+                    console.log(`[${envId}] Agent状态结果:`, agentResult);
+                    
+                    if (agentResult.success && agentResult.running) {
+                        console.log(`[${envId}] ✅ Agent正在运行`);
+                        updateAgentStatus(envId, 'running', 'Agent运行中');
+                        showStopButton(envId);
+                    } else {
+                        console.log(`[${envId}] ⚠️ Agent未运行`);
+                        updateAgentStatus(envId, 'stopped', 'Agent未运行');
+                        showStartButton(envId);
+                    }
+                } catch (agentError) {
+                    console.error(`[${envId}] ❌ Agent状态检查异常:`, agentError);
+                    updateAgentStatus(envId, 'stopped', 'Agent未运行');
+                    showStartButton(envId);
+                }
+            } else {
+                // SSH连接失败
+                console.log(`[${envId}] ❌ SSH连接失败，设备离线`);
+                console.log(`[${envId}] 失败原因:`, connectResult.error || '未知错误');
+                updateConnectionStatus(envId, 'offline', '离线');
+                updateAgentStatus(envId, 'unknown', '无法检查');
+                hideAgentButtons(envId);
+            }
+        } catch (error) {
+            // 网络异常或其他错误
+            console.error(`[${envId}] ❌ 检查环境状态异常:`, error);
+            console.error(`[${envId}] 错误详情:`, error.message);
+            console.error(`[${envId}] 错误堆栈:`, error.stack);
+            
+            updateConnectionStatus(envId, 'error', '连接错误');
+            updateAgentStatus(envId, 'error', '检查失败');
+            hideAgentButtons(envId);
+        }
+        
+        console.log(`=== 环境 ${envId} 状态检查完成 ===\n`);
+    }
+    
+    function updateConnectionStatus(envId, status, text) {
+        const statusElement = document.getElementById(`connection-status-${envId}`);
+        if (!statusElement) return;
+        
+        const statusConfig = {
+            'checking': { class: 'bg-secondary', icon: 'fas fa-spinner fa-spin' },
+            'online': { class: 'bg-success', icon: 'fas fa-check-circle' },
+            'offline': { class: 'bg-danger', icon: 'fas fa-times-circle' },
+            'error': { class: 'bg-warning', icon: 'fas fa-exclamation-triangle' }
+        };
+        
+        const config = statusConfig[status] || statusConfig['error'];
+        statusElement.className = `badge me-2 ${config.class}`;
+        statusElement.innerHTML = `<i class="${config.icon} me-1"></i>${text}`;
+    }
+    
+    function updateAgentStatus(envId, status, text) {
+        const statusElement = document.getElementById(`agent-status-${envId}`);
+        if (!statusElement) return;
+        
+        const statusConfig = {
+            'checking': { class: 'bg-secondary', icon: 'fas fa-spinner fa-spin' },
+            'running': { class: 'bg-success', icon: 'fas fa-play-circle' },
+            'stopped': { class: 'bg-warning', icon: 'fas fa-stop-circle' },
+            'unknown': { class: 'bg-secondary', icon: 'fas fa-question-circle' },
+            'error': { class: 'bg-danger', icon: 'fas fa-exclamation-circle' }
+        };
+        
+        const config = statusConfig[status] || statusConfig['error'];
+        statusElement.className = `badge ${config.class}`;
+        statusElement.innerHTML = `<i class="${config.icon} me-1"></i>${text}`;
+    }
+    
+    function showStartButton(envId) {
+        console.log('显示启动按钮:', envId);
+        const startBtn = document.getElementById(`start-agent-${envId}`);
+        const stopBtn = document.getElementById(`stop-agent-${envId}`);
+        console.log('启动按钮元素:', startBtn);
+        console.log('停止按钮元素:', stopBtn);
+        
+        if (startBtn) {
+            startBtn.style.display = 'inline-block';
+            startBtn.disabled = false;
+            console.log('启动按钮已显示并启用');
+        } else {
+            console.error(`找不到启动按钮: start-agent-${envId}`);
+        }
+        
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+            console.log('停止按钮已隐藏');
+        } else {
+            console.error(`找不到停止按钮: stop-agent-${envId}`);
+        }
+    }
+    
+    function showStopButton(envId) {
+        console.log('显示停止按钮:', envId);
+        const startBtn = document.getElementById(`start-agent-${envId}`);
+        const stopBtn = document.getElementById(`stop-agent-${envId}`);
+        console.log('启动按钮元素:', startBtn);
+        console.log('停止按钮元素:', stopBtn);
+        
+        if (startBtn) {
+            startBtn.style.display = 'none';
+            console.log('启动按钮已隐藏');
+        } else {
+            console.error(`找不到启动按钮: start-agent-${envId}`);
+        }
+        
+        if (stopBtn) {
+            stopBtn.style.display = 'inline-block';
+            stopBtn.disabled = false;
+            console.log('停止按钮已显示并启用');
+        } else {
+            console.error(`找不到停止按钮: stop-agent-${envId}`);
+        }
+    }
+    
+    function hideAgentButtons(envId) {
+        const startBtn = document.getElementById(`start-agent-${envId}`);
+        const stopBtn = document.getElementById(`stop-agent-${envId}`);
+        if (startBtn) {
+            startBtn.style.display = 'none';
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+        }
+    }
+    
+    // 启动Agent
+    window.startAgentForEnv = async function(envId) {
+        console.log(`=== 启动Agent请求 ===`);
+        console.log(`环境ID: ${envId}`);
+        
+        const envData = environmentConnections[envId];
+        console.log(`环境连接数据:`, envData);
+        
+        if (!envData) {
+            console.error(`环境 ${envId} 未连接`);
+            addLogToEnv(envId, '错误: 环境未连接，请刷新页面重试');
+            return;
+        }
+        
+        const startBtn = document.getElementById(`start-agent-${envId}`);
+        console.log(`启动按钮元素:`, startBtn);
+        
+        if (!startBtn) {
+            console.error(`找不到启动按钮: start-agent-${envId}`);
+            return;
+        }
+        
+        const originalText = startBtn.innerHTML;
+        console.log(`按钮原始文本:`, originalText);
+        
+        try {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>启动中...';
+            updateAgentStatus(envId, 'checking', '启动中...');
+            
+            addLogToEnv(envId, '开始启动Agent...');
+            console.log(`开始启动Agent流程...`);
+            
+            // 检查并上传Agent文件
+            addLogToEnv(envId, '检查Agent文件是否需要更新...');
+            const remotePath = getRemotePath(envData);
+            console.log(`远程路径: ${remotePath}`);
+            
+            const uploadRequest = {
+                host: envData.ip,
+                port: envData.port || 22,
+                remote_path: remotePath,
+                force: false  // 先检查文件一致性
+            };
+            console.log(`上传请求参数:`, uploadRequest);
+            
+            const uploadResponse = await fetch('/api/agent/upload/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(uploadRequest)
+            });
+            
+            console.log(`上传响应状态:`, uploadResponse.status);
+            const uploadResult = await uploadResponse.json();
+            console.log(`上传结果:`, uploadResult);
+            
+            if (uploadResult.success) {
+                addLogToEnv(envId, `Agent文件检查完成: ${uploadResult.message}`);
+            } else {
+                addLogToEnv(envId, `文件处理失败: ${uploadResult.error}`);
+                throw new Error(uploadResult.error);
+            }
+            
+            // 启动Agent
+            addLogToEnv(envId, '正在启动Agent进程...');
+            
+            // 创建超时控制器（60秒超时）
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                addLogToEnv(envId, '启动请求超时（60秒），但Agent可能已启动，请检查状态');
+            }, 60000);
+            
+            try {
+                const startResponse = await fetch('/api/agent/start/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        host: envData.ip,
+                        port: envData.port || 22,
+                        agent_path: getRemotePath(envData),
+                        agent_port: 8888
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!startResponse.ok) {
+                    throw new Error(`HTTP错误: ${startResponse.status}`);
+                }
+                
+                const startResult = await startResponse.json();
+                console.log('[DEBUG] Agent启动响应:', startResult);
+                
+                if (startResult.success) {
+                    addLogToEnv(envId, `Agent启动成功！${startResult.elapsed_time ? `(耗时: ${startResult.elapsed_time})` : ''}`);
+                    updateAgentStatus(envId, 'running', 'Agent运行中');
+                    showStopButton(envId);
+                    
+                    // 开始日志监控
+                    startLogMonitoringForEnv(envId);
+                } else {
+                    addLogToEnv(envId, `启动失败: ${startResult.error}`);
+                    updateAgentStatus(envId, 'stopped', 'Agent未运行');
+                    throw new Error(startResult.error);
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    addLogToEnv(envId, '启动请求超时（60秒），但Agent可能已启动，正在检查状态...');
+                    // 超时后尝试检查Agent状态
+                    setTimeout(async () => {
+                        try {
+                            const envData = environmentConnections[envId];
+                            if (envData) {
+                                const agentUrl = `/api/agent/status/?host=${envData.ip}&port=${envData.port || 22}&agent_port=8888`;
+                                const agentResponse = await fetch(agentUrl);
+                                const agentResult = await agentResponse.json();
+                                
+                                if (agentResult.success && agentResult.running) {
+                                    addLogToEnv(envId, '✅ Agent已成功启动（超时后检查确认）');
+                                    updateAgentStatus(envId, 'running', 'Agent运行中');
+                                    showStopButton(envId);
+                                    startLogMonitoringForEnv(envId);
+                                } else {
+                                    addLogToEnv(envId, '⚠️ Agent可能未启动，请手动检查');
+                                    updateAgentStatus(envId, 'stopped', 'Agent未运行');
+                                }
+                            }
+                        } catch (checkError) {
+                            addLogToEnv(envId, `状态检查失败: ${checkError.message}`);
+                        }
+                    }, 2000);
+                } else {
+                    addLogToEnv(envId, `启动异常: ${error.message}`);
+                    updateAgentStatus(envId, 'error', '启动失败');
+                    throw error;
+                }
+            }
+        } catch (error) {
+            addLogToEnv(envId, `启动异常: ${error.message}`);
+            updateAgentStatus(envId, 'error', '启动失败');
+        } finally {
+            startBtn.disabled = false;
+            startBtn.innerHTML = originalText;
+        }
+    }
+    
+    // 停止Agent
+    window.stopAgentForEnv = async function(envId) {
+        console.log(`=== 停止Agent请求 ===`);
+        console.log(`环境ID: ${envId}`);
+        
+        const envData = environmentConnections[envId];
+        console.log(`环境连接数据:`, envData);
+        
+        if (!envData) {
+            console.error(`环境 ${envId} 未连接`);
+            addLogToEnv(envId, '错误: 环境未连接，请刷新页面重试');
+            return;
+        }
+        
+        const stopBtn = document.getElementById(`stop-agent-${envId}`);
+        console.log(`停止按钮元素:`, stopBtn);
+        
+        if (!stopBtn) {
+            console.error(`找不到停止按钮: stop-agent-${envId}`);
+            return;
+        }
+        
+        const originalText = stopBtn.innerHTML;
+        console.log(`按钮原始文本:`, originalText);
+        
+        try {
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>停止中...';
+            updateAgentStatus(envId, 'checking', '停止中...');
+            
+            addLogToEnv(envId, '正在停止Agent...');
+            console.log(`开始停止Agent流程...`);
+            
+            console.log(`发送停止请求...`);
+            const stopRequest = {
+                host: envData.ip,
+                port: envData.port || 22,
+                agent_port: 8888
+            };
+            console.log(`停止请求参数:`, stopRequest);
+            
+            const response = await fetch('/api/agent/stop/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(stopRequest)
+            });
+            
+            const result = await response.json();
+            console.log(`停止Agent响应结果:`, result);
+            
+            if (result.success) {
+                addLogToEnv(envId, 'Agent已停止');
+                updateAgentStatus(envId, 'stopped', 'Agent未运行');
+                showStartButton(envId);
+                
+                // 停止日志监控
+                if (logRefreshIntervals[envId]) {
+                    clearInterval(logRefreshIntervals[envId]);
+                    delete logRefreshIntervals[envId];
+                }
+                
+                // 确保按钮状态更新
+                stopBtn.disabled = false;
+                stopBtn.innerHTML = originalText;
+            } else {
+                addLogToEnv(envId, `停止失败: ${result.error || '未知错误'}`);
+                updateAgentStatus(envId, 'error', `停止失败: ${result.error || '未知错误'}`);
+                stopBtn.disabled = false;
+                stopBtn.innerHTML = originalText;
+                throw new Error(result.error || '未知错误');
+            }
+        } catch (error) {
+            console.error(`停止Agent异常:`, error);
+            addLogToEnv(envId, `停止异常: ${error.message}`);
+            updateAgentStatus(envId, 'error', `停止异常: ${error.message}`);
+            stopBtn.disabled = false;
+            stopBtn.innerHTML = originalText;
+        }
+    }
+    
+    // 切换日志显示
+    window.toggleAgentLogs = function(envId) {
+        console.log(`切换日志显示: ${envId}`);
+        const logsElement = document.getElementById(`agent-logs-${envId}`);
+        if (logsElement) {
+            // 检查当前状态
+            if (logsElement.classList.contains('show')) {
+                // 如果已展开，则收起
+                logsElement.classList.remove('show');
+            } else {
+                // 如果已收起，则展开
+                logsElement.classList.add('show');
+                // 展开时刷新日志
+                refreshAgentLogsForEnv(envId);
+            }
+        }
+    }
+    
+    // 刷新日志
+    window.refreshAgentLogsForEnv = async function(envId) {
+        console.log(`刷新日志: ${envId}`);
+        const envData = environmentConnections[envId];
+        if (!envData) return;
+        
+        try {
+            const response = await fetch(`/api/agent/logs/?host=${envData.ip}&port=${envData.port || 22}&lines=20`);
+            const result = await response.json();
+            
+            if (result.success && result.logs) {
+                const logsContent = document.getElementById(`agent-logs-content-${envId}`);
+                if (logsContent) {
+                    const currentLogs = logsContent.textContent;
+                    const newLogs = result.logs.trim();
+                    
+                    // 如果当前日志为空或者是初始提示，直接设置新日志
+                    if (!currentLogs || currentLogs === '暂无日志...' || currentLogs === '日志已清空...') {
+                        logsContent.textContent = newLogs;
+                    } else {
+                        // 保留前端添加的日志，只追加新的后端日志（避免重复）
+                        // 检查最后一行是否已经存在，如果不存在则追加
+                        const currentLines = currentLogs.split('\n');
+                        const newLines = newLogs.split('\n');
+                        const lastNewLine = newLines[newLines.length - 1];
+                        
+                        // 如果最后一行不在当前日志中，追加新日志
+                        if (lastNewLine && !currentLogs.includes(lastNewLine)) {
+                            logsContent.textContent = currentLogs + '\n' + newLogs;
+                        }
+                    }
+                    logsContent.scrollTop = logsContent.scrollHeight;
+                }
+            }
+        } catch (error) {
+            console.error(`获取环境 ${envId} 日志失败:`, error);
+        }
+    }
+    
+    // 清空日志
+    window.clearAgentLogsForEnv = function(envId) {
+        console.log(`清空日志: ${envId}`);
+        const logsContent = document.getElementById(`agent-logs-content-${envId}`);
+        if (logsContent) {
+            logsContent.textContent = '日志已清空...';
+        }
+    }
+    
+    // 添加日志到环境
+    function addLogToEnv(envId, message) {
+        const logsContent = document.getElementById(`agent-logs-content-${envId}`);
+        if (logsContent) {
+            const timestamp = new Date().toLocaleTimeString();
+            const currentLogs = logsContent.textContent;
+            const newLog = `[${timestamp}] ${message}`;
+            
+            if (currentLogs === '暂无日志...' || currentLogs === '日志已清空...') {
+                logsContent.textContent = newLog;
+            } else {
+                logsContent.textContent = currentLogs + '\n' + newLog;
+            }
+            
+            // 滚动到底部
+            logsContent.scrollTop = logsContent.scrollHeight;
+        }
+    }
+    
+    // 开始日志监控
+    function startLogMonitoringForEnv(envId) {
+        // 停止现有监控
+        if (logRefreshIntervals[envId]) {
+            clearInterval(logRefreshIntervals[envId]);
+        }
+        
+        // 立即刷新一次
+        refreshAgentLogsForEnv(envId);
+        
+        // 每10秒刷新一次
+        logRefreshIntervals[envId] = setInterval(() => {
+            refreshAgentLogsForEnv(envId);
+        }, 10000);
+    }
+    
+    // 获取远程路径
+    function getRemotePath(envData) {
+        if (envData.type === 'windows') {
+            return 'C:\\packet_agent\\packet_agent.py';  // 使用Windows标准路径
+        } else {
+            return '/opt/packet_agent/packet_agent.py';
+        }
+    }
+    
+    // 测试按钮点击功能
+    window.testButtonClick = function(envId) {
+        console.log(`测试按钮点击: ${envId}`);
+        alert(`按钮点击测试成功！环境ID: ${envId}`);
+    }
+    
+    // 调试函数：检查按钮状态
+    window.debugButtons = function(envId) {
+        console.log(`=== 调试按钮状态 ${envId} ===`);
+        const startBtn = document.getElementById(`start-agent-${envId}`);
+        const stopBtn = document.getElementById(`stop-agent-${envId}`);
+        
+        console.log(`启动按钮:`, startBtn);
+        console.log(`启动按钮显示:`, startBtn ? startBtn.style.display : 'null');
+        console.log(`启动按钮禁用:`, startBtn ? startBtn.disabled : 'null');
+        
+        console.log(`停止按钮:`, stopBtn);
+        console.log(`停止按钮显示:`, stopBtn ? stopBtn.style.display : 'null');
+        console.log(`停止按钮禁用:`, stopBtn ? stopBtn.disabled : 'null');
+        
+        console.log(`环境连接数据:`, environmentConnections[envId]);
+    }
+    
+    // ==================== 命令执行功能 ====================
+    let currentCommandEnv = null;
+    
+    // 显示常见命令说明
+    document.getElementById('show_common_commands_btn').addEventListener('click', function() {
+        const commonCommandsModal = document.getElementById('commonCommandsModal');
+        
+        // 在显示之前就设置z-index，确保一开始就在最上层
+        // Bootstrap默认模态框z-index是1055，我们设置更高以确保它在其他模态框之上
+        commonCommandsModal.style.zIndex = '1060';
+        
+        const modal = new bootstrap.Modal(commonCommandsModal, {
+            backdrop: true,
+            keyboard: true
+        });
+        
+        // 监听模态框显示事件，设置backdrop的z-index
+        function onShown() {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                // 将最后一个backdrop（常见命令的）设置为最高
+                backdrops[backdrops.length - 1].style.zIndex = '1059';
+            }
+        }
+        
+        // 监听模态框隐藏事件，恢复默认z-index
+        function onHidden() {
+            commonCommandsModal.style.zIndex = '';
+            // 移除backdrop的z-index设置
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => {
+                if (backdrop.style.zIndex === '1059') {
+                    backdrop.style.zIndex = '';
+                }
+            });
+            // 移除事件监听器
+            commonCommandsModal.removeEventListener('shown.bs.modal', onShown);
+            commonCommandsModal.removeEventListener('hidden.bs.modal', onHidden);
+        }
+        
+        commonCommandsModal.addEventListener('shown.bs.modal', onShown, { once: false });
+        commonCommandsModal.addEventListener('hidden.bs.modal', onHidden, { once: false });
+        
+        modal.show();
+    });
+    
+    // 打开命令执行弹窗
+    window.openCommandModal = function(envId) {
+        const env = environments.find(e => e.id === envId);
+        if (!env) {
+            alert('环境不存在');
+            return;
+        }
+        
+        currentCommandEnv = env;
+        
+        // 显示环境信息
+        const envInfo = document.getElementById('command_env_info');
+        envInfo.innerHTML = `
+            <strong>${escapeHtml(env.name)}</strong><br>
+            <small>
+                <i class="fas fa-network-wired me-1"></i>${env.ip}:${env.port} | 
+                <i class="fas fa-tag me-1"></i>${env.type === 'windows' ? 'Windows' : 'Linux'} | 
+                <i class="fas fa-user me-1"></i>${env.user}
+            </small>
+        `;
+        
+        // 清空命令和输出
+        document.getElementById('command_input').value = '';
+        document.getElementById('command_output').textContent = '等待执行命令...';
+        
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('commandModal'));
+        modal.show();
+    };
+    
+    // 执行命令
+    document.getElementById('execute_command_btn').addEventListener('click', function() {
+        if (!currentCommandEnv) {
+            alert('环境信息丢失，请重新打开命令窗口');
+            return;
+        }
+        
+        const command = document.getElementById('command_input').value.trim();
+        if (!command) {
+            alert('请输入要执行的命令');
+            return;
+        }
+        
+        const timeout = 30; // 默认超时时间30秒
+        const outputElement = document.getElementById('command_output');
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        // 更新UI
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>执行中...';
+        outputElement.textContent = '正在执行命令，请稍候...';
+        
+        // 发送请求
+        fetch('/api/test_env/execute_command/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                host: currentCommandEnv.ip,
+                port: currentCommandEnv.port || 22,
+                user: currentCommandEnv.user,
+                password: currentCommandEnv.password,
+                command: command,
+                env_type: currentCommandEnv.type,
+                timeout: timeout
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            
+            if (data.success) {
+                outputElement.textContent = data.output || '(命令执行成功，无输出)';
+                outputElement.style.color = '#4fc3f7';  // 亮蓝色，成功
+            } else {
+                outputElement.textContent = `错误: ${data.error || '未知错误'}\n\n输出:\n${data.output || '(无输出)'}`;
+                outputElement.style.color = '#ff8a80';  // 亮红色，错误
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            outputElement.textContent = `执行失败: ${err.message}`;
+            outputElement.style.color = '#ff8a80';  // 亮红色，错误
+        });
+    });
+});
+</script>
+{% endblock %}
+

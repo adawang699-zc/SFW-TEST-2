@@ -1,0 +1,14 @@
+{
+  "smtp_server": "smtp.exmail.qq.com",
+  "smtp_port": 465,
+  "sender_email": "autotest@tdhx.com",
+  "sender_password": "8HtueqTB9cs556ac",
+  "use_tls": false,
+  "recipients": [
+    "zhangc@tdhx.com"
+  ],
+  "check_interval": 60,
+  "cpu_threshold": 80,
+  "memory_threshold": 80,
+  "use_ssl": true
+}

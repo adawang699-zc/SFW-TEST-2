@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}syslog日志接收{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-file-alt me-2"></i>syslog日志接收</h2>
+    
+    <!-- 控制面板 -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>控制面板</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">监听端口</label>
+                    <input type="number" class="form-control" id="syslog_port" value="514" min="1" max="65535">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">IP过滤</label>
+                    <input type="text" class="form-control" id="syslog_filter_ip" placeholder="留空表示不过滤">
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2 align-items-end">
+                        <button class="btn btn-success" id="btn_start_syslog">
+                            <i class="fas fa-play me-2"></i>启动
+                        </button>
+                        <button class="btn btn-danger" id="btn_stop_syslog">
+                            <i class="fas fa-stop me-2"></i>停止
+                        </button>
+                        <button class="btn btn-warning" id="btn_clear_logs">
+                            <i class="fas fa-eraser me-2"></i>清屏
+                        </button>
+                        <button class="btn btn-info" id="btn_apply_filter">
+                            <i class="fas fa-filter me-2"></i>应用过滤
+                        </button>
+                        <span class="badge bg-secondary align-self-center ms-auto" id="syslog_status_badge">
+                            <i class="fas fa-circle me-1"></i>未运行
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 日志显示区域 -->
+    <div class="card">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>日志列表</h5>
+            <span class="badge bg-light text-dark" id="log_count_badge">0 条日志</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                <table class="table table-striped table-hover table-sm mb-0" id="syslog_table" style="table-layout: fixed; width: 100%;">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th style="width: 12%; padding: 12px 10px;">时间</th>
+                            <th style="width: 10%; padding: 12px 10px;">IP</th>
+                            <th style="width: 12%; padding: 12px 10px;">主机名</th>
+                            <th style="width: 8%; padding: 12px 10px; text-align: center;">Facility</th>
+                            <th style="width: 8%; padding: 12px 10px; text-align: center;">Priority</th>
+                            <th style="width: 10%; padding: 12px 10px;">Tag</th>
+                            <th style="padding: 12px 10px;">消息</th>
+                        </tr>
+                    </thead>
+                    <tbody id="syslog_tbody">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">暂无日志</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let syslogUpdateInterval = null;
+let currentFilterIp = '';
+
+// 获取状态
+function fetchSyslogStatus() {
+    fetch('/api/syslog/status/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const status = data.status;
+                const badge = document.getElementById('syslog_status_badge');
+                
+                if (status.running) {
+                    badge.className = 'badge bg-success align-self-center ms-auto';
+                    badge.innerHTML = `<i class="fas fa-circle me-1"></i>运行中 (端口: ${status.port})`;
+                    document.getElementById('btn_start_syslog').disabled = true;
+                    document.getElementById('btn_stop_syslog').disabled = false;
+                    document.getElementById('syslog_port').disabled = true;
+                } else {
+                    badge.className = 'badge bg-secondary align-self-center ms-auto';
+                    badge.innerHTML = '<i class="fas fa-circle me-1"></i>未运行';
+                    document.getElementById('btn_start_syslog').disabled = false;
+                    document.getElementById('btn_stop_syslog').disabled = true;
+                    document.getElementById('syslog_port').disabled = false;
+                }
+                
+                // 更新过滤IP
+                if (status.filter_ip) {
+                    document.getElementById('syslog_filter_ip').value = status.filter_ip;
+                    currentFilterIp = status.filter_ip;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('获取状态失败:', error);
+        });
+}
+
+// 获取日志
+function fetchSyslogLogs() {
+    const filterIp = document.getElementById('syslog_filter_ip').value.trim();
+    const url = `/api/syslog/logs/?limit=1000${filterIp ? '&filter_ip=' + encodeURIComponent(filterIp) : ''}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderLogs(data.logs);
+                document.getElementById('log_count_badge').textContent = `${data.logs.length} 条日志`;
+            }
+        })
+        .catch(error => {
+            console.error('获取日志失败:', error);
+        });
+}
+
+// 渲染日志
+function renderLogs(logs) {
+    const tbody = document.getElementById('syslog_tbody');
+    
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">暂无日志</td></tr>';
+        return;
+    }
+    
+    // 反转日志顺序，最新的在顶部
+    logs = logs.reverse();
+    
+    tbody.innerHTML = logs.map(log => {
+        const priorityClass = log.severity <= 3 ? 'text-danger' : log.severity <= 5 ? 'text-warning' : 'text-info';
+        return `
+            <tr>
+                <td class="text-nowrap" style="padding: 10px 10px;">${escapeHtml(log.timestamp)}</td>
+                <td class="text-nowrap" style="padding: 10px 10px;"><span class="badge bg-primary">${escapeHtml(log.ip)}</span></td>
+                <td class="text-nowrap" style="padding: 10px 10px;">${escapeHtml(log.hostname || '-')}</td>
+                <td class="text-center" style="padding: 10px 10px;">${log.facility}</td>
+                <td class="text-center" style="padding: 10px 10px;"><span class="${priorityClass}">${log.severity}</span></td>
+                <td class="text-nowrap" style="padding: 10px 10px;">${escapeHtml(log.tag || '-')}</td>
+                <td class="text-break" style="padding: 10px 10px;">${escapeHtml(log.message)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// HTML转义
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 启动syslog服务器
+document.getElementById('btn_start_syslog').addEventListener('click', function() {
+    const port = parseInt(document.getElementById('syslog_port').value);
+    
+    if (!port || port < 1 || port > 65535) {
+        alert('请输入有效的端口号（1-65535）');
+        return;
+    }
+    
+    fetch('/api/syslog/control/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            action: 'start',
+            port: port
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('启动成功');
+            fetchSyslogStatus();
+            if (!syslogUpdateInterval) {
+                syslogUpdateInterval = setInterval(fetchSyslogLogs, 1000);
+            }
+        } else {
+            alert('启动失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('启动失败:', error);
+        alert('启动失败: ' + error.message);
+    });
+});
+
+// 停止syslog服务器
+document.getElementById('btn_stop_syslog').addEventListener('click', function() {
+    fetch('/api/syslog/control/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            action: 'stop'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('停止成功');
+            fetchSyslogStatus();
+            if (syslogUpdateInterval) {
+                clearInterval(syslogUpdateInterval);
+                syslogUpdateInterval = null;
+            }
+        } else {
+            alert('停止失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('停止失败:', error);
+        alert('停止失败: ' + error.message);
+    });
+});
+
+// 清屏
+document.getElementById('btn_clear_logs').addEventListener('click', function() {
+    if (!confirm('确定要清空所有日志吗？')) {
+        return;
+    }
+    
+    fetch('/api/syslog/clear/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('清屏成功');
+            fetchSyslogLogs();
+        } else {
+            alert('清屏失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('清屏失败:', error);
+        alert('清屏失败: ' + error.message);
+    });
+});
+
+// 应用过滤
+document.getElementById('btn_apply_filter').addEventListener('click', function() {
+    const filterIp = document.getElementById('syslog_filter_ip').value.trim();
+    
+    fetch('/api/syslog/filter/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            filter_ip: filterIp
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('过滤设置成功');
+            currentFilterIp = filterIp;
+            fetchSyslogLogs();
+        } else {
+            alert('过滤设置失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('过滤设置失败:', error);
+        alert('过滤设置失败: ' + error.message);
+    });
+});
+
+// 获取CSRF Token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    fetchSyslogStatus();
+    fetchSyslogLogs();
+    
+    // 每5秒更新一次状态
+    setInterval(fetchSyslogStatus, 5000);
+    
+    // 每1秒更新一次日志
+    syslogUpdateInterval = setInterval(fetchSyslogLogs, 1000);
+});
+</script>
+{% endblock %}
+

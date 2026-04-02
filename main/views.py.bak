@@ -1,0 +1,19 @@
+"""
+main/views.py - 精简版本
+
+注意：此文件已不再作为主要视图文件使用，仅提供基本视图函数。
+实际使用的视图函数请在 views_with_cache.py 中查找。
+
+URL 配置已指向 views_with_cache.py，请参考 urls_with_cache.py
+"""
+from django.shortcuts import render
+
+
+def home(request):
+    """首页视图"""
+    return render(request, 'home.html')
+
+
+def firewall_policy(request):
+    """防火墙策略页面（已移至 views_with_cache.py）"""
+    return render(request, 'firewall_policy.html')

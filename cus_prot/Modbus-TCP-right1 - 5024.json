@@ -1,0 +1,126 @@
+{
+	"appname":"modbus24-TCP",
+	"displayName": "Modbus24-TCP",
+	"protocol": "TCP",
+	"openPorts": "5024",
+	"endian": 0,
+	"start_offset": "",
+    "verifycode": "",
+    "depth": "",
+    "delimiter": "",
+    "display": 1,
+    "children_alternative": 1,
+  "children":[
+  	{  
+  	  "name": "Function Code",
+  	  "displayName": "功能码",
+  	  "display": 1,
+	  "offset": 7,
+  	  "length": 1,
+  	  "children_alternative": 1,
+  	  "children": [
+      		{
+        		"name":"01",
+        		"displayName": "读线圈",
+        		"display": 1,
+        		"value": "0x01",
+        		"children_alternative": 0,
+        		"children": [
+        		  {
+        		    "name": "start_address",
+        		    "displayName": "起始地址",
+        		    "display": 1,
+        		    "length": 2,
+        		    "range": "0x0000~0xFFFF",
+        		    "children": []
+        		  },
+        		  {
+        		    "name": "count",
+        		    "displayName": "线圈数量",
+        		    "display": 1,
+        		    "length": 2,
+        		    "range": "0x0001~0x07D0",
+        		    "children": []
+        		  }
+        		  ]
+      		},
+      		{
+        		"name":"02",
+        		"displayName": "读输入离散量",
+        		"display": 1,
+        		"value": "0x02",
+        		"children_alternative": 0,
+        		"children": [
+        		  {
+        		    "name": "start_address",
+        		    "displayName": "起始地址",
+        		    "display": 1,
+        		    "length": 2,
+        		    "range": "0x0000~0xFFFF",
+        		    "children": []
+        		  },
+        		  {
+        		    "name": "count",
+        		    "displayName": "输入数量",
+        		    "display": 1,
+        		    "length": 2,
+        		    "range": "0x0001~0x07D0",
+        		    "children": []
+        		  }
+        		  ]
+      		},
+      		{
+        		"name":"03",
+        		"displayName": "读保持寄存器",
+        		"display": 1,
+        		"value": "3",
+        		"children_alternative": 0,
+        		"children": [
+        		  {
+        		    "name": "start_address",
+        		    "displayName": "起始地址",
+        		    "display": 1,
+        		    "length": 2,
+        		    "range": "0x0000~0xFFFF",
+        		    "children": []
+        		  },
+        		  {
+        		    "name": "count",
+        		    "displayName": "寄存器数量",
+        		    "display": 1,
+        		    "length": 2,
+        		    "range": "0x0001~0x007D",
+        		    "children": []
+        		  }
+				 ]
+      		}
+		]
+	},
+	{  
+  	  "name": "Start address",
+  	  "displayName": "起始地址",
+  	  "display": 1,
+	  "offset": 8,
+  	  "length": 2,
+  	  "children_alternative": 1,
+  	  "children": [
+	  {
+		  "name":"01",
+			"displayName": "1",
+			"display": 1,
+			"value": "1"
+	  },
+	  {	
+		  "name":"99",
+			"displayName": "99",
+			"display": 1,
+			"value": "99"},
+			{	
+		  "name":"02",
+			"displayName": "2",
+			"display": 1,
+			"value": "0x02"}
+		]
+	}
+	]
+}
