@@ -857,6 +857,17 @@ except ImportError as e:
     print(f"[WARNING] ENIP handler import failed: {e}")
     ENIP_AVAILABLE = False
 
+# ========== BACnet协议支持（bacpypes3异步库，独立线程）==========
+BACNET_AVAILABLE = False
+try:
+    from bacnet_handler import BacnetHandler, BACNET_AVAILABLE as BACNET_LIB_AVAILABLE
+    BACNET_AVAILABLE = BACNET_LIB_AVAILABLE
+    bacnet_handler = BacnetHandler()
+    print(f"[OK] BACnet handler imported (availability={BACNET_AVAILABLE})")
+except ImportError as e:
+    print(f"[WARNING] BACnet handler import failed: {e}")
+    bacnet_handler = None
+
 # 全局变量
 modbus_clients = {}  # 存储Modbus客户端连接
 modbus_servers = {}  # 存储Modbus服务端实例
@@ -882,6 +893,10 @@ enip_clients = {}  # 存储ENIP客户端连接
 enip_servers = {}  # 存储ENIP服务端实例
 enip_client_lock = threading.Lock()
 enip_server_lock = threading.Lock()
+
+# BACnet服务端配置存储
+bacnet_server_config = {}  # 存储服务器配置
+bacnet_server_lock = threading.Lock()
 
 # 日志存储
 protocol_logs = []
@@ -4424,6 +4439,205 @@ def enip_server_status():
                 })
             else:
                 return jsonify({'success': True, 'running': False})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== BACnet客户端路由 ==========
+
+@app.route('/api/industrial_protocol/bacnet_client/read', methods=['POST'])
+def bacnet_client_read():
+    """读取BACnet设备属性"""
+    if not BACNET_AVAILABLE or bacnet_handler is None:
+        return jsonify({'success': False, 'error': 'BACnet模块未加载'}), 500
+
+    try:
+        data = request.json
+        destination = data.get('destination')  # 格式: "ip:port"
+        object_type = data.get('object_type', 'analogInput')
+        object_instance = data.get('object_instance', 1)
+        property_id = data.get('property_id', 85)  # 默认presentValue
+
+        if not destination:
+            return jsonify({'success': False, 'error': 'destination不能为空'}), 400
+
+        success, value, message = bacnet_handler.read_property(
+            destination, object_type, object_instance, property_id
+        )
+
+        if success:
+            add_log('INFO', f'BACnet读取成功: {destination}, {object_type}:{object_instance}, prop={property_id}')
+            return jsonify({
+                'success': True,
+                'value': value,
+                'message': message,
+                'destination': destination,
+                'object_type': object_type,
+                'object_instance': object_instance,
+                'property_id': property_id
+            })
+        else:
+            add_log('ERROR', f'BACnet读取失败: {message}')
+            return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'BACnet读取异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/bacnet_client/write', methods=['POST'])
+def bacnet_client_write():
+    """写入BACnet设备属性"""
+    if not BACNET_AVAILABLE or bacnet_handler is None:
+        return jsonify({'success': False, 'error': 'BACnet模块未加载'}), 500
+
+    try:
+        data = request.json
+        destination = data.get('destination')  # 格式: "ip:port"
+        object_type = data.get('object_type', 'analogOutput')
+        object_instance = data.get('object_instance', 1)
+        property_id = data.get('property_id', 85)  # 默认presentValue
+        value = data.get('value')
+        priority = data.get('priority')  # 可选
+
+        if not destination:
+            return jsonify({'success': False, 'error': 'destination不能为空'}), 400
+        if value is None:
+            return jsonify({'success': False, 'error': 'value不能为空'}), 400
+
+        success, message = bacnet_handler.write_property(
+            destination, object_type, object_instance, property_id, value, priority
+        )
+
+        if success:
+            add_log('INFO', f'BACnet写入成功: {destination}, {object_type}:{object_instance}, prop={property_id}, value={value}')
+            return jsonify({
+                'success': True,
+                'message': message,
+                'destination': destination,
+                'object_type': object_type,
+                'object_instance': object_instance,
+                'property_id': property_id,
+                'value': value
+            })
+        else:
+            add_log('ERROR', f'BACnet写入失败: {message}')
+            return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'BACnet写入异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== BACnet服务端路由 ==========
+
+@app.route('/api/industrial_protocol/bacnet_server/start', methods=['POST'])
+def bacnet_server_start():
+    """启动BACnet服务端"""
+    if not BACNET_AVAILABLE or bacnet_handler is None:
+        return jsonify({'success': False, 'error': 'BACnet模块未加载'}), 500
+
+    try:
+        data = request.json
+        server_id = data.get('server_id', 'default')
+        host = data.get('host', '0.0.0.0')
+        port = data.get('port', 47808)
+        device_id = data.get('device_id', 1234)
+        device_name = data.get('device_name', 'BACnet Simulator')
+
+        with bacnet_server_lock:
+            # 检查是否已在运行
+            status = bacnet_handler.status()
+            if status.get('running'):
+                return jsonify({'success': False, 'error': 'BACnet服务端已在运行'}), 400
+
+            # 启动服务端
+            success, message = bacnet_handler.start_server(
+                host, port, device_id, device_name
+            )
+
+            if success:
+                bacnet_server_config[server_id] = {
+                    'host': host,
+                    'port': port,
+                    'device_id': device_id,
+                    'device_name': device_name,
+                    'start_time': time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                add_log('INFO', f'BACnet服务端启动成功: {host}:{port}, device_id={device_id}')
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'server_id': server_id,
+                    'host': host,
+                    'port': port,
+                    'device_id': device_id
+                })
+            else:
+                add_log('ERROR', f'BACnet服务端启动失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'BACnet服务端启动异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/bacnet_server/stop', methods=['POST'])
+def bacnet_server_stop():
+    """停止BACnet服务端"""
+    if not BACNET_AVAILABLE or bacnet_handler is None:
+        return jsonify({'success': False, 'error': 'BACnet模块未加载'}), 500
+
+    try:
+        data = request.json
+        server_id = data.get('server_id', 'default')
+
+        with bacnet_server_lock:
+            success, message = bacnet_handler.stop_server()
+
+            if success:
+                if server_id in bacnet_server_config:
+                    del bacnet_server_config[server_id]
+                add_log('INFO', f'BACnet服务端停止成功: {server_id}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('WARNING', f'BACnet服务端停止失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'BACnet服务端停止异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/bacnet_server/status', methods=['GET'])
+def bacnet_server_status():
+    """获取BACnet服务端状态"""
+    try:
+        server_id = request.args.get('server_id', 'default')
+
+        if bacnet_handler is None:
+            return jsonify({
+                'success': True,
+                'running': False,
+                'available': False,
+                'error': 'BACnet handler not loaded'
+            })
+
+        status = bacnet_handler.status()
+
+        return jsonify({
+            'success': True,
+            'running': status.get('running', False),
+            'available': status.get('available', False),
+            'host': status.get('host', ''),
+            'port': status.get('port', 47808),
+            'device_id': status.get('device_id', 1234),
+            'device_name': status.get('device_name', ''),
+            'start_time': status.get('start_time', ''),
+            'loop_running': status.get('loop_running', False),
+            'server_id': server_id
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
