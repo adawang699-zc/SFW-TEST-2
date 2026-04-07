@@ -120,7 +120,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Agent 基础设施 + 核心设备功能 | 4/4 | Complete | 01-agent-01, 01-agent-02, 01-agent-03, 01-agent-04 |
-| 2. 核心工控协议 + 防火墙测试 | 2/4 | In Progress | 02-enip, 02-bacnet |
+| 2. 核心工控协议 + 防火墙测试 | 4/4 | Complete | 02-enip, 02-bacnet, 02-dnp3, 02-mms |
 | 3. 多用户并发支持 | 0/4 | Not started | - |
 | 4. Web 管理增强 | 0/3 | Not started | - |
 
