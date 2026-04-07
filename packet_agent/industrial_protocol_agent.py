@@ -857,6 +857,19 @@ except ImportError as e:
     print(f"[WARNING] ENIP handler import failed: {e}")
     ENIP_AVAILABLE = False
 
+# ========== DNP3协议支持（Windows-only，ctypes + subprocess隔离）==========
+DNP3_AVAILABLE = False
+DNP3_PLATFORM_OK = sys.platform == 'win32'
+if DNP3_PLATFORM_OK:
+    try:
+        from dnp3_handler import Dnp3Client, Dnp3SubprocessHandler, DNP3_AVAILABLE as DNP3_LIB_AVAILABLE, get_function_codes_list
+        DNP3_AVAILABLE = DNP3_LIB_AVAILABLE
+        print(f"[OK] DNP3 handler imported (Windows, availability={DNP3_AVAILABLE})")
+    except ImportError as e:
+        print(f"[WARNING] DNP3 handler import failed: {e}")
+else:
+    print("[INFO] DNP3 not available - Windows-only protocol")
+
 # ========== BACnet协议支持（bacpypes3异步库，独立线程）==========
 BACNET_AVAILABLE = False
 try:
@@ -893,6 +906,18 @@ enip_clients = {}  # 存储ENIP客户端连接
 enip_servers = {}  # 存储ENIP服务端实例
 enip_client_lock = threading.Lock()
 enip_server_lock = threading.Lock()
+
+# DNP3客户端和服务端（子进程）
+dnp3_clients = {}  # 存储DNP3客户端连接
+dnp3_servers = {}  # 存储DNP3子进程信息
+dnp3_client_lock = threading.Lock()
+dnp3_server_lock = threading.Lock()
+dnp3_handler = None
+if DNP3_AVAILABLE:
+    try:
+        dnp3_handler = Dnp3SubprocessHandler()
+    except Exception as e:
+        print(f"[WARNING] Failed to create Dnp3SubprocessHandler: {e}")
 
 # BACnet服务端配置存储
 bacnet_server_config = {}  # 存储服务器配置
@@ -4638,6 +4663,338 @@ def bacnet_server_status():
             'loop_running': status.get('loop_running', False),
             'server_id': server_id
         })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== DNP3客户端路由 ==========
+
+@app.route('/api/industrial_protocol/dnp3_client/connect', methods=['POST'])
+def dnp3_client_connect():
+    """连接DNP3客户端"""
+    if not DNP3_AVAILABLE:
+        return jsonify({'success': False, 'error': 'DNP3 requires Windows + dnp3protocol.dll'}), 500
+
+    try:
+        data = request.json or {}
+        client_id = data.get('client_id', 'default')
+        host = data.get('host', '127.0.0.1')
+        port = data.get('port', 20000)
+        slave = data.get('slave', 1)
+        master = data.get('master', 2)
+        count = data.get('count', 10)
+
+        with dnp3_client_lock:
+            # 断开已有连接
+            if client_id in dnp3_clients:
+                try:
+                    dnp3_clients[client_id]['client'].disconnect()
+                except Exception:
+                    pass
+                del dnp3_clients[client_id]
+
+            client = Dnp3Client()
+            success, message = client.connect(host, port, slave, master, count)
+
+            if success:
+                dnp3_clients[client_id] = {
+                    'client': client,
+                    'host': host,
+                    'port': port,
+                    'slave': slave,
+                    'master': master,
+                    'count': count,
+                    'connect_time': time.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                add_log('INFO', f'DNP3客户端连接成功: {host}:{port}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'DNP3客户端连接失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'DNP3客户端连接异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_client/disconnect', methods=['POST'])
+def dnp3_client_disconnect():
+    """断开DNP3客户端连接"""
+    try:
+        data = request.json or {}
+        client_id = data.get('client_id', 'default')
+
+        with dnp3_client_lock:
+            if client_id in dnp3_clients:
+                try:
+                    dnp3_clients[client_id]['client'].disconnect()
+                except Exception:
+                    pass
+                del dnp3_clients[client_id]
+                add_log('INFO', f'DNP3客户端断开连接: {client_id}')
+                return jsonify({'success': True, 'message': 'Disconnected'})
+            else:
+                return jsonify({'success': True, 'message': 'Not connected'})
+
+    except Exception as e:
+        add_log('ERROR', f'DNP3客户端断开异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_client/status', methods=['GET'])
+def dnp3_client_status():
+    """获取DNP3客户端连接状态"""
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with dnp3_client_lock:
+            if client_id in dnp3_clients:
+                client_info = dnp3_clients[client_id]
+                status = client_info['client'].status()
+                return jsonify({
+                    'success': True,
+                    'connected': status.get('connected', False),
+                    'host': status.get('host', ''),
+                    'port': status.get('port', 20000),
+                    'slave': status.get('slave', 1),
+                    'master': status.get('master', 2),
+                    'count': status.get('count', 10),
+                    'connect_time': status.get('connect_time', '')
+                })
+            else:
+                return jsonify({'success': True, 'connected': False})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_client/read', methods=['POST'])
+def dnp3_client_read():
+    """DNP3客户端读取操作（Class0轮询）"""
+    if not DNP3_AVAILABLE:
+        return jsonify({'success': False, 'error': 'DNP3 requires Windows + dnp3protocol.dll'}), 500
+
+    try:
+        data = request.json or {}
+        client_id = data.get('client_id', 'default')
+
+        with dnp3_client_lock:
+            if client_id not in dnp3_clients:
+                return jsonify({'success': False, 'error': 'Client not connected'}), 400
+
+            client_info = dnp3_clients[client_id]
+            success, message, result = client_info['client'].read()
+
+            if success:
+                add_log('INFO', f'DNP3读取成功: {message}')
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'data': result
+                })
+            else:
+                add_log('ERROR', f'DNP3读取失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'DNP3读取异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_client/write', methods=['POST'])
+def dnp3_client_write():
+    """DNP3客户端写入操作"""
+    if not DNP3_AVAILABLE:
+        return jsonify({'success': False, 'error': 'DNP3 requires Windows + dnp3protocol.dll'}), 500
+
+    try:
+        data = request.json or {}
+        client_id = data.get('client_id', 'default')
+        index = data.get('index', 0)
+        value = data.get('value', 0.0)
+
+        with dnp3_client_lock:
+            if client_id not in dnp3_clients:
+                return jsonify({'success': False, 'error': 'Client not connected'}), 400
+
+            client_info = dnp3_clients[client_id]
+            success, message = client_info['client'].write(index, value)
+
+            if success:
+                add_log('INFO', f'DNP3写入成功: index={index}, value={value}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'DNP3写入失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'DNP3写入异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_client/direct_operate', methods=['POST'])
+def dnp3_client_direct_operate():
+    """DNP3客户端直接执行操作"""
+    if not DNP3_AVAILABLE:
+        return jsonify({'success': False, 'error': 'DNP3 requires Windows + dnp3protocol.dll'}), 500
+
+    try:
+        data = request.json or {}
+        client_id = data.get('client_id', 'default')
+        index = data.get('index', 0)
+        value = data.get('value', 0.0)
+
+        with dnp3_client_lock:
+            if client_id not in dnp3_clients:
+                return jsonify({'success': False, 'error': 'Client not connected'}), 400
+
+            client_info = dnp3_clients[client_id]
+            success, message = client_info['client'].direct_operate(index, value)
+
+            if success:
+                add_log('INFO', f'DNP3 DirectOperate成功: index={index}, value={value}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'DNP3 DirectOperate失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'DNP3 DirectOperate异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_client/function_codes', methods=['GET'])
+def dnp3_client_function_codes():
+    """获取DNP3支持的功能码列表"""
+    if not DNP3_AVAILABLE:
+        return jsonify({'success': False, 'error': 'DNP3 requires Windows + dnp3protocol.dll'}), 500
+
+    try:
+        codes = get_function_codes_list()
+        return jsonify({
+            'success': True,
+            'function_codes': codes,
+            'count': len(codes)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== DNP3服务端路由 ==========
+
+@app.route('/api/industrial_protocol/dnp3_server/start', methods=['POST'])
+def dnp3_server_start():
+    """启动DNP3服务端子进程"""
+    if not DNP3_AVAILABLE:
+        return jsonify({'success': False, 'error': 'DNP3 requires Windows + dnp3protocol.dll'}), 500
+
+    try:
+        data = request.json or {}
+        server_id = data.get('server_id', 'default')
+        bind = data.get('bind', '0.0.0.0')
+        port = data.get('port', 20000)
+        count = data.get('count', 10)
+        slave = data.get('slave', 1)
+        master = data.get('master', 2)
+
+        with dnp3_server_lock:
+            # 如果已有服务端在运行，先停止
+            if server_id in dnp3_servers:
+                try:
+                    dnp3_handler.stop_server()
+                except Exception:
+                    pass
+                del dnp3_servers[server_id]
+
+            config = {
+                'bind': bind,
+                'port': port,
+                'count': count,
+                'slave': slave,
+                'master': master
+            }
+
+            success, message = dnp3_handler.start_server(server_id, config)
+
+            if success:
+                dnp3_servers[server_id] = {
+                    'config': config,
+                    'start_time': time.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                add_log('INFO', f'DNP3服务端启动成功: {bind}:{port}')
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'server_id': server_id,
+                    'config': config
+                })
+            else:
+                add_log('ERROR', f'DNP3服务端启动失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'DNP3服务端启动异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_server/stop', methods=['POST'])
+def dnp3_server_stop():
+    """停止DNP3服务端子进程"""
+    try:
+        data = request.json or {}
+        server_id = data.get('server_id', 'default')
+
+        with dnp3_server_lock:
+            success, message = dnp3_handler.stop_server()
+
+            if success:
+                if server_id in dnp3_servers:
+                    del dnp3_servers[server_id]
+                add_log('INFO', f'DNP3服务端停止: {server_id}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'DNP3服务端停止异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/dnp3_server/status', methods=['GET'])
+def dnp3_server_status():
+    """获取DNP3服务端状态"""
+    try:
+        server_id = request.args.get('server_id', 'default')
+
+        if not DNP3_AVAILABLE:
+            return jsonify({
+                'success': True,
+                'running': False,
+                'available': False,
+                'error': 'DNP3 requires Windows + dnp3protocol.dll'
+            })
+
+        with dnp3_server_lock:
+            status = dnp3_handler.status()
+
+            if server_id in dnp3_servers:
+                server_info = dnp3_servers[server_id]
+                return jsonify({
+                    'success': True,
+                    'running': status.get('running', False),
+                    'available': DNP3_AVAILABLE,
+                    'pid': status.get('pid'),
+                    'server_id': server_id,
+                    'config': server_info.get('config', {}),
+                    'start_time': server_info.get('start_time', '')
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'running': status.get('running', False),
+                    'available': DNP3_AVAILABLE
+                })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
