@@ -5476,7 +5476,7 @@
             fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/connect`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({server_ip: serverIp, port: port})
+                body: JSON.stringify({ip: serverIp, port: port})
             })
             .then(response => response.json())
             .then(data => {
