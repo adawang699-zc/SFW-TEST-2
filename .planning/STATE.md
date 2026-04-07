@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-04-07T03:30:44.057Z"
+last_updated: "2026-04-07T03:34:19.005Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 88
 ---
 
 # 项目状态
@@ -35,13 +35,13 @@ Phase 2: 核心工控协议 + 防火墙测试
 ## Current Position
 
 **Phase:** 02-protocol-extension
-**Plan:** 02-bacnet (Completed)
-**Status:** In Progress (2/4 plans complete)
+**Plan:** 02-dnp3 (Completed)
+**Status:** In Progress (3/4 plans complete)
 
 **Progress:**
-[████████░░] 75%
+[█████████░] 88%
 [====------] 1/4 phases complete
-Phase 2: [==] 2/4 plans (enip, bacnet done)
+Phase 2: [===-] 3/4 plans (enip, bacnet, dnp3 done)
 
 ```
 
@@ -53,7 +53,7 @@ Phase 2: [==] 2/4 plans (enip, bacnet done)
 |--------|-------|
 | Total Phases | 4 |
 | Phase 1 Complete | 4/4 plans |
-| Phase 2 In Progress | 2/4 plans |
+| Phase 2 In Progress | 3/4 plans |
 | Coverage | 100% |
 
 ---
@@ -70,10 +70,12 @@ Phase 2: [==] 2/4 plans (enip, bacnet done)
 | 并发模式 | 多用户同时测试，支持 3 组左右独立测试环境 |
 | ENIP 实现方式 | 纯 socket 实现，无外部依赖，参考 apps/ENIP 代码 |
 | BACnet 异步线程 | bacpypes3 是异步库，必须在独立 asyncio 线程运行，不与 Flask 共享事件循环 |
+| DNP3 子进程隔离 | dnp3protocol.dll 是 ctypes 库，服务器必须在子进程运行以防止崩溃影响主 Flask 进程 |
 
 ### Active TODOs
 
-- [ ] Execute Phase 2 remaining plans (dnp3, mms)
+- [ ] Execute Phase 2 remaining plans (mms)
+- [x] DNP3 protocol integration complete (Windows-only, subprocess isolation)
 - [x] BACnet protocol integration complete
 - [ ] Validate requirement coverage with user
 - [ ] Confirm phase structure aligns with expectations
@@ -88,13 +90,13 @@ None
 
 ### Last Session
 
-- 02-bacnet plan executed (2026-04-07)
+- 02-dnp3 plan executed (2026-04-07)
 
 ### Handover Notes
 
-- BACnet protocol integrated: 5 Flask routes, async thread handler
-- Uses bacpypes3 library with dedicated asyncio thread
-- Pattern for async-native protocols established
+- DNP3 protocol integrated: 10 Flask routes, subprocess isolation for server
+- Windows-only (requires dnp3protocol.dll)
+- Subprocess pattern for ctypes-based protocols established
 
 ---
 
@@ -108,6 +110,7 @@ None
 | 01-agent-04 | Phase 1 | 2026-03-27 | Complete |
 | 02-enip | Phase 2 | 2026-04-07 | Complete |
 | 02-bacnet | Phase 2 | 2026-04-07 | Complete |
+| 02-dnp3 | Phase 2 | 2026-04-07 | Complete |
 
 ---
 

@@ -38,7 +38,7 @@
 
 - [x] **PROTO-06**: GOOSE/SV 协议模拟 - IEC 61850 GOOSE/SV 报文发送（已完成）
 - [ ] **PROTO-03**: EtherNet/IP 协议模拟 - ENIP Scanner/Adapter 通信
-- [ ] **PROTO-01**: DNP3 协议模拟 - DNP3 Master/Outstation 通信
+- [x] **PROTO-01**: DNP3 协议模拟 - DNP3 Master/Outstation 通信
 - [x] **PROTO-04**: BACnet 协议模拟 - BACnet Client/Device 通信
 - [ ] **PROTO-08**: MMS/IEC 61850 协议模拟 - MMS Client/Server 通信
 
