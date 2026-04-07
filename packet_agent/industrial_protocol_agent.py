@@ -881,6 +881,17 @@ except ImportError as e:
     print(f"[WARNING] BACnet handler import failed: {e}")
     bacnet_handler = None
 
+# ========== MMS/IEC 61850协议支持（pyiec61850编译绑定）==========
+MMS_AVAILABLE = False
+try:
+    from mms_handler import MmsHandler, MMS_AVAILABLE as MMS_LIB_AVAILABLE
+    MMS_AVAILABLE = MMS_LIB_AVAILABLE
+    mms_handler = MmsHandler()
+    print(f"[OK] MMS handler imported (availability={MMS_AVAILABLE})")
+except ImportError as e:
+    print(f"[WARNING] MMS handler import failed: {e}")
+    mms_handler = None
+
 # 全局变量
 modbus_clients = {}  # 存储Modbus客户端连接
 modbus_servers = {}  # 存储Modbus服务端实例
@@ -922,6 +933,10 @@ if DNP3_AVAILABLE:
 # BACnet服务端配置存储
 bacnet_server_config = {}  # 存储服务器配置
 bacnet_server_lock = threading.Lock()
+
+# MMS/IEC 61850服务端配置存储
+mms_servers = {}  # 存储MMS服务端实例
+mms_server_lock = threading.Lock()
 
 # 日志存储
 protocol_logs = []
@@ -4995,6 +5010,220 @@ def dnp3_server_status():
                     'running': status.get('running', False),
                     'available': DNP3_AVAILABLE
                 })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== MMS/IEC 61850客户端路由 ==========
+
+@app.route('/api/industrial_protocol/mms_client/read', methods=['POST'])
+def mms_client_read():
+    """读取MMS变量"""
+    if not MMS_AVAILABLE or mms_handler is None:
+        return jsonify({'success': False, 'error': 'pyiec61850 not available. Build libiec61850 with -DBUILD_PYTHON_BINDINGS=ON'}), 500
+
+    try:
+        data = request.json or {}
+        host = data.get('host', '127.0.0.1')
+        port = data.get('port', 102)
+        domain = data.get('domain')  # LogicalDevice 名称
+        item = data.get('item')  # 变量项: LogicalNode$FC$DataAttribute
+
+        success, value, message = mms_handler.client_read(host, port, domain, item)
+
+        if success:
+            add_log('INFO', f'MMS读取成功: {host}:{port}, domain={domain}, item={item}')
+            return jsonify({'success': True, 'value': value, 'message': message})
+        else:
+            add_log('ERROR', f'MMS读取失败: {message}')
+            return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'MMS读取异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/mms_client/write', methods=['POST'])
+def mms_client_write():
+    """写入MMS变量"""
+    if not MMS_AVAILABLE or mms_handler is None:
+        return jsonify({'success': False, 'error': 'pyiec61850 not available. Build libiec61850 with -DBUILD_PYTHON_BINDINGS=ON'}), 500
+
+    try:
+        data = request.json or {}
+        host = data.get('host', '127.0.0.1')
+        port = data.get('port', 102)
+        domain = data.get('domain')
+        item = data.get('item')
+        value = data.get('value')
+
+        success, message = mms_handler.client_write(host, port, domain, item, value)
+
+        if success:
+            add_log('INFO', f'MMS写入成功: {host}:{port}, domain={domain}, item={item}, value={value}')
+            return jsonify({'success': True, 'message': message})
+        else:
+            add_log('ERROR', f'MMS写入失败: {message}')
+            return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'MMS写入异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/mms_client/connect', methods=['POST'])
+def mms_client_connect():
+    """测试MMS连接"""
+    if not MMS_AVAILABLE or mms_handler is None:
+        return jsonify({'success': False, 'error': 'pyiec61850 not available. Build libiec61850 with -DBUILD_PYTHON_BINDINGS=ON'}), 500
+
+    try:
+        data = request.json or {}
+        host = data.get('host', '127.0.0.1')
+        port = data.get('port', 102)
+
+        success, message = mms_handler.client_connect(host, port)
+
+        if success:
+            add_log('INFO', f'MMS连接成功: {host}:{port}')
+            return jsonify({'success': True, 'message': message})
+        else:
+            add_log('ERROR', f'MMS连接失败: {message}')
+            return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'MMS连接异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/mms_client/get_domains', methods=['POST'])
+def mms_client_get_domains():
+    """获取MMS服务器域名列表"""
+    if not MMS_AVAILABLE or mms_handler is None:
+        return jsonify({'success': False, 'error': 'pyiec61850 not available. Build libiec61850 with -DBUILD_PYTHON_BINDINGS=ON'}), 500
+
+    try:
+        data = request.json or {}
+        host = data.get('host', '127.0.0.1')
+        port = data.get('port', 102)
+
+        success, domains, message = mms_handler.get_domain_list(host, port)
+
+        if success:
+            add_log('INFO', f'MMS获取域名列表成功: {host}:{port}')
+            return jsonify({'success': True, 'domains': domains, 'message': message})
+        else:
+            add_log('ERROR', f'MMS获取域名列表失败: {message}')
+            return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'MMS获取域名列表异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== MMS/IEC 61850服务端路由 ==========
+
+@app.route('/api/industrial_protocol/mms_server/start', methods=['POST'])
+def mms_server_start():
+    """启动MMS/IEC 61850服务端"""
+    if not MMS_AVAILABLE or mms_handler is None:
+        return jsonify({'success': False, 'error': 'pyiec61850 not available. Build libiec61850 with -DBUILD_PYTHON_BINDINGS=ON'}), 500
+
+    try:
+        data = request.json or {}
+        server_id = data.get('server_id', 'default')
+        host = data.get('host', '0.0.0.0')
+        port = data.get('port', 102)
+        ied_name = data.get('ied_name', 'MMS_SIM')
+        config = data.get('config')  # 可选: 数据模型配置
+
+        with mms_server_lock:
+            # 检查是否已运行
+            status = mms_handler.status()
+            if status.get('running'):
+                return jsonify({'success': False, 'error': 'MMS服务端已在运行'}), 400
+
+            # 启动服务端
+            success, message = mms_handler.start_server(
+                host=host,
+                port=port,
+                ied_name=ied_name,
+                config=config
+            )
+
+            if success:
+                mms_servers[server_id] = {
+                    'host': host,
+                    'port': port,
+                    'ied_name': ied_name,
+                    'start_time': time.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                add_log('INFO', f'MMS服务端启动成功: {host}:{port}, IED: {ied_name}')
+                return jsonify({'success': True, 'message': message, 'server_id': server_id})
+            else:
+                add_log('ERROR', f'MMS服务端启动失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'MMS服务端启动异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/mms_server/stop', methods=['POST'])
+def mms_server_stop():
+    """停止MMS/IEC 61850服务端"""
+    if not MMS_AVAILABLE or mms_handler is None:
+        return jsonify({'success': False, 'error': 'pyiec61850 not available. Build libiec61850 with -DBUILD_PYTHON_BINDINGS=ON'}), 500
+
+    try:
+        data = request.json or {}
+        server_id = data.get('server_id', 'default')
+
+        with mms_server_lock:
+            success, message = mms_handler.stop_server()
+
+            if success:
+                if server_id in mms_servers:
+                    del mms_servers[server_id]
+                add_log('INFO', f'MMS服务端停止成功: {server_id}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('WARNING', f'MMS服务端停止失败: {message}')
+                return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        add_log('ERROR', f'MMS服务端停止异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/mms_server/status', methods=['GET'])
+def mms_server_status():
+    """获取MMS/IEC 61850服务端状态"""
+    try:
+        server_id = request.args.get('server_id', 'default')
+
+        if mms_handler is None:
+            return jsonify({
+                'success': True,
+                'running': False,
+                'available': False,
+                'error': 'MMS handler not loaded'
+            })
+
+        status = mms_handler.status()
+
+        return jsonify({
+            'success': True,
+            'running': status.get('running', False),
+            'available': status.get('available', False),
+            'host': status.get('host', ''),
+            'port': status.get('port', 102),
+            'ied_name': status.get('ied_name', ''),
+            'start_time': status.get('start_time', ''),
+            'error': status.get('error'),
+            'server_id': server_id
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
