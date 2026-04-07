@@ -13,6 +13,7 @@ import asyncio
 import logging
 import os
 import sqlite3
+import ctypes
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from pathlib import Path
@@ -644,61 +645,166 @@ except Exception as e:
     traceback.print_exc()
 
 # 尝试导入python-snap7，用于S7协议支持
+# 兼容 python-snap7 1.3 和 2.0.2 版本
 SNAP7_AVAILABLE = False
 snap7 = None
 snap7_server_module = None
-snap7_area = None  # Area枚举或常量
+snap7_area = None  # Area枚举（客户端用，值为0x84）
+snap7_srv_area = None  # SrvArea枚举（服务端用，值为5）
 snap7_util = None
+Snap7Server = None  # Server类
+Snap7Client = None  # Client类
+snap7_version = None
+snap7_type = None  # snap7.type模块（2.x版本）
 
 try:
     # 先尝试导入基础模块
     import snap7
-    print(f"[DEBUG] snap7基础模块导入成功")
-    
-    # 参考工作代码：从snap7.server导入Server
+
+    # 检测版本
     try:
-        from snap7.server import Server as Snap7Server
-        snap7_server_module = snap7.server
-        print("[OK] 使用snap7.server.Server（参考工作代码）")
-    except ImportError:
-        # 降级：尝试其他导入方式
-        if hasattr(snap7, 'Server'):
-            snap7_server_module = snap7
-            Snap7Server = snap7.Server
-            print("[OK] 使用snap7.Server（降级）")
-        else:
-            try:
-                from snap7 import server as snap7_server_module
-                Snap7Server = snap7_server_module.Server
-                print("[OK] 使用snap7.server（备用路径）")
-            except ImportError as e:
-                print(f"警告: snap7.server导入失败: {e}")
-                raise
-    
-    # 参考工作代码：从snap7导入type作为snap7_type
+        snap7_version = getattr(snap7, '__version__', 'unknown')
+        print(f"[DEBUG] snap7基础模块导入成功，版本: {snap7_version}")
+    except Exception:
+        print(f"[DEBUG] snap7基础模块导入成功（版本未知）")
+
+    # ========== Server导入（兼容1.3和2.0.2）==========
+    # 2.0.2: snap7.Server 或 snap7.server.Server
+    # 1.3: snap7.server.Server
+    server_imported = False
+
+    # 方式1: snap7.Server (2.0.2新增)
+    if hasattr(snap7, 'Server'):
+        Snap7Server = snap7.Server
+        snap7_server_module = snap7
+        print("[OK] 使用snap7.Server（2.x方式）")
+        server_imported = True
+
+    # 方式2: snap7.server.Server (1.3和2.x都支持)
+    if not server_imported:
+        try:
+            from snap7.server import Server as Snap7Server
+            snap7_server_module = snap7.server
+            print("[OK] 使用snap7.server.Server（1.3兼容方式）")
+            server_imported = True
+        except (ImportError, AttributeError):
+            pass
+
+    # 方式3: snap7的server模块
+    if not server_imported:
+        try:
+            from snap7 import server as snap7_server_module
+            Snap7Server = snap7_server_module.Server
+            print("[OK] 使用snap7.server模块（备用方式）")
+            server_imported = True
+        except (ImportError, AttributeError):
+            pass
+
+    if not server_imported:
+        raise ImportError("无法导入snap7 Server类")
+
+    # ========== Client导入（兼容1.3和2.0.2）==========
+    # 2.0.2: snap7.Client 或 snap7.client.Client
+    # 1.3: snap7.client.Client
+    client_imported = False
+
+    # 方式1: snap7.Client (2.0.2新增)
+    if hasattr(snap7, 'Client'):
+        Snap7Client = snap7.Client
+        print("[OK] 使用snap7.Client（2.x方式）")
+        client_imported = True
+
+    # 方式2: snap7.client.Client (1.3和2.x都支持)
+    if not client_imported:
+        try:
+            from snap7.client import Client as Snap7Client
+            print("[OK] 使用snap7.client.Client（1.3兼容方式）")
+            client_imported = True
+        except (ImportError, AttributeError):
+            pass
+
+    # 方式3: snap7的client模块
+    if not client_imported:
+        try:
+            from snap7 import client as snap7_client_module
+            Snap7Client = snap7_client_module.Client
+            print("[OK] 使用snap7.client模块（备用方式）")
+            client_imported = True
+        except (ImportError, AttributeError):
+            pass
+
+    if not client_imported:
+        print("[WARNING] 无法导入snap7 Client类，客户端功能可能不可用")
+
+    # ========== Area枚举导入（兼容1.3和2.0.2）==========
+    # 注意：客户端和服务端使用不同的区域枚举！
+    # 客户端 Area.DB = 0x84（协议值）
+    # 服务端 SrvArea.DB = 5（枚举值）
+    area_imported = False
+    srv_area_imported = False
+
+    # 方式1: snap7.type.SrvArea (2.0.2) - 服务端用
     try:
         from snap7 import type as snap7_type
-        # 获取SrvArea枚举
         if hasattr(snap7_type, 'SrvArea'):
-            snap7_area = snap7_type.SrvArea
-            print("[OK] 使用snap7.type.SrvArea（参考工作代码）")
-        else:
-            snap7_area = None
-            print("[WARNING] snap7.type.SrvArea不存在")
+            snap7_srv_area = snap7_type.SrvArea
+            print("[OK] 使用snap7.type.SrvArea（服务端区域，2.x方式）")
+            srv_area_imported = True
+        if hasattr(snap7_type, 'Area'):
+            snap7_area = snap7_type.Area
+            print("[OK] 使用snap7.type.Area（客户端区域，2.x方式）")
+            area_imported = True
     except ImportError:
-        # 降级：尝试其他方式获取SrvArea
-        if hasattr(snap7, 'SrvArea'):
-            snap7_area = snap7.SrvArea
-            print("[OK] 使用snap7.SrvArea（降级）")
-        elif hasattr(snap7, 'Area'):
-            snap7_area = snap7.Area
-            print("[OK] 使用snap7.Area（降级）")
-        else:
-            snap7_area = None
-            print("[WARNING] 未找到Area/SrvArea，将使用字符串常量")
-        snap7_type = None
-    
-    # 尝试导入util模块（可选，某些功能可能需要）
+        pass
+
+    # 方式2: snap7.SrvArea / snap7.Area (部分版本)
+    if not srv_area_imported and hasattr(snap7, 'SrvArea'):
+        snap7_srv_area = snap7.SrvArea
+        print("[OK] 使用snap7.SrvArea（服务端区域）")
+        srv_area_imported = True
+    if not area_imported and hasattr(snap7, 'Area'):
+        snap7_area = snap7.Area
+        print("[OK] 使用snap7.Area（客户端区域）")
+        area_imported = True
+
+    # 方式3: snap7.server 模块中的常量（1.3服务端）
+    if not srv_area_imported:
+        try:
+            from snap7.server import srvArea as snap7_srv_area
+            print("[OK] 使用snap7.server.srvArea（1.3服务端区域）")
+            srv_area_imported = True
+        except (ImportError, AttributeError):
+            pass
+
+    # 方式4: 硬编码常量（最后手段）
+    if not srv_area_imported:
+        # 服务端区域枚举值（注意：不是0x84！）
+        # 参考 snap7 源码: SrvArea.DB = 5
+        class SrvAreaFallback:
+            DB = 5      # 数据块
+            MK = 6      # 标志位
+            PE = 7      # 输入区
+            PA = 8      # 输出区
+            CT = 9      # 计数器
+            TM = 10     # 定时器
+        snap7_srv_area = SrvAreaFallback
+        print("[WARNING] 未找到SrvArea枚举，使用硬编码值（服务端DB=5）")
+        srv_area_imported = True
+
+    if not area_imported:
+        # 客户端区域枚举值（协议值）
+        class AreaFallback:
+            DB = 0x84   # 数据块
+            MK = 0x83   # 标志位
+            PE = 0x81   # 输入区
+            PA = 0x82   # 输出区
+            CT = 0x1C   # 计数器
+            TM = 0x1D   # 定时器
+        snap7_area = AreaFallback
+        print("[WARNING] 未找到Area枚举，使用硬编码值（客户端DB=0x84）")
+        area_imported = True
+
+    # ========== util模块导入（可选）==========
     try:
         from snap7 import util as snap7_util
         print("[OK] snap7.util导入成功")
@@ -707,33 +813,49 @@ try:
             import snap7.util as snap7_util
             print("[OK] snap7.util导入成功（备用路径）")
         except ImportError:
-            # util模块是可选的，不影响基本功能
             print("[WARNING] snap7.util导入失败，某些工具函数可能不可用")
             snap7_util = None
-    
+
     SNAP7_AVAILABLE = True
-    print("[OK] python-snap7导入成功，S7功能可用")
-    
+    print(f"[OK] python-snap7初始化成功（版本: {snap7_version}），S7功能可用")
+
 except (ImportError, ModuleNotFoundError) as e:
-    print(f"警告: python-snap7模块未安装或导入失败，S7功能将不可用")
-    print(f"详细错误: {e}")
-    print(f"建议: 1) 安装python-snap7: pip install python-snap7")
-    print(f"      2) 确保底层snap7库已正确安装（从https://sourceforge.net/projects/snap7/files/下载）")
-    print(f"      3) 检查python-snap7版本兼容性: pip install --upgrade python-snap7")
+    print(f"[WARNING] python-snap7模块未安装或导入失败，S7功能将不可用")
+    print(f"[WARNING] 详细错误: {e}")
+    print(f"[WARNING] 建议: 1) 安装python-snap7: pip install python-snap7")
+    print(f"[WARNING]       2) 确保底层snap7库已正确安装")
+    print(f"[WARNING]       3) 支持版本: 1.3.x 或 2.0.2+")
     SNAP7_AVAILABLE = False
     snap7 = None
     snap7_server_module = None
     snap7_area = None
+    snap7_srv_area = None
     snap7_util = None
+    Snap7Server = None
+    Snap7Client = None
+    snap7_type = None
 except Exception as e:
-    print(f"警告: python-snap7模块导入异常 ({type(e).__name__}: {e})，S7功能将不可用")
+    print(f"[WARNING] python-snap7模块导入异常 ({type(e).__name__}: {e})，S7功能将不可用")
     import traceback
-    print(f"详细堆栈: {traceback.format_exc()}")
+    print(f"[WARNING] 详细堆栈: {traceback.format_exc()}")
     SNAP7_AVAILABLE = False
     snap7 = None
     snap7_server_module = None
     snap7_area = None
+    snap7_srv_area = None
     snap7_util = None
+    Snap7Server = None
+    Snap7Client = None
+    snap7_type = None
+
+# ========== ENIP协议支持（纯socket实现，无外部依赖）==========
+ENIP_AVAILABLE = True
+try:
+    from enip_handler import EnipClient, EnipServer, build_enip_header
+    print("[OK] ENIP handler imported successfully")
+except ImportError as e:
+    print(f"[WARNING] ENIP handler import failed: {e}")
+    ENIP_AVAILABLE = False
 
 # 全局变量
 modbus_clients = {}  # 存储Modbus客户端连接
@@ -745,6 +867,21 @@ modbus_server_lock = threading.Lock()
 s7_servers = {}  # 存储S7服务端实例
 s7_server_lock = threading.Lock()
 s7_data_storage = {}  # 存储S7服务端数据（DB块、M区等）
+
+# S7 DB块大小限制
+# 注意：snap7服务端支持的最大DB块大小是32768字节（32KB），不是64KB！
+# 测试证明：65536字节会报 "Address out of range" 错误
+S7_DB_MAX_SIZE = 32768  # 32KB，snap7服务端最大支持
+
+# S7客户端相关
+s7_clients = {}  # 存储S7客户端连接
+s7_client_lock = threading.Lock()
+
+# ENIP客户端和服务端
+enip_clients = {}  # 存储ENIP客户端连接
+enip_servers = {}  # 存储ENIP服务端实例
+enip_client_lock = threading.Lock()
+enip_server_lock = threading.Lock()
 
 # 日志存储
 protocol_logs = []
@@ -793,6 +930,10 @@ def load_s7_db_from_database(server_id, db_number):
                 row = cursor.fetchone()
                 if row:
                     data = bytearray(row[0])
+                    # 截断到最大支持大小（snap7服务端最大32KB）
+                    if len(data) > S7_DB_MAX_SIZE:
+                        add_log('WARNING', f'DB{db_number}数据{len(data)}字节超过最大限制{S7_DB_MAX_SIZE}，已截断')
+                        data = data[:S7_DB_MAX_SIZE]
                     add_log('INFO', f'从数据库加载DB{db_number}数据: {len(data)}字节 (server_id={server_id})')
                     return data
                 else:
@@ -1934,10 +2075,11 @@ def get_logs():
 def health_check():
     """健康检查"""
     return jsonify({
-        'success': True, 
+        'success': True,
         'message': 'Industrial Protocol Agent is running',
         'pymodbus_available': PYMODBUS_AVAILABLE,
-        'snap7_available': SNAP7_AVAILABLE
+        'snap7_available': SNAP7_AVAILABLE,
+        'snap7_version': snap7_version
     })
 
 
@@ -1945,8 +2087,11 @@ def health_check():
 
 def register_s7_areas(server_id, db_list=None):
     """
-    适配snap7 2.0.2的区域注册函数（参考工作代码）
-    使用枚举对象SRV_AREA_DB注册DB块，snap7内部会将枚举值5映射到协议区域码0x84
+    注册S7服务端区域（兼容snap7 1.3和2.0.2）
+
+    重要：服务端register_area使用的是SrvArea枚举（DB=5），不是Area枚举（DB=0x84）！
+    - snap7 2.0.2: snap7.type.SrvArea.DB = 5
+    - snap7 1.3: snap7.server.srvArea.DB = 5 或硬编码值5
     """
     if not SNAP7_AVAILABLE:
         return
@@ -1966,17 +2111,44 @@ def register_s7_areas(server_id, db_list=None):
             if db_list is None:
                 db_list = [1, 2, 3]
 
-            # 参考工作代码：使用枚举对象（snap7内部会将枚举值5映射到协议值0x84）
-            if not snap7_type or not hasattr(snap7_type, 'SrvArea'):
-                add_log('ERROR', '无法获取snap7_type.SrvArea，区域注册将失败')
+            # 获取服务端DB区域常量
+            # 重要：必须使用SrvArea（值=5），不是Area（值=0x84）！
+            SRV_AREA_DB = None
+            area_source = None
+
+            # 方式1: 使用全局变量snap7_srv_area（已在初始化时正确设置）
+            if snap7_srv_area is not None and hasattr(snap7_srv_area, 'DB'):
+                SRV_AREA_DB = snap7_srv_area.DB
+                area_source = f"snap7_srv_area.DB（版本: {snap7_version}）"
+                add_log('INFO', f'使用全局snap7_srv_area.DB')
+            # 方式2: snap7_type.SrvArea (2.0.2)
+            elif snap7_type is not None and hasattr(snap7_type, 'SrvArea') and hasattr(snap7_type.SrvArea, 'DB'):
+                SRV_AREA_DB = snap7_type.SrvArea.DB
+                area_source = "snap7.type.SrvArea.DB（2.x方式）"
+            # 方式3: snap7.server.srvArea (1.3)
+            elif hasattr(snap7, 'server') and hasattr(snap7.server, 'srvArea') and hasattr(snap7.server.srvArea, 'DB'):
+                SRV_AREA_DB = snap7.server.srvArea.DB
+                area_source = "snap7.server.srvArea.DB（1.3方式）"
+            # 方式4: 硬编码值（最后手段）
+            else:
+                # 服务端DB区域枚举值是5（不是0x84！）
+                SRV_AREA_DB = 5
+                area_source = "硬编码值5（兼容模式）"
+                add_log('WARNING', '未找到SrvArea枚举，使用硬编码值5')
+
+            if SRV_AREA_DB is None:
+                add_log('ERROR', '无法获取服务端DB区域常量，区域注册失败')
                 return
-            
-            SRV_AREA_DB = snap7_type.SrvArea.DB  # 2.0.2枚举类型
-            enum_value = SRV_AREA_DB.value if hasattr(SRV_AREA_DB, 'value') else int(SRV_AREA_DB)
-            
-            add_log('INFO', f'=== snap7 2.0.2 区域注册（参考工作代码） ===')
-            add_log('INFO', f'使用DB区域枚举对象: {SRV_AREA_DB} (枚举值:0x{enum_value:02X})')
-            add_log('INFO', f'注意: snap7内部会将枚举值0x{enum_value:02X}映射到协议区域码0x84')
+
+            # 获取枚举值（用于日志）
+            if hasattr(SRV_AREA_DB, 'value'):
+                enum_value = SRV_AREA_DB.value
+            else:
+                enum_value = int(SRV_AREA_DB)
+
+            add_log('INFO', f'=== S7区域注册（版本兼容模式） ===')
+            add_log('INFO', f'区域来源: {area_source}')
+            add_log('INFO', f'使用DB区域值: {SRV_AREA_DB} (0x{enum_value:02X})')
 
             # 参考工作代码：初始化ctypes缓冲区并创建DB映射
             import ctypes
@@ -2111,6 +2283,880 @@ def sync_s7_data_to_server(server_id, db_number=None):
     except Exception as e:
         add_log('WARNING', f'S7数据同步异常: {e}')
 
+# ==================== S7 客户端 API ====================
+
+@app.route('/api/industrial_protocol/s7_client/connect', methods=['POST'])
+def s7_client_connect():
+    """连接S7服务器"""
+    if not SNAP7_AVAILABLE:
+        error_msg = 'python-snap7未安装或导入失败'
+        add_log('ERROR', error_msg)
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+    if Snap7Client is None:
+        error_msg = 'snap7.Client类不可用'
+        add_log('ERROR', error_msg)
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        server_ip = data.get('server_ip')
+        port = data.get('port', 102)
+        rack = data.get('rack', 0)
+        slot = data.get('slot', 2)
+
+        if not server_ip:
+            return jsonify({'success': False, 'error': '缺少服务器IP地址'}), 400
+
+        add_log('INFO', f'S7客户端连接请求: {server_ip}:{port}, Rack={rack}, Slot={slot}')
+
+        with s7_client_lock:
+            # 如果已存在连接，先断开
+            if client_id in s7_clients:
+                old_client = s7_clients[client_id].get('client')
+                if old_client:
+                    try:
+                        old_client.disconnect()
+                    except Exception:
+                        pass
+                del s7_clients[client_id]
+
+            # 创建新的客户端连接
+            client = Snap7Client()
+            client.connect(server_ip, rack, slot, port)
+
+            # 存储连接信息
+            s7_clients[client_id] = {
+                'client': client,
+                'server_ip': server_ip,
+                'port': port,
+                'rack': rack,
+                'slot': slot,
+                'connected': True
+            }
+
+            add_log('INFO', f'S7客户端连接成功: {server_ip}:{port}')
+            return jsonify({
+                'success': True,
+                'message': f'已连接到 {server_ip}:{port}',
+                'client_id': client_id
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7客户端连接失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/disconnect', methods=['POST'])
+def s7_client_disconnect():
+    """断开S7客户端连接"""
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': True, 'message': '客户端未连接'})
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if client:
+                try:
+                    client.disconnect()
+                except Exception as e:
+                    add_log('WARNING', f'S7客户端断开连接时出错: {e}')
+
+            del s7_clients[client_id]
+            add_log('INFO', f'S7客户端已断开: {client_id}')
+
+        return jsonify({'success': True, 'message': '已断开连接'})
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7客户端断开连接失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/read', methods=['POST'])
+def s7_client_read():
+    """读取S7服务器数据
+
+    数据类型与协议传输格式:
+    - BYTE: WordLen.Byte (2), 1字节/个
+    - WORD: WordLen.Word (4), 2字节/个
+    - DWORD: WordLen.DWord (6), 4字节/个
+    - REAL: WordLen.Real (8), 4字节/个
+    - INT: WordLen.Int (5), 2字节/个
+    - DINT: WordLen.DInt (7), 4字节/个
+    - BOOL: WordLen.Bit (1), 1位/个
+    """
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        area = data.get('area', 'DB')
+        db_number = data.get('db_number', 1)
+        start = data.get('start', 0)
+        amount = data.get('size', 10)  # 数据个数
+        data_type = data.get('data_type', 'BYTE')  # 数据类型
+
+        # 数据类型到 WordLen 的映射
+        word_len_map = {
+            'BOOL': 1,    # WordLen.Bit
+            'BYTE': 2,    # WordLen.Byte
+            'CHAR': 3,    # WordLen.Char
+            'WORD': 4,    # WordLen.Word
+            'INT': 5,     # WordLen.Int
+            'DWORD': 6,   # WordLen.DWord
+            'DINT': 7,    # WordLen.DInt
+            'REAL': 8,    # WordLen.Real
+        }
+
+        # 每种数据类型的字节数
+        bytes_per_element = {
+            'BOOL': 1, 'BYTE': 1, 'CHAR': 1,
+            'WORD': 2, 'INT': 2,
+            'DWORD': 4, 'DINT': 4, 'REAL': 4,
+        }
+
+        word_len = word_len_map.get(data_type.upper(), 2)
+        byte_size = amount * bytes_per_element.get(data_type.upper(), 1)
+
+        # 如果提供了新的连接参数，尝试连接
+        server_ip = data.get('server_ip')
+        port = data.get('port', 102)
+        rack = data.get('rack', 0)
+        slot = data.get('slot', 2)
+
+        with s7_client_lock:
+            # 如果客户端不存在但有连接参数，创建新连接
+            if client_id not in s7_clients and server_ip:
+                if Snap7Client is None:
+                    return jsonify({'success': False, 'error': 'snap7.Client类不可用'}), 500
+
+                client = Snap7Client()
+                client.connect(server_ip, rack, slot, port)
+                s7_clients[client_id] = {
+                    'client': client,
+                    'server_ip': server_ip,
+                    'port': port,
+                    'rack': rack,
+                    'slot': slot,
+                    'connected': True
+                }
+                add_log('INFO', f'S7客户端自动连接: {server_ip}:{port}')
+
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接，请先连接服务器'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            # 区域类型映射
+            area_map = {
+                'DB': 0x84,      # 数据块
+                'I': 0x81,       # 输入区
+                'Q': 0x82,       # 输出区
+                'M': 0x83,       # 标志位
+                'C': 0x1C,       # 计数器
+                'T': 0x1D,       # 定时器
+            }
+            area_code = area_map.get(area.upper(), 0x84)
+
+            # 使用 read_multi_vars 正确传递数据类型
+            try:
+                from snap7.type import S7DataItem
+
+                # 创建数据缓冲区
+                buffer = (ctypes.c_ubyte * byte_size)()
+
+                # 创建 S7DataItem
+                item = S7DataItem()
+                item.Area = area_code
+                item.WordLen = word_len
+                item.DBNumber = db_number if area.upper() == 'DB' else 0
+                item.Start = start
+                item.Amount = amount  # 数据个数，不是字节数
+                item.pData = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte))
+
+                # 创建 item 数组
+                items = (S7DataItem * 1)(item)
+
+                # 执行读取
+                result_code, result_items = client.read_multi_vars(items)
+
+                # 检查结果
+                if result_code == 0 and result_items[0].Result == 0:
+                    # 成功读取
+                    data_list = list(buffer)
+                    add_log('INFO', f'S7客户端读取成功: 区域={area}, DB={db_number}, 起始={start}, 数量={amount}, 类型={data_type}, 字节={byte_size}')
+                else:
+                    error_code = result_items[0].Result if result_items else result_code
+                    add_log('ERROR', f'S7客户端读取失败: 结果码={result_code}, 项目结果={result_items[0].Result if result_items else "N/A"}')
+                    # 回退到 db_read
+                    if area.upper() == 'DB':
+                        result = client.db_read(db_number, start, byte_size)
+                        data_list = list(result) if result else []
+                    else:
+                        result = client.read_area(area_code, db_number, start, byte_size)
+                        data_list = list(result) if result else []
+            except Exception as e:
+                add_log('WARNING', f'read_multi_vars失败，回退到db_read: {e}')
+                # 回退到 db_read
+                if area.upper() == 'DB':
+                    result = client.db_read(db_number, start, byte_size)
+                else:
+                    result = client.read_area(area_code, db_number, start, byte_size)
+                data_list = list(result) if result else []
+
+            # 根据数据类型转换数据
+            interpreted_data = []
+            type_info = {'type': data_type, 'size_per_element': bytes_per_element.get(data_type.upper(), 1), 'element_count': amount}
+
+            if snap7_util is not None and data_list:
+                try:
+                    result_bytes = bytearray(data_list)
+                    if data_type == 'BYTE':
+                        interpreted_data = data_list
+                    elif data_type == 'WORD':
+                        for i in range(0, len(result_bytes) - 1, 2):
+                            interpreted_data.append(snap7_util.get_word(result_bytes, i))
+                    elif data_type == 'DWORD':
+                        for i in range(0, len(result_bytes) - 3, 4):
+                            interpreted_data.append(snap7_util.get_dword(result_bytes, i))
+                    elif data_type == 'REAL':
+                        for i in range(0, len(result_bytes) - 3, 4):
+                            interpreted_data.append(snap7_util.get_real(result_bytes, i))
+                    elif data_type == 'INT':
+                        for i in range(0, len(result_bytes) - 1, 2):
+                            interpreted_data.append(snap7_util.get_int(result_bytes, i))
+                    elif data_type == 'DINT':
+                        for i in range(0, len(result_bytes) - 3, 4):
+                            interpreted_data.append(snap7_util.get_dint(result_bytes, i))
+                    else:
+                        interpreted_data = data_list
+                except Exception as conv_err:
+                    add_log('WARNING', f'数据类型转换失败: {conv_err}')
+                    interpreted_data = data_list
+            else:
+                interpreted_data = data_list
+
+            return jsonify({
+                'success': True,
+                'data': data_list,  # 原始字节
+                'interpreted': interpreted_data,  # 按数据类型解释的值
+                'type_info': type_info,
+                'size': len(data_list),
+                'area': area,
+                'db_number': db_number,
+                'start': start,
+                'data_type': data_type
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7客户端读取失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/write', methods=['POST'])
+def s7_client_write():
+    """写入S7服务器数据
+
+    数据类型与协议传输格式:
+    - BYTE: WordLen.Byte (2), 1字节/个
+    - WORD: WordLen.Word (4), 2字节/个
+    - DWORD: WordLen.DWord (6), 4字节/个
+    - REAL: WordLen.Real (8), 4字节/个
+    - INT: WordLen.Int (5), 2字节/个
+    - DINT: WordLen.DInt (7), 4字节/个
+
+    请求参数:
+    - data: 要写入的数据列表（字节数组）
+    - data_type: 数据类型
+    - start: 起始地址（字节地址）
+    - size: 数据个数
+    """
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        area = data.get('area', 'DB')
+        db_number = data.get('db_number', 1)
+        start = data.get('start', 0)
+        write_data = data.get('data', [])
+        data_type = data.get('data_type', 'BYTE')
+
+        if not write_data:
+            return jsonify({'success': False, 'error': '缺少写入数据'}), 400
+
+        # 数据类型到 WordLen 的映射
+        word_len_map = {
+            'BOOL': 1,    # WordLen.Bit
+            'BYTE': 2,    # WordLen.Byte
+            'CHAR': 3,    # WordLen.Char
+            'WORD': 4,    # WordLen.Word
+            'INT': 5,     # WordLen.Int
+            'DWORD': 6,   # WordLen.DWord
+            'DINT': 7,    # WordLen.DInt
+            'REAL': 8,    # WordLen.Real
+        }
+
+        # 每种数据类型的字节数
+        bytes_per_element = {
+            'BOOL': 1, 'BYTE': 1, 'CHAR': 1,
+            'WORD': 2, 'INT': 2,
+            'DWORD': 4, 'DINT': 4, 'REAL': 4,
+        }
+
+        word_len = word_len_map.get(data_type.upper(), 2)
+        byte_per_elem = bytes_per_element.get(data_type.upper(), 1)
+
+        # 计算数据个数（字节数 / 每个数据的字节数）
+        amount = len(write_data) // byte_per_elem
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            # 区域类型映射
+            area_map = {
+                'DB': 0x84,
+                'I': 0x81,
+                'Q': 0x82,
+                'M': 0x83,
+            }
+            area_code = area_map.get(area.upper(), 0x84)
+
+            # 使用 write_multi_vars 正确传递数据类型
+            try:
+                from snap7.type import S7DataItem
+
+                # 创建数据缓冲区
+                buffer = (ctypes.c_ubyte * len(write_data))(*write_data)
+
+                # 创建 S7DataItem
+                item = S7DataItem()
+                item.Area = area_code
+                item.WordLen = word_len
+                item.DBNumber = db_number if area.upper() == 'DB' else 0
+                item.Start = start
+                item.Amount = amount  # 数据个数
+                item.pData = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte))
+
+                # 创建 item 列表
+                items = [item]
+
+                # 执行写入
+                result_code = client.write_multi_vars(items)
+
+                if result_code == 0:
+                    add_log('INFO', f'S7客户端写入成功: 区域={area}, DB={db_number}, 起始={start}, 数量={amount}, 类型={data_type}')
+                    return jsonify({
+                        'success': True,
+                        'message': f'已写入 {amount} 个{data_type}数据',
+                        'element_count': amount,
+                        'byte_count': len(write_data),
+                        'data_type': data_type
+                    })
+                else:
+                    add_log('ERROR', f'S7客户端写入失败: 结果码={result_code}')
+                    # 回退到 db_write
+                    if area.upper() == 'DB':
+                        client.db_write(db_number, start, bytearray(write_data))
+                    else:
+                        client.write_area(area_code, db_number, start, bytearray(write_data))
+                    return jsonify({
+                        'success': True,
+                        'message': f'已写入 {len(write_data)} 字节',
+                        'element_count': amount,
+                        'byte_count': len(write_data),
+                        'data_type': data_type
+                    })
+            except Exception as e:
+                add_log('WARNING', f'write_multi_vars失败，回退到db_write: {e}')
+                # 回退到 db_write
+                data_bytes = bytearray(write_data)
+                if area.upper() == 'DB':
+                    client.db_write(db_number, start, data_bytes)
+                else:
+                    client.write_area(area_code, db_number, start, data_bytes)
+
+                add_log('INFO', f'S7客户端写入: 区域={area}, DB={db_number}, 起始={start}, 字节数={len(write_data)}')
+
+                return jsonify({
+                    'success': True,
+                    'message': f'已写入 {amount} 个{data_type}数据（{len(write_data)}字节）',
+                    'element_count': amount,
+                    'byte_count': len(write_data),
+                    'data_type': data_type
+                })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7客户端写入失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/status', methods=['GET'])
+def s7_client_status():
+    """获取S7客户端状态"""
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({
+                    'success': True,
+                    'connected': False,
+                    'message': '客户端未连接'
+                })
+
+            client_info = s7_clients[client_id]
+            return jsonify({
+                'success': True,
+                'connected': client_info.get('connected', False),
+                'server_ip': client_info.get('server_ip'),
+                'port': client_info.get('port'),
+                'rack': client_info.get('rack'),
+                'slot': client_info.get('slot')
+            })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== S7 客户端控制 API ====================
+
+@app.route('/api/industrial_protocol/s7_client/plc_cold_start', methods=['POST'])
+def s7_client_plc_cold_start():
+    """S7 PLC冷启动"""
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        client_id = request.json.get('client_id', 'default') if request.json else 'default'
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            result = client.plc_cold_start()
+            add_log('INFO', f'S7 PLC冷启动: client_id={client_id}, result={result}')
+
+            return jsonify({
+                'success': True,
+                'message': 'PLC冷启动成功',
+                'result': result
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7 PLC冷启动失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/plc_hot_start', methods=['POST'])
+def s7_client_plc_hot_start():
+    """S7 PLC热启动"""
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        client_id = request.json.get('client_id', 'default') if request.json else 'default'
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            result = client.plc_hot_start()
+            add_log('INFO', f'S7 PLC热启动: client_id={client_id}, result={result}')
+
+            return jsonify({
+                'success': True,
+                'message': 'PLC热启动成功',
+                'result': result
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7 PLC热启动失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/plc_stop', methods=['POST'])
+def s7_client_plc_stop():
+    """停止S7 PLC"""
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        client_id = request.json.get('client_id', 'default') if request.json else 'default'
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            result = client.plc_stop()
+            add_log('INFO', f'S7 PLC停止: client_id={client_id}, result={result}')
+
+            return jsonify({
+                'success': True,
+                'message': 'PLC已停止',
+                'result': result
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7 PLC停止失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/get_cpu_info', methods=['GET'])
+def s7_client_get_cpu_info():
+    """获取S7 CPU信息"""
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            cpu_info = client.get_cpu_info()
+
+            # 转换为可序列化的字典（bytes需要decode）
+            def safe_decode(val):
+                """安全解码bytes或字符串"""
+                if isinstance(val, bytes):
+                    try:
+                        return val.decode('utf-8').rstrip('\x00')
+                    except:
+                        return val.hex()
+                return str(val) if val else ''
+
+            result = {
+                'module_type': safe_decode(getattr(cpu_info, 'ModuleType', '')),
+                'serial_number': safe_decode(getattr(cpu_info, 'SerialNumber', '')),
+                'as_name': safe_decode(getattr(cpu_info, 'ASName', '')),
+                'module_name': safe_decode(getattr(cpu_info, 'ModuleName', '')),
+                'copyright': safe_decode(getattr(cpu_info, 'Copyright', '')),
+            }
+
+            add_log('INFO', f'S7 CPU信息: client_id={client_id}, module={result["module_name"]}')
+
+            return jsonify({
+                'success': True,
+                **result
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'获取S7 CPU信息失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/get_cpu_state', methods=['GET'])
+def s7_client_get_cpu_state():
+    """获取S7 CPU运行状态"""
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            state = client.get_cpu_state()
+
+            # 处理bytes类型的返回值
+            if isinstance(state, bytes):
+                state = state.decode('utf-8').rstrip('\x00')
+
+            # 标准化状态字符串
+            # snap7返回的状态可能是: S7CPUSTATUSRUN, S7CPUSTATUSSTOP, S7CPUSTATUSUNKNOWN
+            state_str = str(state).upper() if state else 'UNKNOWN'
+
+            # 判断是否运行中
+            is_running = 'RUN' in state_str and 'STOP' not in state_str
+
+            add_log('DEBUG', f'S7 CPU状态: client_id={client_id}, state={state_str}, running={is_running}')
+
+            return jsonify({
+                'success': True,
+                'state': state_str,
+                'running': is_running
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'获取S7 CPU状态失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/list_blocks', methods=['GET'])
+def s7_client_list_blocks():
+    """列出S7 PLC中的所有块"""
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            blocks_list = client.list_blocks()
+
+            # 兼容不同snap7版本的BlocksList属性名
+            # snap7 1.3: 使用小写属性名 (ob_count, db_count等)
+            # snap7 2.0.2: 可能使用不同属性名
+            def get_block_count(blocks_list, attr_names):
+                """尝试多个属性名获取块计数"""
+                for attr in attr_names:
+                    val = getattr(blocks_list, attr, None)
+                    if val is not None:
+                        return val
+                return 0
+
+            result = {
+                'DB': get_block_count(blocks_list, ['db_count', 'DBCount', 'db']),
+                'OB': get_block_count(blocks_list, ['ob_count', 'OBCount', 'ob']),
+                'FC': get_block_count(blocks_list, ['fc_count', 'FCCount', 'fc']),
+                'FB': get_block_count(blocks_list, ['fb_count', 'FBCount', 'fb']),
+                'SDB': get_block_count(blocks_list, ['sdb_count', 'SDBCount', 'sdb']),
+                'SFC': get_block_count(blocks_list, ['sfc_count', 'SFCCount', 'sfc']),
+                'SFB': get_block_count(blocks_list, ['sfb_count', 'SFBCount', 'sfb']),
+            }
+
+            add_log('INFO', f'S7 块列表: client_id={client_id}, DB={result["DB"]}, FC={result["FC"]}')
+
+            return jsonify({
+                'success': True,
+                'blocks': result
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'获取S7块列表失败: {error_msg}')
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/upload_block', methods=['POST'])
+def s7_client_upload_block():
+    """上传块到S7 PLC (PC → PLC)
+
+    注意：在snap7中，download()是将块写入PLC
+
+    警告：上传块需要有效的S7块格式数据，普通字节数据无法写入。
+    建议先使用下载块功能获取有效格式的块数据，修改后再上传。
+    """
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        block_type = data.get('block_type', 'db')  # db, ob, fc, fb, sdb, sfc, sfb
+        block_number = data.get('block_number', 1)
+        # 兼容两个字段名：block_data(base64编码) 或 data(字节数组)
+        block_data_b64 = data.get('block_data', '')
+        block_data_array = data.get('data', [])
+
+        # 处理数据：支持base64或字节数组
+        if block_data_b64:
+            import base64
+            block_bytes = base64.b64decode(block_data_b64)
+            block_bytearray = bytearray(block_bytes)
+        elif block_data_array:
+            # 前端发送的是字节数组
+            block_bytearray = bytearray(block_data_array)
+        else:
+            return jsonify({
+                'success': False,
+                'error': '缺少块数据。注意：上传块需要有效的S7块格式数据，建议先下载块获取有效格式。'
+            }), 400
+
+        # 检查数据长度（S7块最小需要几十字节的头部）
+        if len(block_bytearray) < 32:
+            return jsonify({
+                'success': False,
+                'error': f'块数据太小({len(block_bytearray)}字节)，有效的S7块需要包含头部信息。建议先下载块获取有效格式。'
+            }), 400
+
+        # 块类型映射（兼容snap7 1.3和2.0.2）
+        # 2.0.2: Block.DB, Block.FB 等（大写）
+        # 1.3: 可能使用不同的导入方式
+        try:
+            from snap7.type import Block
+            block_type_map = {
+                'db': Block.DB,
+                'ob': Block.OB,
+                'fc': Block.FC,
+                'fb': Block.FB,
+                'sdb': Block.SDB,
+                'sfc': Block.SFC,
+                'sfb': Block.SFB
+            }
+        except ImportError:
+            # 1.3 兼容：使用数值常量
+            block_type_map = {
+                'db': 0x41,   # 'A'
+                'ob': 0x38,   # '8'
+                'fc': 0x43,   # 'C'
+                'fb': 0x45,   # 'E'
+                'sdb': 0x42,  # 'B'
+                'sfc': 0x44,  # 'D'
+                'sfb': 0x46   # 'F'
+            }
+
+        block_type_enum = block_type_map.get(block_type.lower(), block_type_map['db'])
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            # 下载块到PLC（snap7术语：download = 写入PLC）
+            # 参数顺序：data在前，block_num在后
+            client.download(block_bytearray, block_number)
+
+            add_log('INFO', f'S7 上传块: client_id={client_id}, type={block_type}, number={block_number}, size={len(block_bytearray)}')
+
+            return jsonify({
+                'success': True,
+                'message': f'块{block_number}上传成功',
+                'block_type': block_type,
+                'block_number': block_number,
+                'size': len(block_bytearray)
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7 上传块失败: {error_msg}')
+        # 提供更友好的错误信息
+        if 'Invalid block size' in error_msg:
+            return jsonify({'success': False, 'error': '块格式无效：数据大小或格式不符合S7块规范。建议先下载块获取有效格式。'}), 500
+        elif 'protection' in error_msg.lower() or 'not authorized' in error_msg.lower():
+            return jsonify({'success': False, 'error': 'S7模拟器不支持块上传功能，需连接真实PLC。'}), 500
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@app.route('/api/industrial_protocol/s7_client/download_block', methods=['POST'])
+def s7_client_download_block():
+    """从S7 PLC下载块 (PLC → PC)
+
+    注意：在snap7中，upload()是从PLC读取块
+    """
+    if not SNAP7_AVAILABLE:
+        return jsonify({'success': False, 'error': 'python-snap7不可用'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        block_number = data.get('block_number', 1)
+
+        with s7_client_lock:
+            if client_id not in s7_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = s7_clients[client_id]
+            client = client_info.get('client')
+
+            if not client or not client_info.get('connected'):
+                return jsonify({'success': False, 'error': '客户端连接已断开'}), 400
+
+            # 从PLC上传块（snap7术语：upload = 从PLC读取）
+            block_data = client.upload(block_number)
+
+            # 编码为base64
+            import base64
+            block_base64 = base64.b64encode(bytes(block_data)).decode('utf-8')
+
+            add_log('INFO', f'S7 下载块: client_id={client_id}, number={block_number}, size={len(block_data)}')
+
+            return jsonify({
+                'success': True,
+                'message': f'块{block_number}下载成功',
+                'block_number': block_number,
+                'size': len(block_data),
+                'data': block_base64
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        add_log('ERROR', f'S7 下载块失败: {error_msg}')
+        # 提供更友好的错误信息
+        if 'protection' in error_msg.lower() or 'not authorized' in error_msg.lower():
+            return jsonify({'success': False, 'error': 'S7模拟器不支持块下载功能，需连接真实PLC。'}), 500
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
 @app.route('/api/industrial_protocol/s7_server/start', methods=['POST'])
 def s7_server_start():
     """启动S7服务端"""
@@ -2150,15 +3196,15 @@ def s7_server_start():
             
             # 创建新的S7服务器
             try:
-                server = snap7_server_module.Server()
+                server = Snap7Server()
                 
                 # 初始化数据存储（DB块、M区等）
                 if server_id not in s7_data_storage:
                     s7_data_storage[server_id] = {
                         'db': {},  # 数据块存储，格式: {db_number: bytearray}
-                        'm': bytearray(65536),  # M区存储（64KB）
-                        'i': bytearray(65536),  # 输入区存储（64KB）
-                        'q': bytearray(65536),  # 输出区存储（64KB）
+                        'm': bytearray(S7_DB_MAX_SIZE),  # M区存储
+                        'i': bytearray(S7_DB_MAX_SIZE),  # 输入区存储
+                        'q': bytearray(S7_DB_MAX_SIZE),  # 输出区存储
                     }
                 
                 # 确保DB1、DB2、DB3已初始化（维护三组独立数据）
@@ -2173,8 +3219,8 @@ def s7_server_start():
                             add_log('INFO', f'S7服务端从数据库加载DB{db_num}数据存储（{len(db_data)}字节）')
                         else:
                             # 初始化DB为不同的值：DB1全1，DB2全2，DB3全3
-                            storage['db'][db_num] = bytearray([db_num] * 65536)
-                            add_log('INFO', f'S7服务端初始化DB{db_num}数据存储（65536字节，初始值={db_num}）')
+                            storage['db'][db_num] = bytearray([db_num] * S7_DB_MAX_SIZE)
+                            add_log('INFO', f'S7服务端初始化DB{db_num}数据存储（{S7_DB_MAX_SIZE}字节，初始值={db_num}）')
                             # 保存默认值到数据库
                             save_s7_db_to_database(server_id, db_num, storage['db'][db_num])
                     else:
@@ -2196,11 +3242,23 @@ def s7_server_start():
                         for line in hex_lines:
                             add_log('INFO', line)
                 add_log('INFO', '=' * 70)
-                
+
+                # 设置保护级别为0（无保护，允许上传/下载块）
+                # 必须在服务器启动前设置
+                try:
+                    if hasattr(server, 'set_protection_level'):
+                        server.set_protection_level(0)
+                        add_log('INFO', 'S7服务端保护级别设置为0（无保护，允许上传/下载块）')
+                    else:
+                        add_log('WARNING', 'S7服务端不支持set_protection_level方法')
+                except Exception as e:
+                    add_log('WARNING', f'设置保护级别失败: {e}')
+
                 # 设置数据回调函数
-                # 获取SrvArea枚举（用于区域标识）
-                area_enum = snap7_area if snap7_area is not None else (snap7.SrvArea if hasattr(snap7, 'SrvArea') else None)
-                
+                # 获取SrvArea枚举（用于区域标识）- 服务端使用
+                # 注意：服务端回调收到的area值可能是协议值(0x84)或枚举值(5)，需要都支持
+                area_enum = snap7_srv_area if snap7_srv_area is not None else (snap7.SrvArea if hasattr(snap7, 'SrvArea') else None)
+
                 def read_callback(area, db_number, start, size):
                     """读取数据回调 - 打印请求和响应，并同步数据到ctypes缓冲区"""
                     add_log('DEBUG', f'[read_callback] 函数被调用: area=0x{area:02X}({area}), db_number={db_number}, start={start}, size={size}')
@@ -2209,24 +3267,24 @@ def s7_server_start():
                         # 打印请求信息（包括区域码的十六进制和十进制）
                         area_name = "DB" if (area_enum and area == area_enum.DB) else f"area=0x{area:02X}({area})"
                         add_log('INFO', f'[S7读取请求] {area_name}, DB块号:{db_number}, 起始地址:{start}, 长度:{size}')
-                        
-                        # 关键修复：area可能是132(0x84)或枚举值5，都需要匹配DB区域
-                        # 使用SrvArea枚举值进行比较，同时支持协议区域码132(0x84)
+
+                        # 关键修复：area可能是协议值132(0x84)或枚举值5，都需要匹配DB区域
+                        # 服务端注册时使用枚举值5，但客户端发送的可能是协议值0x84
                         is_db_area = False
                         if area_enum:
-                            # 检查是否是DB区域（枚举值5或协议值132）
+                            # 检查是否是DB区域（枚举值5或协议值132/0x84）
                             enum_db_value = area_enum.DB.value if hasattr(area_enum.DB, 'value') else int(area_enum.DB)
-                            if area == area_enum.DB or area == enum_db_value or area == 132 or area == 0x84:
+                            if area == area_enum.DB or area == enum_db_value or area == 132 or area == 0x84 or area == 5:
                                 is_db_area = True
                         else:
-                            # 降级：直接使用整数比较
-                            if area == 132 or area == 0x84:
+                            # 降级：直接使用整数比较（支持枚举值5和协议值0x84）
+                            if area == 5 or area == 132 or area == 0x84:
                                 is_db_area = True
                         
                         if is_db_area:
                             if db_number not in storage['db']:
-                                storage['db'][db_number] = bytearray(65536)  # 默认64KB
-                                add_log('WARNING', f'[S7读取] DB{db_number}不存在，已创建65536字节缓冲区')
+                                storage['db'][db_number] = bytearray(S7_DB_MAX_SIZE)  # 默认32KB
+                                add_log('WARNING', f'[S7读取] DB{db_number}不存在，已创建{S7_DB_MAX_SIZE}字节缓冲区')
                             db_data = storage['db'][db_number]
                             
                             # 检查地址范围
@@ -2277,7 +3335,7 @@ def s7_server_start():
                             # DB=132(0x84), MK=131(0x83), PE=129(0x81), PA=130(0x82)
                             if area == 132 or area == 0x84:  # DB
                                 if db_number not in storage['db']:
-                                    storage['db'][db_number] = bytearray(65536)
+                                    storage['db'][db_number] = bytearray(S7_DB_MAX_SIZE)
                                 db_data = storage['db'][db_number]
                                 if start + size <= len(db_data):
                                     return db_data[start:start+size]
@@ -2320,8 +3378,8 @@ def s7_server_start():
                         if area_enum:
                             if area == area_enum.DB:
                                 if db_number not in storage['db']:
-                                    storage['db'][db_number] = bytearray(65536)
-                                    add_log('DEBUG', f'[S7写入] DB{db_number}不存在，已创建65536字节缓冲区')
+                                    storage['db'][db_number] = bytearray(S7_DB_MAX_SIZE)
+                                    add_log('DEBUG', f'[S7写入] DB{db_number}不存在，已创建{S7_DB_MAX_SIZE}字节缓冲区')
                                 db_data = storage['db'][db_number]
                                 
                                 # 检查地址范围
@@ -2356,7 +3414,7 @@ def s7_server_start():
                             # 降级：使用整数比较
                             if area == 132 or area == 0x84:  # DB
                                 if db_number not in storage['db']:
-                                    storage['db'][db_number] = bytearray(65536)
+                                    storage['db'][db_number] = bytearray(S7_DB_MAX_SIZE)
                                 db_data = storage['db'][db_number]
                                 if start + size <= len(db_data):
                                     db_data[start:start+size] = data
@@ -2525,7 +3583,7 @@ def s7_server_start():
                             raise Exception(f'S7服务器启动失败: {e}')
                         
                         time.sleep(0.5)
-                        
+
                         # 关键：用正确的区域码0x84注册DB（必须在服务器启动后注册）
                         add_log('INFO', '=== 开始注册DB区域（snap7 2.0.2） ===')
                         register_s7_areas(server_id, db_list=[1, 2, 3])
@@ -2611,8 +3669,8 @@ def s7_server_start():
                                                             c_buffer[i] = db_data[i]
                                             
                                             # 校验地址范围
-                                            if start_addr + length > 65536:
-                                                add_log('WARNING', f'读取越界: DB{db_num}, 地址:{start_addr}, 长度:{length}（最大:65536）')
+                                            if start_addr + length > S7_DB_MAX_SIZE:
+                                                add_log('WARNING', f'读取越界: DB{db_num}, 地址:{start_addr}, 长度:{length}（最大:{S7_DB_MAX_SIZE}）')
                                             else:
                                                 # 提取返回数据
                                                 with s7_server_lock:
@@ -2659,16 +3717,42 @@ def s7_server_start():
                                         start_addr = evt_param3
                                         length = evt_param4
                                         add_log('INFO', f'客户端写入请求: DB{db_num}, 地址{start_addr}, 长度{length}')
-                                        
-                                        # 从缓冲区获取写入的数据
+
+                                        # 从缓冲区获取写入的数据并持久化到存储
                                         with s7_server_lock:
                                             server_info = s7_servers.get(server_id)
+                                            storage = s7_data_storage.get(server_id)
                                             if server_info and 'ctypes_buffers' in server_info and db_num in server_info['ctypes_buffers']:
                                                 c_buffer = server_info['ctypes_buffers'][db_num]
                                                 if start_addr + length <= len(c_buffer):
                                                     written_data = bytes(c_buffer[start_addr:start_addr+length])
                                                     hex_data = ' '.join([f'{b:02X}' for b in written_data])
                                                     add_log('INFO', f'写入数据: {hex_data}')
+                                                    add_log('INFO', f'  十进制: {list(written_data)}')
+
+                                            # 关键修复：将ctypes缓冲区的数据同步到s7_data_storage
+                                            if storage and db_num in storage.get('db', {}):
+                                                db_data = storage['db'][db_num]
+                                                if server_info and 'ctypes_buffers' in server_info and db_num in server_info['ctypes_buffers']:
+                                                    c_buffer = server_info['ctypes_buffers'][db_num]
+                                                    # 从ctypes缓冲区复制到存储
+                                                    if start_addr + length <= len(db_data) and start_addr + length <= len(c_buffer):
+                                                        for i in range(length):
+                                                            db_data[start_addr + i] = c_buffer[start_addr + i]
+                                                        add_log('INFO', f'已将写入数据同步到存储: DB{db_num}, 地址{start_addr}, 长度{length}')
+                                                        # 保存到数据库
+                                                        save_s7_db_to_database(server_id, db_num, db_data)
+                                                        add_log('INFO', f'已保存DB{db_num}数据到数据库')
+                                            elif storage and db_num not in storage.get('db', {}):
+                                                # 如果DB不存在，创建并从ctypes缓冲区复制数据
+                                                storage['db'][db_num] = bytearray(S7_DB_MAX_SIZE)
+                                                if server_info and 'ctypes_buffers' in server_info and db_num in server_info['ctypes_buffers']:
+                                                    c_buffer = server_info['ctypes_buffers'][db_num]
+                                                    sync_size = min(len(c_buffer), len(storage['db'][db_num]))
+                                                    for i in range(sync_size):
+                                                        storage['db'][db_num][i] = c_buffer[i]
+                                                    save_s7_db_to_database(server_id, db_num, storage['db'][db_num])
+                                                    add_log('INFO', f'已创建DB{db_num}并同步数据到存储和数据库')
                                     
                                     # 处理连接事件
                                     elif evt_code == 0x80000:
@@ -2881,7 +3965,7 @@ def s7_server_get_data():
 
                 if area == 'DB':
                     if db_number not in storage['db']:
-                        storage['db'][db_number] = bytearray(65536)
+                        storage['db'][db_number] = bytearray(S7_DB_MAX_SIZE)
                         add_log('WARNING', f'S7读取: 创建新DB{db_number}数据块')
                     db_data = storage['db'][db_number]
                     if start + size <= len(db_data):
@@ -2980,7 +4064,7 @@ def s7_server_set_data():
                 
                 if area == 'DB':
                     if db_number not in storage['db']:
-                        storage['db'][db_number] = bytearray(65536)
+                        storage['db'][db_number] = bytearray(S7_DB_MAX_SIZE)
                         add_log('WARNING', f'S7写入: 创建新DB{db_number}数据块')
                     db_data = storage['db'][db_number]
                     if start + size <= len(db_data):
@@ -3068,6 +4152,280 @@ def s7_server_set_data():
                 
     except Exception as e:
         add_log('ERROR', f'设置S7数据请求异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== ENIP客户端路由 ==========
+
+@app.route('/api/industrial_protocol/enip_client/connect', methods=['POST'])
+def enip_client_connect():
+    """连接ENIP客户端"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        ip = data.get('ip')
+        port = data.get('port', 44818)
+        timeout = data.get('timeout', 5)
+
+        if not ip:
+            return jsonify({'success': False, 'error': 'IP地址不能为空'}), 400
+
+        with enip_client_lock:
+            # 如果已存在连接，先断开
+            if client_id in enip_clients:
+                try:
+                    enip_clients[client_id]['client'].disconnect()
+                except:
+                    pass
+                del enip_clients[client_id]
+
+            # 创建新客户端
+            client = EnipClient()
+            success, message = client.connect(ip, port, timeout)
+
+            if success:
+                enip_clients[client_id] = {
+                    'client': client,
+                    'ip': ip,
+                    'port': port,
+                    'connected': True,
+                    'connect_time': time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                add_log('INFO', f'ENIP客户端连接成功: {ip}:{port}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP客户端连接失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP客户端连接异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/disconnect', methods=['POST'])
+def enip_client_disconnect():
+    """断开ENIP客户端连接"""
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+
+        with enip_client_lock:
+            if client_id in enip_clients:
+                try:
+                    enip_clients[client_id]['client'].disconnect()
+                except:
+                    pass
+                del enip_clients[client_id]
+                add_log('INFO', f'ENIP客户端断开连接: {client_id}')
+                return jsonify({'success': True, 'message': '断开成功'})
+            else:
+                return jsonify({'success': False, 'error': '连接不存在'}), 404
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP客户端断开异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/status', methods=['GET'])
+def enip_client_status():
+    """获取ENIP客户端连接状态"""
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with enip_client_lock:
+            if client_id in enip_clients:
+                client_info = enip_clients[client_id]
+                status = client_info['client'].status()
+                return jsonify({
+                    'success': True,
+                    'connected': client_info['connected'],
+                    'ip': client_info['ip'],
+                    'port': client_info['port'],
+                    'session_handle': status.get('session_handle', 0),
+                    'connect_time': client_info['connect_time']
+                })
+            else:
+                return jsonify({'success': True, 'connected': False})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/read', methods=['POST'])
+def enip_client_read():
+    """读取ENIP设备属性"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        class_id = data.get('class_id', 0x01)  # 默认Identity对象
+        instance = data.get('instance', 1)
+        attribute = data.get('attribute', 1)
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, value, message = client.read_attribute(class_id, instance, attribute)
+
+            if success:
+                # 将bytes转换为hex字符串以便JSON传输
+                if isinstance(value, bytes):
+                    value_hex = value.hex()
+                else:
+                    value_hex = str(value)
+                add_log('INFO', f'ENIP读取属性成功: class={class_id}, instance={instance}, attribute={attribute}')
+                return jsonify({'success': True, 'data': value_hex, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP读取属性失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP读取属性异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/write', methods=['POST'])
+def enip_client_write():
+    """写入ENIP设备属性"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        class_id = data.get('class_id', 0x01)
+        instance = data.get('instance', 1)
+        attribute = data.get('attribute', 1)
+        value_hex = data.get('value', '')
+
+        # 将hex字符串转换为bytes
+        try:
+            value = bytes.fromhex(value_hex) if value_hex else b''
+        except ValueError:
+            return jsonify({'success': False, 'error': '无效的hex值'}), 400
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, message = client.write_attribute(class_id, instance, attribute, value)
+
+            if success:
+                add_log('INFO', f'ENIP写入属性成功: class={class_id}, instance={instance}, attribute={attribute}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP写入属性失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP写入属性异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== ENIP服务端路由 ==========
+
+@app.route('/api/industrial_protocol/enip_server/start', methods=['POST'])
+def enip_server_start():
+    """启动ENIP服务端"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        server_id = data.get('server_id', 'default')
+        host = data.get('host', '0.0.0.0')
+        port = data.get('port', 44818)
+
+        with enip_server_lock:
+            # 如果已存在服务端，先停止
+            if server_id in enip_servers:
+                try:
+                    enip_servers[server_id]['server'].stop()
+                except:
+                    pass
+                del enip_servers[server_id]
+
+            # 创建新服务端
+            server = EnipServer()
+            success, message = server.start(host, port)
+
+            if success:
+                enip_servers[server_id] = {
+                    'server': server,
+                    'host': host,
+                    'port': port,
+                    'running': True,
+                    'start_time': time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                add_log('INFO', f'ENIP服务端启动成功: {host}:{port}')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP服务端启动失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP服务端启动异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_server/stop', methods=['POST'])
+def enip_server_stop():
+    """停止ENIP服务端"""
+    try:
+        data = request.json
+        server_id = data.get('server_id', 'default')
+
+        with enip_server_lock:
+            if server_id in enip_servers:
+                try:
+                    enip_servers[server_id]['server'].stop()
+                except:
+                    pass
+                del enip_servers[server_id]
+                add_log('INFO', f'ENIP服务端停止: {server_id}')
+                return jsonify({'success': True, 'message': '服务端已停止'})
+            else:
+                return jsonify({'success': False, 'error': '服务端不存在'}), 404
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP服务端停止异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_server/status', methods=['GET'])
+def enip_server_status():
+    """获取ENIP服务端状态"""
+    try:
+        server_id = request.args.get('server_id', 'default')
+
+        with enip_server_lock:
+            if server_id in enip_servers:
+                server_info = enip_servers[server_id]
+                status = server_info['server'].status()
+                return jsonify({
+                    'success': True,
+                    'running': status.get('running', False),
+                    'host': server_info['host'],
+                    'port': server_info['port'],
+                    'active_sessions': status.get('active_sessions', 0),
+                    'start_time': server_info.get('start_time', '')
+                })
+            else:
+                return jsonify({'success': True, 'running': False})
+
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
