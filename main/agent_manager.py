@@ -558,7 +558,13 @@ class RemoteAgentManager:
             # 需要上传的文件列表
             files_to_upload = [
                 ('industrial_protocol_agent.py', '工控协议Agent'),
-                ('goose_sv_api.py', 'GOOSE/SV API')
+                ('goose_sv_api.py', 'GOOSE/SV API'),
+                # 新增协议 handler 文件
+                ('enip_handler.py', 'ENIP协议处理器'),
+                ('dnp3_handler.py', 'DNP3协议处理器'),
+                ('dnp3_server_win.py', 'DNP3服务端子进程'),
+                ('bacnet_handler.py', 'BACnet协议处理器'),
+                ('mms_handler.py', 'MMS/IEC61850协议处理器')
             ]
             
             for filename, description in files_to_upload:
@@ -716,7 +722,13 @@ class RemoteAgentManager:
                             
                             files_to_verify = [
                                 ('industrial_protocol_agent.py', '工控协议Agent'),
-                                ('goose_sv_api.py', 'GOOSE/SV API')
+                                ('goose_sv_api.py', 'GOOSE/SV API'),
+                                # 新增协议 handler 文件
+                                ('enip_handler.py', 'ENIP协议处理器'),
+                                ('dnp3_handler.py', 'DNP3协议处理器'),
+                                ('dnp3_server_win.py', 'DNP3服务端子进程'),
+                                ('bacnet_handler.py', 'BACnet协议处理器'),
+                                ('mms_handler.py', 'MMS/IEC61850协议处理器')
                             ]
                             
                             for filename, description in files_to_verify:
