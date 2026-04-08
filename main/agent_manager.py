@@ -564,7 +564,8 @@ class RemoteAgentManager:
                 ('dnp3_handler.py', 'DNP3协议处理器'),
                 ('dnp3_server_win.py', 'DNP3服务端子进程'),
                 ('bacnet_handler.py', 'BACnet协议处理器'),
-                ('mms_handler.py', 'MMS/IEC61850协议处理器')
+                ('mms_handler.py', 'MMS/IEC61850协议处理器'),
+                ('http_handler.py', 'HTTP协议处理器')
             ]
             
             for filename, description in files_to_upload:
