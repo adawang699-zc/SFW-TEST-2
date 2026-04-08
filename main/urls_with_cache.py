@@ -85,6 +85,8 @@ urlpatterns = [
     path('api/test_env/agent_control/', views_with_cache.test_env_agent_control, name='test_env_agent_control'),
     path('api/test_env/agent_status/', views_with_cache.test_env_agent_status, name='test_env_agent_status'),
     path('api/test_env/execute_command/', views_with_cache.test_env_execute_command, name='test_env_execute_command'),
+    path('api/test_env/batch_agent_control/', views_with_cache.test_env_batch_agent_control, name='test_env_batch_agent_control'),
+    path('api/test_env/agent_version_check/', views_with_cache.test_env_agent_version_check, name='test_env_agent_version_check'),
     # syslog日志接收
     path('syslog-receiver/', views_with_cache.syslog_receiver, name='syslog_receiver'),
     path('api/syslog/control/', views_with_cache.syslog_control, name='syslog_control'),

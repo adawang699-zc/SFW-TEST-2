@@ -4322,6 +4322,8 @@ def enip_client_read():
         instance = data.get('instance', 1)
         attribute = data.get('attribute', 1)
 
+        add_log('INFO', f'ENIP读取属性请求: client_id={client_id}, class={class_id}, instance={instance}, attribute={attribute}')
+
         with enip_client_lock:
             if client_id not in enip_clients:
                 return jsonify({'success': False, 'error': '客户端未连接'}), 400
@@ -4329,7 +4331,8 @@ def enip_client_read():
             client_info = enip_clients[client_id]
             client = client_info['client']
 
-            success, value, message = client.read_attribute(class_id, instance, attribute)
+            success, value, message = client.get_attribute_single(class_id, instance, attribute)
+            add_log('INFO', f'ENIP读取属性结果: success={success}, value={value}, message={message}')
 
             if success:
                 # 将bytes转换为hex字符串以便JSON传输
@@ -4337,8 +4340,9 @@ def enip_client_read():
                     value_hex = value.hex()
                 else:
                     value_hex = str(value)
-                add_log('INFO', f'ENIP读取属性成功: class={class_id}, instance={instance}, attribute={attribute}')
-                return jsonify({'success': True, 'data': value_hex, 'message': message})
+                add_log('INFO', f'ENIP读取属性成功: class={class_id}, instance={instance}, attribute={attribute}, value={value_hex}')
+                decoded = decode_enip_attribute_value(value_hex)
+                return jsonify({'success': True, 'data': value_hex, 'decoded': decoded['decoded'], 'message': message})
             else:
                 add_log('ERROR', f'ENIP读取属性失败: {message}')
                 return jsonify({'success': False, 'error': message}), 500
@@ -4346,6 +4350,35 @@ def enip_client_read():
     except Exception as e:
         add_log('ERROR', f'ENIP读取属性异常: {str(e)}')
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def decode_enip_attribute_value(value_hex: str) -> Dict[str, Any]:
+    """解码 ENIP 属性值为可读格式"""
+    result = {'hex': value_hex, 'decoded': {}}
+    if not value_hex:
+        return result
+
+    try:
+        data = bytes.fromhex(value_hex.replace(' ', ''))
+        if len(data) >= 2:
+            # 尝试多种类型解码
+            result['decoded']['uint16_le'] = struct.unpack('<H', data[:2])[0] if len(data) >= 2 else None
+            result['decoded']['uint16_be'] = struct.unpack('>H', data[:2])[0] if len(data) >= 2 else None
+            result['decoded']['uint32_le'] = struct.unpack('<I', data[:4])[0] if len(data) >= 4 else None
+            result['decoded']['uint32_be'] = struct.unpack('>I', data[:4])[0] if len(data) >= 4 else None
+            result['decoded']['int16_le'] = struct.unpack('<h', data[:2])[0] if len(data) >= 2 else None
+            result['decoded']['int32_le'] = struct.unpack('<i', data[:4])[0] if len(data) >= 4 else None
+            result['decoded']['float_le'] = struct.unpack('<f', data[:4])[0] if len(data) >= 4 else None
+            # 尝试 ASCII 解码
+            try:
+                ascii_str = data.decode('ascii', errors='ignore').rstrip('\x00')
+                if ascii_str.isprintable():
+                    result['decoded']['ascii'] = ascii_str
+            except:
+                pass
+    except Exception as e:
+        result['decoded']['error'] = f'解码失败：{e}'
+    return result
 
 
 @app.route('/api/industrial_protocol/enip_client/write', methods=['POST'])
@@ -4375,7 +4408,7 @@ def enip_client_write():
             client_info = enip_clients[client_id]
             client = client_info['client']
 
-            success, message = client.write_attribute(class_id, instance, attribute, value)
+            success, message = client.set_attribute_single(class_id, instance, attribute, value)
 
             if success:
                 add_log('INFO', f'ENIP写入属性成功: class={class_id}, instance={instance}, attribute={attribute}')
@@ -4386,6 +4419,372 @@ def enip_client_write():
 
     except Exception as e:
         add_log('ERROR', f'ENIP写入属性异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/get_identity', methods=['GET'])
+def enip_client_get_identity():
+    """获取设备标识信息"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, identity, message = client.list_identity()
+
+            if success:
+                add_log('INFO', f'ENIP获取设备标识成功')
+                return jsonify({'success': True, 'identity': identity, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP获取设备标识失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP获取设备标识异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/reset_device', methods=['POST'])
+def enip_client_reset_device():
+    """复位设备"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        class_id = data.get('class_id', 0x01)
+        instance = data.get('instance', 1)
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, message = client.reset_device(class_id, instance)
+
+            if success:
+                add_log('INFO', f'ENIP复位设备成功')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP复位设备失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP复位设备异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/start_device', methods=['POST'])
+def enip_client_start_device():
+    """启动设备"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        class_id = data.get('class_id', 0x01)
+        instance = data.get('instance', 1)
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, message = client.start_device(class_id, instance)
+
+            if success:
+                add_log('INFO', f'ENIP启动设备成功')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP启动设备失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP启动设备异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/stop_device', methods=['POST'])
+def enip_client_stop_device():
+    """停止设备"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        class_id = data.get('class_id', 0x01)
+        instance = data.get('instance', 1)
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, message = client.stop_device(class_id, instance)
+
+            if success:
+                add_log('INFO', f'ENIP停止设备成功')
+                return jsonify({'success': True, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP停止设备失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP停止设备异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/list_services', methods=['GET', 'POST'])
+def enip_client_list_services():
+    """获取服务列表"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, services, message = client.list_services()
+
+            if success:
+                add_log('INFO', f'ENIP获取服务列表成功')
+                return jsonify({'success': True, 'services': services, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP获取服务列表失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP获取服务列表异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/list_identity', methods=['GET', 'POST'])
+def enip_client_list_identity():
+    """获取设备标识 (ListIdentity命令)"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, identity, message = client.list_identity()
+
+            if success:
+                add_log('INFO', f'ENIP获取设备标识成功')
+                return jsonify({'success': True, 'identity': identity, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP获取设备标识失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP获取设备标识异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/list_interfaces', methods=['GET', 'POST'])
+def enip_client_list_interfaces():
+    """获取网络接口列表"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        client_id = request.args.get('client_id', 'default')
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, interfaces, message = client.list_interfaces()
+
+            if success:
+                add_log('INFO', f'ENIP获取网络接口列表成功')
+                return jsonify({'success': True, 'interfaces': interfaces, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP获取网络接口列表失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP获取网络接口列表异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/discover_devices', methods=['POST'])
+def enip_client_discover_devices():
+    """UDP广播发现设备"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        broadcast_addr = data.get('broadcast_addr', '255.255.255.255')
+        timeout = data.get('timeout', 2.0)
+
+        # discover_devices不需要已连接的客户端，创建临时客户端
+        temp_client = EnipClient()
+        success, devices, message = temp_client.discover_devices(broadcast_addr, timeout=timeout)
+
+        if success:
+            add_log('INFO', f'ENIP发现设备成功: 发现 {len(devices)} 个设备')
+            return jsonify({'success': True, 'devices': devices, 'message': message})
+        else:
+            add_log('ERROR', f'ENIP发现设备失败: {message}')
+            return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP发现设备异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/send_rr_data', methods=['POST'])
+def enip_client_send_rr_data():
+    """发送请求-响应数据 (SendRRData 0x006F)"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        cip_data_hex = data.get('cip_data', '')
+
+        # 将hex字符串转换为bytes
+        try:
+            cip_data = bytes.fromhex(cip_data_hex.replace(' ', '')) if cip_data_hex else b''
+        except ValueError:
+            return jsonify({'success': False, 'error': '无效的CIP数据格式'}), 400
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, result, message = client.send_rr_data(cip_data)
+
+            if success:
+                add_log('INFO', f'ENIP SendRRData成功')
+                return jsonify({'success': True, 'response': result, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP SendRRData失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP SendRRData异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/send_unit_data', methods=['POST'])
+def enip_client_send_unit_data():
+    """发送单元数据 (SendUnitData 0x0070)"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        cip_data_hex = data.get('cip_data', '')
+        conn_id = data.get('connection_id', None)
+
+        # 将hex字符串转换为bytes
+        try:
+            cip_data = bytes.fromhex(cip_data_hex.replace(' ', '')) if cip_data_hex else b''
+        except ValueError:
+            return jsonify({'success': False, 'error': '无效的CIP数据格式'}), 400
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, result, message = client.send_unit_data(cip_data, conn_id)
+
+            if success:
+                add_log('INFO', f'ENIP SendUnitData成功')
+                return jsonify({'success': True, 'response': result, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP SendUnitData失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP SendUnitData异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/enip_client/send_io_data', methods=['POST'])
+def enip_client_send_io_data():
+    """发送I/O数据 (UDP 2222端口)"""
+    if not ENIP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'ENIP模块未加载'}), 500
+
+    try:
+        data = request.json
+        client_id = data.get('client_id', 'default')
+        host = data.get('host', '')
+        io_data_hex = data.get('io_data', '')
+        connection_id = data.get('connection_id', None)
+
+        if not host:
+            return jsonify({'success': False, 'error': '缺少目标IP'}), 400
+
+        # 将hex字符串转换为bytes
+        try:
+            io_data = bytes.fromhex(io_data_hex.replace(' ', '')) if io_data_hex else b''
+        except ValueError:
+            return jsonify({'success': False, 'error': '无效的I/O数据格式'}), 400
+
+        with enip_client_lock:
+            if client_id not in enip_clients:
+                return jsonify({'success': False, 'error': '客户端未连接'}), 400
+
+            client_info = enip_clients[client_id]
+            client = client_info['client']
+
+            success, result, message = client.send_io_data(host, io_data, connection_id)
+
+            if success:
+                add_log('INFO', f'ENIP发送I/O数据成功')
+                return jsonify({'success': True, 'response': result, 'message': message})
+            else:
+                add_log('ERROR', f'ENIP发送I/O数据失败: {message}')
+                return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'ENIP发送I/O数据异常: {str(e)}')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

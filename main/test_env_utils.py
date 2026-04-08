@@ -442,47 +442,55 @@ def start_agent(host, user, password, port=22, env_type='linux'):
             
             # 短等待（3秒）让批处理执行完成
             time.sleep(3)
-            
-            # 等待30秒让Agent启动并绑定端口
-            time.sleep(30)
-            
-            # 检查是否启动成功：先检查进程，再检查端口
-            # 使用wmic精准查找packet_agent.py对应的pythonw.exe进程
-            process_cmd = 'wmic process where "commandline like \'%packet_agent.py%\' and name=\'pythonw.exe\'" get processid, name'
-            stdin_proc, stdout_proc, stderr_proc = ssh.exec_command(process_cmd, timeout=10)
-            proc_output = stdout_proc.read().decode('gbk', errors='ignore').strip()
-            
-            # 如果没找到，尝试更宽泛的查找
-            if not proc_output or 'pythonw.exe' not in proc_output:
-                process_cmd2 = 'wmic process where "commandline like \'%packet_agent%\'" get processid, name, commandline'
-                stdin_proc2, stdout_proc2, stderr_proc2 = ssh.exec_command(process_cmd2, timeout=10)
-                proc_output2 = stdout_proc2.read().decode('gbk', errors='ignore').strip()
-                if proc_output2 and proc_output2.replace('ProcessId', '').replace('Name', '').replace('CommandLine', '').strip():
-                    proc_output = proc_output2
-            
-            if proc_output and ('pythonw.exe' in proc_output or 'packet_agent' in proc_output.lower()):
-                # 检查8888端口是否监听（使用PowerShell命令，更可靠）
+
+            # 轮询检查Agent启动状态（最多20秒，每2秒检查一次）
+            max_wait_seconds = 20
+            check_interval = 2
+            agent_started = False
+
+            for wait_time in range(0, max_wait_seconds, check_interval):
+                # 检查8888端口是否监听（使用PowerShell命令）
                 port_cmd = 'powershell -Command "(Get-NetTCPConnection -LocalPort 8888 -State Listen).Count"'
                 stdin_port, stdout_port, stderr_port = ssh.exec_command(port_cmd, timeout=5)
                 port_count = stdout_port.read().decode('gbk', errors='ignore').strip()
-                
+
                 if port_count and port_count.isdigit() and int(port_count) > 0:
-                    logger.info(f'[启动Agent] Agent启动成功，8888端口已监听')
-                    
-                    # 启动工控协议Agent（industrial_protocol_agent.py，端口8889）
-                    industrial_agent_script = os.path.join(remote_dir, 'industrial_protocol_agent.py').replace('/', '\\')
-                    industrial_agent_log = os.path.join(remote_dir, 'industrial_protocol_agent.log').replace('/', '\\')
-                    
-                    # 检查industrial_protocol_agent.py是否存在
-                    check_cmd = f'if exist "{industrial_agent_script}" (echo FILE_EXISTS) else (echo FILE_NOT_EXISTS)'
-                    stdin_check, stdout_check, stderr_check = ssh.exec_command(check_cmd, timeout=5)
-                    check_result = stdout_check.read().decode('gbk', errors='ignore')
-                    
-                    if 'FILE_EXISTS' in check_result:
-                        # 启动industrial_protocol_agent.py（使用pythonw后台运行）
-                        start_industrial_cmd = f'start /b "{os.path.join(remote_dir, "start_industrial_agent.bat").replace("/", "\\")}"'
-                        # 先创建启动脚本
-                        start_industrial_bat = f'''@echo off
+                    agent_started = True
+                    logger.info(f'[启动Agent] Agent启动成功，8888端口已监听（等待{wait_time}秒）')
+                    break
+
+                time.sleep(check_interval)
+
+            if not agent_started:
+                # 最终检查进程是否存在（兜底检查）
+                process_cmd = 'wmic process where "commandline like \'%packet_agent.py%\' and name=\'pythonw.exe\'" get processid, name'
+                stdin_proc, stdout_proc, stderr_proc = ssh.exec_command(process_cmd, timeout=10)
+                proc_output = stdout_proc.read().decode('gbk', errors='ignore').strip()
+                if proc_output and ('pythonw.exe' in proc_output or 'packet_agent' in proc_output.lower()):
+                    # 进程存在但端口未监听，再等待5秒
+                    time.sleep(5)
+                    port_cmd = 'powershell -Command "(Get-NetTCPConnection -LocalPort 8888 -State Listen).Count"'
+                    stdin_port, stdout_port, stderr_port = ssh.exec_command(port_cmd, timeout=5)
+                    port_count = stdout_port.read().decode('gbk', errors='ignore').strip()
+                    if port_count and port_count.isdigit() and int(port_count) > 0:
+                        agent_started = True
+                        logger.info(f'[启动Agent] Agent启动成功（额外等待后端口监听）')
+
+            if agent_started:
+                # Agent启动成功，启动工控协议Agent
+                industrial_agent_script = os.path.join(remote_dir, 'industrial_protocol_agent.py').replace('/', '\\')
+                industrial_agent_log = os.path.join(remote_dir, 'industrial_protocol_agent.log').replace('/', '\\')
+
+                # 检查industrial_protocol_agent.py是否存在
+                check_cmd = f'if exist "{industrial_agent_script}" (echo FILE_EXISTS) else (echo FILE_NOT_EXISTS)'
+                stdin_check, stdout_check, stderr_check = ssh.exec_command(check_cmd, timeout=5)
+                check_result = stdout_check.read().decode('gbk', errors='ignore')
+
+                if 'FILE_EXISTS' in check_result:
+                    # 启动industrial_protocol_agent.py（使用pythonw后台运行）
+                    start_industrial_cmd = f'start /b "{os.path.join(remote_dir, "start_industrial_agent.bat").replace("/", "\\")}"'
+                    # 先创建启动脚本
+                    start_industrial_bat = f'''@echo off
 cd /d {remote_dir}
 set PYTHONW_PATH=C:\\Python39\\pythonw.exe
 if not exist "%PYTHONW_PATH%" (
@@ -491,65 +499,56 @@ if not exist "%PYTHONW_PATH%" (
 if exist "%PYTHONW_PATH%" (
     start /b "%PYTHONW_PATH%" "{industrial_agent_script}" 8889 >> "{industrial_agent_log}" 2>&1
 )'''
-                        # 创建临时批处理文件
-                        temp_bat = os.path.join(remote_dir, 'start_industrial_agent.bat').replace('/', '\\')
-                        try:
-                            sftp = ssh.open_sftp()
-                            with sftp.file(temp_bat, 'w') as f:
-                                f.write(start_industrial_bat)
-                            sftp.close()
-                            time.sleep(1)
-                            # 执行启动命令
-                            stdin_industrial, stdout_industrial, stderr_industrial = ssh.exec_command(start_industrial_cmd, timeout=10)
-                            stdout_industrial.read()
-                            time.sleep(3)
-                            # 检查8889端口
-                            port_cmd_industrial = 'powershell -Command "(Get-NetTCPConnection -LocalPort 8889 -State Listen).Count"'
-                            stdin_port_ind, stdout_port_ind, stderr_port_ind = ssh.exec_command(port_cmd_industrial, timeout=5)
-                            port_count_ind = stdout_port_ind.read().decode('gbk', errors='ignore').strip()
-                            if port_count_ind and port_count_ind.isdigit() and int(port_count_ind) > 0:
-                                logger.info(f'[启动Agent] 工控协议Agent启动成功，8889端口已监听')
-                        except Exception as e:
-                            logger.warning(f'[启动Agent] 启动工控协议Agent失败: {e}')
-                    
-                    # 创建成功标记文件
+                    # 创建临时批处理文件
+                    temp_bat = os.path.join(remote_dir, 'start_industrial_agent.bat').replace('/', '\\')
                     try:
-                        success_marker = os.path.join(remote_dir, 'agent_running.marker').replace('/', '\\')
-                        success_cmd = f'powershell -Command "$startTime = Get-Date -Format \'yyyy-MM-dd HH:mm:ss\'; $content = \"status=running`nstart_time=$startTime`nport=8888\"; Set-Content -Path \'{success_marker}\' -Value $content -Encoding UTF8"'
-                        stdin_success, stdout_success, stderr_success = ssh.exec_command(success_cmd, timeout=5)
-                        stdout_success.read()
-                        # 删除启动标记文件
-                        try:
-                            ssh.exec_command(f'del {marker_file}', timeout=3)
-                        except:
-                            pass
+                        sftp = ssh.open_sftp()
+                        with sftp.file(temp_bat, 'w') as f:
+                            f.write(start_industrial_bat)
+                        sftp.close()
+                        time.sleep(1)
+                        # 执行启动命令
+                        stdin_industrial, stdout_industrial, stderr_industrial = ssh.exec_command(start_industrial_cmd, timeout=10)
+                        stdout_industrial.read()
+                        time.sleep(2)
+                        # 检查8889端口
+                        port_cmd_industrial = 'powershell -Command "(Get-NetTCPConnection -LocalPort 8889 -State Listen).Count"'
+                        stdin_port_ind, stdout_port_ind, stderr_port_ind = ssh.exec_command(port_cmd_industrial, timeout=5)
+                        port_count_ind = stdout_port_ind.read().decode('gbk', errors='ignore').strip()
+                        if port_count_ind and port_count_ind.isdigit() and int(port_count_ind) > 0:
+                            logger.info(f'[启动Agent] 工控协议Agent启动成功，8889端口已监听')
                     except Exception as e:
+                        logger.warning(f'[启动Agent] 启动工控协议Agent失败: {e}')
+
+                # 创建成功标记文件
+                try:
+                    success_marker = os.path.join(remote_dir, 'agent_running.marker').replace('/', '\\')
+                    success_cmd = f'powershell -Command "$startTime = Get-Date -Format \'yyyy-MM-dd HH:mm:ss\'; $content = \"status=running`nstart_time=$startTime`nport=8888\"; Set-Content -Path \'{success_marker}\' -Value $content -Encoding UTF8"'
+                    stdin_success, stdout_success, stderr_success = ssh.exec_command(success_cmd, timeout=5)
+                    stdout_success.read()
+                    # 删除启动标记文件
+                    try:
+                        ssh.exec_command(f'del {marker_file}', timeout=3)
+                    except:
                         pass
-                    ssh.close()
-                    return True, 'Agent启动成功，8888端口已监听'
-                else:
-                    # 端口未监听，再次读取日志文件查看错误
-                    logger.warning(f'[启动Agent] Agent进程已启动，但8888端口未监听')
-                    try:
-                        time.sleep(3)
-                        stdin_log2, stdout_log2, stderr_log2 = ssh.exec_command(f'type {log_file}', timeout=5)
-                        log_content2 = stdout_log2.read().decode('utf-8', errors='ignore')
-                        if log_content2 and log_content2.strip():
-                            error_msg = f'Agent进程已启动，但8888端口未监听。日志: {log_content2[-500:]}'
-                        else:
-                            error_msg = 'Agent进程已启动，但8888端口未监听，日志文件为空。可能进程启动后立即退出，请检查Python环境和依赖'
-                    except Exception as e:
-                        error_msg = 'Agent进程已启动，但8888端口未监听，请检查日志文件'
-                    ssh.close()
-                    return False, error_msg
-            else:
-                # 进程未启动，读取所有日志排查问题
-                logger.error(f'[启动Agent] Agent启动失败，进程未找到')
-                start_log = read_remote_log(ssh, start_log_file, env_type)
-                batch_log = read_remote_log(ssh, batch_log_file, env_type)
-                agent_log = read_remote_log(ssh, log_file, env_type)
+                except Exception as e:
+                    pass
                 ssh.close()
-                return False, f'Agent启动失败，进程未找到。批处理日志：{batch_log[:500]}，Agent日志：{agent_log[:500]}'
+                return True, 'Agent启动成功，8888端口已监听'
+            else:
+                # Agent启动失败，读取日志排查问题
+                logger.warning(f'[启动Agent] Agent启动失败，8888端口未监听')
+                try:
+                    stdin_log2, stdout_log2, stderr_log2 = ssh.exec_command(f'type {log_file}', timeout=5)
+                    log_content2 = stdout_log2.read().decode('utf-8', errors='ignore')
+                    if log_content2 and log_content2.strip():
+                        error_msg = f'Agent启动失败，8888端口未监听。日志: {log_content2[-500:]}'
+                    else:
+                        error_msg = 'Agent启动失败，8888端口未监听，日志文件为空。可能进程启动后立即退出，请检查Python环境和依赖'
+                except Exception as e:
+                    error_msg = 'Agent启动失败，8888端口未监听，请检查日志文件'
+                ssh.close()
+                return False, error_msg
             
         else:
             # Linux环境：使用nohup后台运行

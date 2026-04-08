@@ -17,10 +17,31 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-list me-2"></i>测试环境列表</h5>
                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addEnvModal" onclick="resetEnvForm()">
-                        <i class="fas fa-plus me-2"></i>添加环境
+                        <i class="fas fa-plus me-1"></i>添加环境
                     </button>
                 </div>
                 <div class="card-body">
+                    <!-- 批量操作工具栏 -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+                        <div class="d-flex align-items-center">
+                            <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox" id="select-all-env" onchange="toggleSelectAll()">
+                                <label class="form-check-label" for="select-all-env">全选</label>
+                            </div>
+                            <span class="text-muted small" id="selected-count">已选择 0 个环境</span>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-success" id="batch-start-btn" onclick="batchAgentControl('start')" title="批量启动Agent">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" id="batch-stop-btn" onclick="batchAgentControl('stop')" title="批量停止Agent">
+                                <i class="fas fa-stop"></i>
+                            </button>
+                            <button class="btn btn-outline-info" id="check-version-btn" onclick="checkAllAgentVersions()" title="检查Agent版本">
+                                <i class="fas fa-code-branch"></i>
+                            </button>
+                        </div>
+                    </div>
                     <div id="env_list" class="list-group">
                         <div class="text-center text-muted py-5">
                             <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
@@ -604,17 +625,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center mb-2">
+                                <div class="form-check me-3">
+                                    <input class="form-check-input env-checkbox" type="checkbox" value="${env.id}" id="env-check-${env.id}" onchange="updateBatchButtons()">
+                                </div>
                                 <h6 class="mb-0 me-3">${escapeHtml(env.name)}</h6>
                                 <span class="badge me-2" id="connection-status-${env.id}">
                                     <i class="fas fa-spinner fa-spin me-1"></i>检查连接...
                                 </span>
-                                <span class="badge" id="agent-status-${env.id}">
+                                <span class="badge me-2" id="agent-status-${env.id}">
                                     <i class="fas fa-spinner fa-spin me-1"></i>检查Agent...
+                                </span>
+                                <span class="badge" id="version-status-${env.id}" title="Agent版本状态">
+                                    <i class="fas fa-question-circle me-1"></i>未检查
                                 </span>
                             </div>
                             <small class="text-muted">
-                                <i class="fas fa-network-wired me-1"></i>${env.ip}:${env.port} | 
-                                <i class="fas fa-tag me-1"></i>${typeName} | 
+                                <i class="fas fa-network-wired me-1"></i>${env.ip}:${env.port} |
+                                <i class="fas fa-tag me-1"></i>${typeName} |
                                 <i class="fas fa-user me-1"></i>${env.user}
                             </small>
                         </div>
@@ -1553,6 +1580,163 @@ document.addEventListener('DOMContentLoaded', function() {
             outputElement.style.color = '#ff8a80';  // 亮红色，错误
         });
     });
+
+    // ========== 批量操作功能 ==========
+
+    // 更新批量操作按钮状态
+    window.updateBatchButtons = function() {
+        const checkboxes = document.querySelectorAll('.env-checkbox:checked');
+        const count = checkboxes.length;
+
+        // 更新选中数量显示
+        document.getElementById('selected-count').textContent = `已选择 ${count} 个环境`;
+
+        // 更新按钮样式
+        const startBtn = document.getElementById('batch-start-btn');
+        const stopBtn = document.getElementById('batch-stop-btn');
+
+        if (count > 0) {
+            startBtn.classList.remove('btn-outline-success');
+            startBtn.classList.add('btn-success');
+            stopBtn.classList.remove('btn-outline-danger');
+            stopBtn.classList.add('btn-danger');
+        } else {
+            startBtn.classList.remove('btn-success');
+            startBtn.classList.add('btn-outline-success');
+            stopBtn.classList.remove('btn-danger');
+            stopBtn.classList.add('btn-outline-danger');
+        }
+    };
+
+    // 全选/取消全选
+    window.toggleSelectAll = function() {
+        const selectAllCheckbox = document.getElementById('select-all-env');
+        const checkboxes = document.querySelectorAll('.env-checkbox');
+        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+        updateBatchButtons();
+    };
+
+    // 批量控制Agent
+    window.batchAgentControl = async function(action) {
+        const checkboxes = document.querySelectorAll('.env-checkbox:checked');
+        const envIds = Array.from(checkboxes).map(cb => cb.value);
+
+        if (envIds.length === 0) {
+            alert('请先选择要操作的环境');
+            return;
+        }
+
+        const actionText = action === 'start' ? '启动' : '停止';
+        if (!confirm(`确定要批量${actionText} ${envIds.length} 个环境的Agent吗？`)) {
+            return;
+        }
+
+        // 更新按钮状态
+        const btn = document.getElementById(action === 'start' ? 'batch-start-btn' : 'batch-stop-btn');
+        const originalClass = btn.className;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await fetch('/api/test_env/batch_agent_control/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    env_ids: envIds,
+                    action: action
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                const summary = result.summary;
+                alert(`${actionText}完成！成功: ${summary.success}, 失败: ${summary.failed}`);
+
+                // 刷新环境列表
+                loadEnvironments();
+            } else {
+                alert(`批量${actionText}失败: ${result.error}`);
+            }
+        } catch (error) {
+            alert(`批量${actionText}异常: ${error.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.className = originalClass;
+            btn.innerHTML = action === 'start' ? '<i class="fas fa-play"></i>' : '<i class="fas fa-stop"></i>';
+        }
+    };
+
+    // 检查所有Agent版本
+    window.checkAllAgentVersions = async function() {
+        const btn = document.getElementById('check-version-btn');
+        const originalClass = btn.className;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        // 更新所有版本状态为检查中
+        document.querySelectorAll('[id^="version-status-"]').forEach(el => {
+            el.className = 'badge bg-secondary';
+            el.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中';
+        });
+
+        try {
+            const response = await fetch('/api/test_env/agent_version_check/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({})
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                for (const [envId, versionResult] of Object.entries(result.results)) {
+                    const statusEl = document.getElementById(`version-status-${envId}`);
+                    if (!statusEl) continue;
+
+                    switch (versionResult.status) {
+                        case 'up_to_date':
+                            statusEl.className = 'badge bg-success';
+                            statusEl.innerHTML = '<i class="fas fa-check-circle me-1"></i>版本一致';
+                            statusEl.title = '本地MD5: ' + versionResult.local_md5;
+                            break;
+                        case 'needs_update':
+                            statusEl.className = 'badge bg-warning text-dark';
+                            statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>需更新';
+                            statusEl.title = `本地: ${versionResult.local_md5}, 远程: ${versionResult.remote_md5 || '未知'}`;
+                            break;
+                        case 'not_found':
+                            statusEl.className = 'badge bg-secondary';
+                            statusEl.innerHTML = '<i class="fas fa-times-circle me-1"></i>未安装';
+                            statusEl.title = 'Agent文件不存在';
+                            break;
+                        case 'error':
+                            statusEl.className = 'badge bg-danger';
+                            statusEl.innerHTML = '<i class="fas fa-times-circle me-1"></i>错误';
+                            statusEl.title = versionResult.message;
+                            break;
+                        default:
+                            statusEl.className = 'badge bg-secondary';
+                            statusEl.innerHTML = '<i class="fas fa-question-circle me-1"></i>未知';
+                    }
+                }
+            } else {
+                alert('版本检查失败: ' + result.error);
+            }
+        } catch (error) {
+            alert('版本检查异常: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.className = originalClass;
+            btn.innerHTML = '<i class="fas fa-code-branch"></i>';
+        }
+    };
 });
 </script>
 {% endblock %}

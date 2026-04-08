@@ -807,26 +807,173 @@
                                     <hr class="my-3">
                                     <h6 class="text-muted mb-3"><i class="fas fa-database me-2"></i>CIP属性操作</h6>
                                     <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="enip_client_attribute_id" class="form-label">属性ID</label>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="enip_client_class_id" class="form-label">Class ID</label>
+                                            <select class="form-select" id="enip_client_class_id">
+                                                <option value="1">0x01 - Identity</option>
+                                                <option value="2">0x02 - Message Router</option>
+                                                <option value="4">0x04 - Assembly</option>
+                                                <option value="6">0x06 - TCP/IP IF</option>
+                                                <option value="7">0x07 - Ethernet Link</option>
+                                                <option value="custom">自定义</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="enip_client_instance" class="form-label">Instance</label>
+                                            <input type="number" class="form-control" id="enip_client_instance" value="1" min="1">
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="enip_client_attribute_id" class="form-label">Attribute</label>
                                             <input type="number" class="form-control" id="enip_client_attribute_id" value="1" min="0" max="65535">
                                         </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="enip_client_attribute_value" class="form-label">写入值</label>
-                                            <input type="text" class="form-control" id="enip_client_attribute_value" placeholder="例如: 100">
+                                        <div class="col-md-12 mb-3">
+                                            <label for="enip_client_attribute_value" class="form-label">写入值 (Hex)</label>
+                                            <input type="text" class="form-control" id="enip_client_attribute_value" placeholder="例如: 00 01 02 03">
                                         </div>
                                         <div class="col-md-12 mb-3">
                                             <div class="btn-group w-100" role="group">
-                                                <button id="enip_client_get_identity" class="btn btn-info" style="width: 33%;">
-                                                    <i class="fas fa-id-card me-1"></i>获取Identity
-                                                </button>
-                                                <button id="enip_client_read" class="btn btn-primary" style="width: 33%;">
+                                                <button id="enip_client_read" class="btn btn-primary" style="width: 50%;">
                                                     <i class="fas fa-download me-1"></i>读取属性
                                                 </button>
-                                                <button id="enip_client_write" class="btn btn-warning" style="width: 34%;">
+                                                <button id="enip_client_write" class="btn btn-warning" style="width: 50%;">
                                                     <i class="fas fa-upload me-1"></i>写入属性
                                                 </button>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 设备控制区域 -->
+                                    <hr class="my-2">
+                                    <h6 class="text-muted mb-3"><i class="fas fa-sliders-h me-2"></i>设备控制 (CIP服务)</h6>
+                                    <div class="small text-muted mb-2">Reset(0x05) / Start(0x06) / Stop(0x07)</div>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-2">
+                                            <button id="enip_client_reset_device" class="btn btn-outline-danger w-100">
+                                                <i class="fas fa-redo me-1"></i>Reset (0x05)
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <button id="enip_client_start_device" class="btn btn-outline-success w-100">
+                                                <i class="fas fa-play me-1"></i>Start (0x06)
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <button id="enip_client_stop_device" class="btn btn-outline-warning w-100">
+                                                <i class="fas fa-stop me-1"></i>Stop (0x07)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- 信息查询区域 -->
+                                    <hr class="my-2">
+                                    <h6 class="text-muted mb-3"><i class="fas fa-search me-2"></i>信息查询 (ENIP命令)</h6>
+                                    <div class="small text-muted mb-2">ListServices(0x0004) / ListIdentity(0x0063) / ListInterfaces(0x0064) / GetIdentity(已连接)</div>
+                                    <div class="row">
+                                        <div class="col-md-3 mb-2">
+                                            <button id="enip_client_list_services" class="btn btn-outline-info w-100">
+                                                <i class="fas fa-list me-1"></i>ListServices
+                                            </button>
+                                        </div>
+                                        <div class="col-md-3 mb-2">
+                                            <button id="enip_client_list_identity" class="btn btn-outline-primary w-100">
+                                                <i class="fas fa-id-badge me-1"></i>ListIdentity
+                                            </button>
+                                        </div>
+                                        <div class="col-md-3 mb-2">
+                                            <button id="enip_client_list_interfaces" class="btn btn-outline-secondary w-100">
+                                                <i class="fas fa-ethernet me-1"></i>ListInterfaces
+                                            </button>
+                                        </div>
+                                        <div class="col-md-3 mb-2">
+                                            <button id="enip_client_get_identity" class="btn btn-outline-success w-100" disabled>
+                                                <i class="fas fa-server me-1"></i>GetIdentity
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- 设备发现区域 -->
+                                    <hr class="my-2">
+                                    <h6 class="text-muted mb-3"><i class="fas fa-radar me-2"></i>设备发现 (UDP广播 ListIdentity)</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label for="enip_client_broadcast_addr" class="form-label">广播地址</label>
+                                            <input type="text" class="form-control" id="enip_client_broadcast_addr" value="255.255.255.255">
+                                        </div>
+                                        <div class="col-md-3 mb-2">
+                                            <label for="enip_client_discover_timeout" class="form-label">超时(秒)</label>
+                                            <input type="number" class="form-control" id="enip_client_discover_timeout" value="3" min="1" max="30">
+                                        </div>
+                                        <div class="col-md-3 mb-2">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button id="enip_client_discover_devices" class="btn btn-info w-100">
+                                                <i class="fas fa-search-location me-1"></i>发现设备
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- 高级操作区域 -->
+                                    <hr class="my-2">
+                                    <h6 class="text-muted mb-3"><i class="fas fa-terminal me-2"></i>高级操作 (SendRRData/SendUnitData)</h6>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-2">
+                                            <label for="enip_client_cip_service" class="form-label">CIP服务码</label>
+                                            <select class="form-select" id="enip_client_cip_service">
+                                                <option value="">自定义</option>
+                                                <option value="00">0x00 - No_Operation</option>
+                                                <option value="01">0x01 - Get_Attribute_All</option>
+                                                <option value="02">0x02 - Set_Attribute_All</option>
+                                                <option value="03">0x03 - Get_Attribute_List</option>
+                                                <option value="04">0x04 - Set_Attribute_List</option>
+                                                <option value="05">0x05 - Reset</option>
+                                                <option value="06">0x06 - Start</option>
+                                                <option value="07">0x07 - Stop</option>
+                                                <option value="08">0x08 - Create</option>
+                                                <option value="09">0x09 - Delete</option>
+                                                <option value="0A">0x0A - Multiple_Service_Packet</option>
+                                                <option value="0D">0x0D - Apply_Attributes</option>
+                                                <option value="0E" selected>0x0E - Get_Attribute_Single</option>
+                                                <option value="10">0x10 - Set_Attribute_Single</option>
+                                                <option value="11">0x11 - Find_Next_Object</option>
+                                                <option value="15">0x15 - Restore</option>
+                                                <option value="16">0x16 - Save</option>
+                                                <option value="18">0x18 - Get_Member</option>
+                                                <option value="19">0x19 - Set_Member</option>
+                                                <option value="1A">0x1A - Insert_Member</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-8 mb-2">
+                                            <label for="enip_client_cip_data" class="form-label">CIP报文数据 (Hex)</label>
+                                            <input type="text" class="form-control" id="enip_client_cip_data" placeholder="例如: 0E 00 01 00 01 00 01 00">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <button id="enip_client_send_rr_data" class="btn btn-outline-dark w-100">
+                                                <i class="fas fa-paper-plane me-1"></i>SendRRData (0x006F)
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <button id="enip_client_send_unit_data" class="btn btn-outline-dark w-100">
+                                                <i class="fas fa-exchange-alt me-1"></i>SendUnitData (0x0070)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- I/O通信区域 -->
+                                    <hr class="my-2">
+                                    <h6 class="text-muted mb-3"><i class="fas fa-exchange-alt me-2"></i>I/O通信 (UDP 2222端口)</h6>
+                                    <div class="small text-muted mb-2">无连接I/O通信，直接发送数据</div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label for="enip_client_io_host" class="form-label">目标IP</label>
+                                            <input type="text" class="form-control" id="enip_client_io_host" placeholder="目标设备IP">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <label for="enip_client_io_data" class="form-label">I/O数据 (Hex)</label>
+                                            <input type="text" class="form-control" id="enip_client_io_data" placeholder="例如: 00 01 02 03">
+                                        </div>
+                                        <div class="col-md-12 mb-2">
+                                            <button id="enip_client_send_io_data" class="btn btn-outline-primary w-100">
+                                                <i class="fas fa-bolt me-1"></i>发送I/O数据
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2415,6 +2562,16 @@
             container.className = 'toast-container';
             document.body.appendChild(container);
         }
+
+// 安全添加事件监听器
+function safeAddEventListener(elementId, event, handler) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.addEventListener(event, handler);
+    }
+}
+
+
         
         // 创建toast元素
         const toast = document.createElement('div');
@@ -2618,7 +2775,7 @@
     }
     
     // 保存单元格值
-    document.getElementById('save_cell_value').addEventListener('click', function() {
+    document.getElementById('save_cell_value')?.addEventListener('click', function() {
         if (!currentEditCell || !clientModbusConnected) return;
         
         const cellAddress = parseInt(currentEditCell.dataset.address); // 表格中的显示地址
@@ -2685,7 +2842,7 @@
     });
     
     // 保存多个值
-    document.getElementById('save_multiple_values').addEventListener('click', function() {
+    document.getElementById('save_multiple_values')?.addEventListener('click', function() {
         const functionCode = parseInt(this.dataset.functionCode);
         const startAddress = parseInt(document.getElementById('write_multiple_start_address').value);
         const length = parseInt(document.getElementById('write_multiple_length').value);
@@ -3171,7 +3328,6 @@
             })
             .catch(error => showToast('随机失败: ' + error.message, 'error'));
         });
-    });
 
     // 加载测试环境列表
     function loadTestEnvironments() {
@@ -5384,8 +5540,8 @@
             });
         } else {
             // DOM已经加载完成
-            initS7ServerDataTable('DB', 1, 0, 10);
-            initS7ClientDataTable('DB', 1, 0, 10, 'BYTE');
+            initS7ServerHexViewer('DB', 1, 0, 10);
+            initS7ClientHexViewer('DB', 1, 0, 10);
         }
 
         // ==================== ENIP 客户端功能 ====================
@@ -5394,6 +5550,12 @@
         let enipClientAgentUrl = '';
         let enipClientAgentConnected = false;
         let enipClientConnected = false;
+
+        // CIP服务码下拉选择事件监听
+        const cipServiceSelect = document.getElementById('enip_client_cip_service');
+        if (cipServiceSelect) {
+            cipServiceSelect.addEventListener('change', updateCipData);
+        }
 
         // ENIP Client Agent设备来源切换
         document.querySelectorAll('input[name="enip_client_agent_source"]').forEach(radio => {
@@ -5485,6 +5647,9 @@
                     enipClientConnected = true;
                     document.getElementById('enip_client_disconnect').disabled = false;
                     document.getElementById('enip_client_data_config').style.display = 'block';
+                    // Enable GetIdentity button after connection
+                    const getIdentityBtn = document.getElementById('enip_client_get_identity');
+                    if (getIdentityBtn) getIdentityBtn.disabled = false;
                     showToast('连接成功', 'success');
                     updateEnipClientStatus();
                 } else {
@@ -5509,29 +5674,35 @@
                     document.getElementById('enip_client_disconnect').disabled = true;
                     document.getElementById('enip_client_data_config').style.display = 'none';
                     document.getElementById('enip_client_data_section').style.display = 'none';
+                    // Disable GetIdentity button after disconnect
+                    const getIdentityBtn = document.getElementById('enip_client_get_identity');
+                    if (getIdentityBtn) getIdentityBtn.disabled = true;
                     updateEnipClientStatus();
                     showToast('已断开连接', 'info');
                 });
         });
 
         // ENIP Client获取Identity
-        document.getElementById('enip_client_get_identity').addEventListener('click', function() {
-            if (!enipClientConnected) {
-                showToast('请先连接服务器', 'warning');
-                return;
-            }
+        const enipClientGetIdentityBtn = document.getElementById('enip_client_get_identity');
+        if (enipClientGetIdentityBtn) {
+            enipClientGetIdentityBtn.addEventListener('click', function() {
+                if (!enipClientConnected) {
+                    showToast('请先连接服务器', 'warning');
+                    return;
+                }
 
-            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/get_identity`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayEnipClientData(data.data || data);
-                        showToast('获取Identity成功', 'success');
-                    } else {
-                        showToast('获取失败: ' + (data.error || data.message), 'error');
-                    }
-                });
-        });
+                fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/get_identity`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            displayEnipClientData(data.data || data);
+                            showToast('获取Identity成功', 'success');
+                        } else {
+                            showToast('获取失败: ' + (data.error || data.message), 'error');
+                        }
+                    });
+            });
+        }
 
         // ENIP Client读取属性
         document.getElementById('enip_client_read').addEventListener('click', function() {
@@ -5540,17 +5711,19 @@
                 return;
             }
 
-            const attributeId = parseInt(document.getElementById('enip_client_attribute_id').value) || 1;
+            const classId = parseInt(document.getElementById('enip_client_class_id')?.value) || 1;
+            const instance = parseInt(document.getElementById('enip_client_instance')?.value) || 1;
+            const attribute = parseInt(document.getElementById('enip_client_attribute_id').value) || 1;
 
-            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/read_attribute`, {
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/read`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({attribute_id: attributeId})
+                body: JSON.stringify({class_id: classId, instance: instance, attribute: attribute})
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    displayEnipClientData(data.data || data);
+                    displayEnipClientData(data);
                     showToast('读取成功', 'success');
                 } else {
                     showToast('读取失败: ' + (data.error || data.message), 'error');
@@ -5565,7 +5738,9 @@
                 return;
             }
 
-            const attributeId = parseInt(document.getElementById('enip_client_attribute_id').value) || 1;
+            const classId = parseInt(document.getElementById('enip_client_class_id')?.value) || 1;
+            const instance = parseInt(document.getElementById('enip_client_instance')?.value) || 1;
+            const attribute = parseInt(document.getElementById('enip_client_attribute_id').value) || 1;
             const value = document.getElementById('enip_client_attribute_value').value.trim();
 
             if (!value) {
@@ -5573,10 +5748,10 @@
                 return;
             }
 
-            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/write_attribute`, {
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/write`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({attribute_id: attributeId, value: value})
+                body: JSON.stringify({class_id: classId, instance: instance, attribute: attribute, value: value})
             })
             .then(response => response.json())
             .then(data => {
@@ -5587,6 +5762,300 @@
                 }
             });
         });
+
+        // ENIP Client 设备控制
+        document.getElementById('enip_client_reset_device').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/reset_device`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('设备重置成功', 'success');
+                    } else {
+                        showToast('重置失败: ' + (data.error || data.message), 'error');
+                    }
+                });
+        });
+
+        document.getElementById('enip_client_start_device').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/start_device`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('设备启动成功', 'success');
+                    } else {
+                        showToast('启动失败: ' + (data.error || data.message), 'error');
+                    }
+                });
+        });
+
+        document.getElementById('enip_client_stop_device').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/stop_device`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('设备停止成功', 'success');
+                    } else {
+                        showToast('停止失败: ' + (data.error || data.message), 'error');
+                    }
+                });
+        });
+
+        // ENIP Client 信息查询
+        document.getElementById('enip_client_list_services').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/list_services`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayEnipClientData(data.services || {});
+                        showToast('列出服务成功', 'success');
+                    } else {
+                        showToast('查询失败: ' + (data.error || data.message), 'error');
+                    }
+                });
+        });
+
+        document.getElementById('enip_client_list_identity').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/list_identity`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayEnipClientData(data.identity || {});
+                        showToast('获取身份信息成功', 'success');
+                    } else {
+                        showToast('查询失败: ' + (data.error || data.message), 'error');
+                    }
+                });
+        });
+
+        document.getElementById('enip_client_list_interfaces').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/list_interfaces`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayEnipClientData(data.interfaces || {});
+                        showToast('列出接口成功', 'success');
+                    } else {
+                        showToast('查询失败: ' + (data.error || data.message), 'error');
+                    }
+                });
+        });
+
+        // ENIP Client 设备发现 (UDP广播)
+        document.getElementById('enip_client_discover_devices').addEventListener('click', function() {
+            const broadcastAddr = document.getElementById('enip_client_broadcast_addr').value.trim() || '255.255.255.255';
+            const timeout = parseFloat(document.getElementById('enip_client_discover_timeout').value) || 3;
+
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>发现中...';
+
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/discover_devices`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({broadcast_addr: broadcastAddr, timeout: timeout})
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-search-location me-1"></i>发现设备';
+                if (data.success) {
+                    const devices = data.devices || [];
+                    if (devices.length > 0) {
+                        let html = '<tr><td>发现设备</td><td>' + devices.length + ' 个</td></tr>';
+                        devices.forEach((d, i) => {
+                            html += '<tr><td>设备' + (i+1) + '</td><td>' + (d.ip || d.host || JSON.stringify(d)) + '</td></tr>';
+                        });
+                        document.getElementById('enip_client_data_section').style.display = 'block';
+                        document.getElementById('enip_client_data_table').innerHTML = html;
+                    } else {
+                        showToast('未发现设备', 'info');
+                    }
+                    showToast('发现 ' + devices.length + ' 个设备', 'success');
+                } else {
+                    showToast('发现失败: ' + (data.error || data.message), 'error');
+                }
+            })
+            .catch(error => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-search-location me-1"></i>发现设备';
+                showToast('请求失败: ' + error.message, 'error');
+            });
+        });
+
+        // ENIP Client 高级操作
+        document.getElementById('enip_client_send_rr_data').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            const cipData = document.getElementById('enip_client_cip_data').value.trim().replace(/\s/g, '');
+            if (!cipData) {
+                showToast('请输入CIP报文数据', 'warning');
+                return;
+            }
+
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/send_rr_data`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({cip_data: cipData})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayEnipClientData(data.response || {});
+                    showToast('RRData发送成功', 'success');
+                } else {
+                    showToast('发送失败: ' + (data.error || data.message), 'error');
+                }
+            });
+        });
+
+        document.getElementById('enip_client_send_unit_data').addEventListener('click', function() {
+            if (!enipClientConnected) {
+                showToast('请先连接服务器', 'warning');
+                return;
+            }
+            const cipData = document.getElementById('enip_client_cip_data').value.trim().replace(/\s/g, '');
+            if (!cipData) {
+                showToast('请输入CIP报文数据', 'warning');
+                return;
+            }
+
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/send_unit_data`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({cip_data: cipData})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayEnipClientData(data.response || {});
+                    showToast('UnitData发送成功', 'success');
+                } else {
+                    showToast('发送失败: ' + (data.error || data.message), 'error');
+                }
+            });
+        });
+
+        // ENIP Client I/O通信
+        document.getElementById('enip_client_send_io_data').addEventListener('click', function() {
+            if (!enipClientAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+            const ioHost = document.getElementById('enip_client_io_host').value.trim();
+            const ioData = document.getElementById('enip_client_io_data').value.trim().replace(/\s/g, '');
+
+            if (!ioHost) {
+                showToast('请输入目标IP', 'warning');
+                return;
+            }
+            if (!ioData) {
+                showToast('请输入I/O数据', 'warning');
+                return;
+            }
+
+            fetch(`${enipClientAgentUrl}/api/industrial_protocol/enip_client/send_io_data`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host: ioHost, io_data: ioData})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayEnipClientData(data.response || {});
+                    showToast('I/O数据发送成功', 'success');
+                } else {
+                    showToast('发送失败: ' + (data.error || data.message), 'error');
+                }
+            });
+        });
+
+        // CIP服务码下拉选择辅助函数
+        function updateCipData() {
+            const serviceSelect = document.getElementById('enip_client_cip_service');
+            const cipDataInput = document.getElementById('enip_client_cip_data');
+            const selectedService = serviceSelect.value;
+
+            if (!selectedService) {
+                return; // 自定义，不修改
+            }
+
+            // 获取当前 Class ID, Instance, Attribute
+            const classSelect = document.getElementById('enip_client_class_id');
+            let classId = classSelect.value === 'custom' ? 1 : parseInt(classSelect.value) || 1;
+            const instance = parseInt(document.getElementById('enip_client_instance').value) || 1;
+            const attribute = parseInt(document.getElementById('enip_client_attribute_id').value) || 1;
+
+            // 构建 CIP 请求报文
+            // 格式: Service(1) + Path(segment) + [Data]
+            // Path: 0x20 ClassID 0x24 InstanceID 0x30 AttributeID
+            let cipData = '';
+
+            if (selectedService === '0E' || selectedService === '10') {
+                // Get_Attribute_Single / Set_Attribute_Single
+                // Service + Path(20 Class 24 Instance 30 Attribute)
+                cipData = `${selectedService}00 20${classId.toString(16).padStart(2, '0')} 24${instance.toString(16).padStart(2, '0')} 30${attribute.toString(16).padStart(2, '0')}`;
+            } else if (selectedService === '01') {
+                // Get_Attribute_All
+                cipData = `01 00 20${classId.toString(16).padStart(2, '0')} 24${instance.toString(16).padStart(2, '0')}`;
+            } else if (selectedService === '05' || selectedService === '06' || selectedService === '07') {
+                // Reset / Start / Stop
+                cipData = `${selectedService} 00 20${classId.toString(16).padStart(2, '0')} 24${instance.toString(16).padStart(2, '0')}`;
+            } else {
+                // 默认格式
+                cipData = `${selectedService} 00 20${classId.toString(16).padStart(2, '0')} 24${instance.toString(16).padStart(2, '0')}`;
+            }
+
+            cipDataInput.value = cipData.toUpperCase();
+        }
 
         function updateEnipClientStatus() {
             const status = document.getElementById('enip_client_status');
@@ -5613,10 +6082,25 @@
             tbody.innerHTML = '';
 
             if (typeof data === 'object') {
+                // 显示原始数据
                 for (const [key, value] of Object.entries(data)) {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `<td>${key}</td><td>${value}</td>`;
-                    tbody.appendChild(row);
+                    if (key === 'decoded' && value && Object.keys(value).length > 0) {
+                        // 单独显示解码值
+                        const row = document.createElement('tr');
+                        row.innerHTML = `<td class="text-success"><strong>解码值</strong></td><td></td>`;
+                        tbody.appendChild(row);
+                        for (const [decodeKey, decodeValue] of Object.entries(value)) {
+                            if (decodeValue !== null && decodeValue !== undefined) {
+                                const decodeRow = document.createElement('tr');
+                                decodeRow.innerHTML = `<td class="text-muted">&nbsp;&nbsp;${decodeKey}</td><td class="text-primary">${decodeValue}</td>`;
+                                tbody.appendChild(decodeRow);
+                            }
+                        }
+                    } else if (key !== 'success') {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `<td>${key}</td><td>${value}</td>`;
+                        tbody.appendChild(row);
+                    }
                 }
             } else {
                 tbody.innerHTML = `<tr><td colspan="2">${data}</td></tr>`;
@@ -5631,14 +6115,19 @@
         let enipServerRunning = false;
 
         // ENIP Server Agent设备来源切换
+        console.log('[ENIP Server] Setting up agent source switch, radios found:', document.querySelectorAll('input[name="enip_server_agent_source"]').length);
         document.querySelectorAll('input[name="enip_server_agent_source"]').forEach(radio => {
+            console.log('[ENIP Server] Adding change listener to radio:', radio.id);
             radio.addEventListener('change', function() {
+                console.log('[ENIP Server] Radio changed:', this.value);
+                const testEnvContainer = document.getElementById('enip_server_test_env_container');
+                const customIpContainer = document.getElementById('enip_server_custom_ip_container');
                 if (this.value === 'test_env') {
-                    document.getElementById('enip_server_test_env_container').style.display = 'block';
-                    document.getElementById('enip_server_custom_ip_container').style.display = 'none';
+                    if (testEnvContainer) testEnvContainer.style.display = 'block';
+                    if (customIpContainer) customIpContainer.style.display = 'none';
                 } else {
-                    document.getElementById('enip_server_test_env_container').style.display = 'none';
-                    document.getElementById('enip_server_custom_ip_container').style.display = 'block';
+                    if (testEnvContainer) testEnvContainer.style.display = 'none';
+                    if (customIpContainer) customIpContainer.style.display = 'block';
                 }
                 enipServerAgentConnected = false;
                 enipServerAgentUrl = '';
@@ -5647,47 +6136,57 @@
         });
 
         // ENIP Server连接Agent
-        document.getElementById('enip_server_connect_agent').addEventListener('click', function() {
-            const source = document.querySelector('input[name="enip_server_agent_source"]:checked').value;
-            let agentUrl = '';
-
-            if (source === 'test_env') {
-                const testEnv = document.getElementById('enip_server_test_env').value;
-                if (!testEnv) {
-                    showToast('请选择测试环境', 'warning');
+        const enipServerConnectBtn = document.getElementById('enip_server_connect_agent');
+        console.log('[ENIP Server] Connect button:', enipServerConnectBtn ? 'found' : 'NOT FOUND');
+        if (enipServerConnectBtn) {
+            enipServerConnectBtn.addEventListener('click', function() {
+                const source = document.querySelector('input[name="enip_server_agent_source"]:checked');
+                if (!source) {
+                    showToast('请选择设备来源', 'warning');
                     return;
                 }
-                const selectedOption = document.getElementById('enip_server_test_env').selectedOptions[0];
-                agentUrl = `http://${selectedOption.dataset.ip}:8889`;
-            } else {
-                const customIp = document.getElementById('enip_server_agent_ip').value.trim();
-                if (!customIp) {
-                    showToast('请输入代理程序IP', 'warning');
-                    return;
-                }
-                agentUrl = `http://${customIp}:8889`;
-            }
+                const sourceValue = source.value;
+                let agentUrl = '';
 
-            fetch(`${agentUrl}/api/industrial_protocol/enip_server/status`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success !== false) {
-                        enipServerAgentUrl = agentUrl;
-                        enipServerAgentConnected = true;
-                        document.getElementById('enip_server_start').disabled = false;
-                        showToast('Agent连接成功', 'success');
-                        updateEnipServerStatus();
-                    } else {
-                        showToast('Agent连接失败', 'error');
+                if (sourceValue === 'test_env') {
+                    const testEnv = document.getElementById('enip_server_test_env').value;
+                    if (!testEnv) {
+                        showToast('请选择测试环境', 'warning');
+                        return;
                     }
-                })
-                .catch(error => {
-                    showToast('连接失败: ' + error.message, 'error');
-                });
-        });
+                    const selectedOption = document.getElementById('enip_server_test_env').selectedOptions[0];
+                    agentUrl = `http://${selectedOption.dataset.ip}:8889`;
+                } else {
+                    const customIp = document.getElementById('enip_server_agent_ip').value.trim();
+                    if (!customIp) {
+                        showToast('请输入代理程序IP', 'warning');
+                        return;
+                    }
+                    agentUrl = `http://${customIp}:8889`;
+                }
+
+                fetch(`${agentUrl}/api/industrial_protocol/enip_server/status`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success !== false) {
+                            enipServerAgentUrl = agentUrl;
+                            enipServerAgentConnected = true;
+                            document.getElementById('enip_server_start').disabled = false;
+                            showToast('Agent连接成功', 'success');
+                            updateEnipServerStatus();
+                        } else {
+                            showToast('Agent连接失败', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        showToast('连接失败: ' + error.message, 'error');
+                    });
+            });
+        }
 
         // ENIP Server启动
-        document.getElementById('enip_server_start').addEventListener('click', function() {
+        const enipServerStartBtn = document.getElementById('enip_server_start');
+        if (enipServerStartBtn) { enipServerStartBtn.addEventListener('click', function() {
             if (!enipServerAgentConnected) {
                 showToast('请先连接Agent', 'warning');
                 return;
@@ -5719,9 +6218,11 @@
                 }
             });
         });
+        }  // Close if enipServerStartBtn
 
         // ENIP Server停止
-        document.getElementById('enip_server_stop').addEventListener('click', function() {
+        const enipServerStopBtn = document.getElementById('enip_server_stop');
+        if (enipServerStopBtn) { enipServerStopBtn.addEventListener('click', function() {
             fetch(`${enipServerAgentUrl}/api/industrial_protocol/enip_server/stop`, {method: 'POST'})
                 .then(response => response.json())
                 .then(data => {
@@ -5733,6 +6234,7 @@
                     showToast('ENIP服务器已停止', 'info');
                 });
         });
+        }  // Close if enipServerStopBtn
 
         function updateEnipServerStatus() {
             const status = document.getElementById('enip_server_status');
@@ -6111,12 +6613,14 @@
         // BACnet Client Agent设备来源切换
         document.querySelectorAll('input[name="bacnet_client_agent_source"]').forEach(radio => {
             radio.addEventListener('change', function() {
+                const testEnvContainer = document.getElementById('bacnet_client_test_env_container');
+                const customIpContainer = document.getElementById('bacnet_client_custom_ip_container');
                 if (this.value === 'test_env') {
-                    document.getElementById('bacnet_client_test_env_container').style.display = 'block';
-                    document.getElementById('bacnet_client_custom_ip_container').style.display = 'none';
+                    if (testEnvContainer) testEnvContainer.style.display = 'block';
+                    if (customIpContainer) customIpContainer.style.display = 'none';
                 } else {
-                    document.getElementById('bacnet_client_test_env_container').style.display = 'none';
-                    document.getElementById('bacnet_client_custom_ip_container').style.display = 'block';
+                    if (testEnvContainer) testEnvContainer.style.display = 'none';
+                    if (customIpContainer) customIpContainer.style.display = 'block';
                 }
                 bacnetClientAgentConnected = false;
                 bacnetClientAgentUrl = '';
@@ -6125,7 +6629,8 @@
         });
 
         // BACnet Client连接Agent
-        document.getElementById('bacnet_client_connect_agent').addEventListener('click', function() {
+        const bacnetConnectBtn = document.getElementById('bacnet_client_connect_agent');
+        if (bacnetConnectBtn) { bacnetConnectBtn.addEventListener('click', function() {
             const source = document.querySelector('input[name="bacnet_client_agent_source"]:checked').value;
             let agentUrl = '';
 
@@ -6164,6 +6669,7 @@
                     showToast('连接失败: ' + error.message, 'error');
                 });
         });
+        }  // Close if bacnetConnectBtn
 
         // BACnet Client发现设备
         document.getElementById('bacnet_client_discover').addEventListener('click', function() {
@@ -8194,7 +8700,8 @@
                 updateDcpStatus();
             }
         });
-        
-</script>
+
+    });  // End of DOMContentLoaded (started at line 3109)
+    </script>
 {% endblock %}
 

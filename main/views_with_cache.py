@@ -3302,6 +3302,268 @@ def test_env_execute_command(request):
 
 
 @csrf_exempt
+def test_env_batch_agent_control(request):
+    """批量控制Agent启动/停止（快速模式，不等待验证）"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        env_ids = data.get('env_ids', [])
+        action = data.get('action', '').strip()  # 'start' 或 'stop'
+
+        if not env_ids or not action:
+            return JsonResponse({'success': False, 'error': '参数不完整'})
+
+        if action not in ['start', 'stop']:
+            return JsonResponse({'success': False, 'error': '无效的操作类型'})
+
+        # 从数据库获取环境信息
+        from main.models import TestEnvironment
+        envs = TestEnvironment.objects.filter(id__in=env_ids)
+
+        if not envs:
+            return JsonResponse({'success': False, 'error': '未找到指定的环境'})
+
+        results = {}
+
+        def process_env_quick(env):
+            """快速处理单个环境（不等待启动完成）"""
+            env_result = {'success': False, 'message': ''}
+
+            try:
+                ip = env.ip
+                port = env.ssh_port or 22
+                user = env.ssh_user
+                password = env.ssh_password
+                env_type = env.type
+
+                if not ip or not user or not password:
+                    env_result['message'] = '环境信息不完整'
+                    return (str(env.id), env_result)
+
+                if action == 'start':
+                    # 使用agent_manager快速启动
+                    from .agent_manager import agent_manager
+
+                    # 先连接
+                    success, msg = agent_manager.connect_to_host(ip, user, password, port)
+                    if not success:
+                        env_result['message'] = f'连接失败: {msg}'
+                        return (str(env.id), env_result)
+
+                    # 确定路径
+                    if env_type == 'windows':
+                        agent_path = 'C:/packet_agent/packet_agent.py'
+                    else:
+                        agent_path = '/opt/packet_agent/packet_agent.py'
+
+                    # 先上传文件（必须的）
+                    upload_success, upload_msg, files = upload_files_via_sftp(
+                        ip, user, password, port, 'packet_agent', env_type
+                    )
+                    if not upload_success:
+                        env_result['message'] = f'文件上传失败: {upload_msg}'
+                        return (str(env.id), env_result)
+
+                    # 发送启动命令（不等待）
+                    ssh = agent_manager.connections[f'{ip}:{port}']['ssh']
+                    log_path = agent_path.replace('.py', '_log.txt')
+
+                    # 确定工控协议Agent路径
+                    industrial_agent_path = agent_path.replace('packet_agent.py', 'industrial_protocol_agent.py')
+                    industrial_log_path = industrial_agent_path.replace('.py', '_log.txt')
+
+                    if env_type == 'windows':
+                        # 启动主Agent (8888)
+                        cmd = f'pythonw "{agent_path}" --port 8888 > "{log_path}" 2>&1'
+                        stdin, stdout, stderr = ssh.exec_command(cmd)
+
+                        # 启动工控协议Agent (8889)
+                        cmd_industrial = f'pythonw "{industrial_agent_path}" 8889 > "{industrial_log_path}" 2>&1'
+                        stdin2, stdout2, stderr2 = ssh.exec_command(cmd_industrial)
+                    else:
+                        # 启动主Agent (8888)
+                        cmd = f'nohup python3 "{agent_path}" --port 8888 > "{log_path}" 2>&1 &'
+                        stdin, stdout, stderr = ssh.exec_command(cmd)
+
+                        # 启动工控协议Agent (8889)
+                        cmd_industrial = f'nohup python3 "{industrial_agent_path}" 8889 > "{industrial_log_path}" 2>&1 &'
+                        stdin2, stdout2, stderr2 = ssh.exec_command(cmd_industrial)
+
+                    # 不等待输出，直接返回
+                    env_result['success'] = True
+                    env_result['message'] = '启动命令已发送 (8888+8889)'
+
+                else:
+                    # 停止Agent - 使用agent_manager
+                    from .agent_manager import agent_manager
+
+                    # 先连接
+                    success, msg = agent_manager.connect_to_host(ip, user, password, port)
+                    if not success:
+                        env_result['message'] = f'连接失败: {msg}'
+                        return (str(env.id), env_result)
+
+                    # 停止
+                    success, message = agent_manager.stop_agent(ip, port, 8888)
+                    env_result['success'] = success
+                    env_result['message'] = message
+
+            except Exception as e:
+                env_result['message'] = f'处理异常: {str(e)}'
+
+            return (str(env.id), env_result)
+
+        # 使用线程池并行处理
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(process_env_quick, env) for env in envs]
+            for future in as_completed(futures):
+                env_id, result = future.result()
+                results[env_id] = result
+
+        # 统计结果
+        success_count = sum(1 for r in results.values() if r['success'])
+        total_count = len(results)
+
+        return JsonResponse({
+            'success': True,
+            'results': results,
+            'summary': {
+                'total': total_count,
+                'success': success_count,
+                'failed': total_count - success_count
+            }
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': '请求数据格式错误'})
+    except Exception as e:
+        logger.exception(f"批量控制Agent时出错: {e}")
+        return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
+
+
+@csrf_exempt
+def test_env_agent_version_check(request):
+    """检查Agent版本一致性（基于MD5对比）"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        from .agent_manager import agent_manager
+        from main.models import TestEnvironment
+        import hashlib
+
+        data = json.loads(request.body)
+        env_ids = data.get('env_ids', [])
+
+        # 如果没有指定环境，检查所有环境
+        if not env_ids:
+            envs = TestEnvironment.objects.all()
+        else:
+            envs = TestEnvironment.objects.filter(id__in=env_ids)
+
+        if not envs:
+            return JsonResponse({'success': False, 'error': '未找到指定的环境'})
+
+        # 本地 packet_agent.py 路径
+        local_packet_agent = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'packet_agent', 'packet_agent.py'
+        )
+
+        # 计算本地文件 MD5
+        local_md5 = None
+        if os.path.exists(local_packet_agent):
+            with open(local_packet_agent, 'rb') as f:
+                local_md5 = hashlib.md5(f.read()).hexdigest()
+
+        results = {}
+
+        def check_env_version(env):
+            """检查单个环境的版本"""
+            env_result = {
+                'status': 'unknown',
+                'message': '',
+                'local_md5': local_md5[:8] if local_md5 else None,
+                'remote_md5': None
+            }
+
+            try:
+                ip = env.ip
+                port = env.ssh_port or 22
+                user = env.ssh_user
+                password = env.ssh_password
+                env_type = env.type
+
+                if not ip or not user or not password:
+                    env_result['status'] = 'error'
+                    env_result['message'] = '环境信息不完整'
+                    return (str(env.id), env_result)
+
+                # 确定远程路径
+                if env_type == 'windows':
+                    remote_path = 'C:/packet_agent/packet_agent.py'
+                else:
+                    remote_path = '/opt/packet_agent/packet_agent.py'
+
+                # 建立连接
+                success, msg = agent_manager.connect_to_host(ip, user, password, port)
+                if not success:
+                    env_result['status'] = 'error'
+                    env_result['message'] = f'连接失败: {msg}'
+                    return (str(env.id), env_result)
+
+                # 检查文件一致性
+                is_consistent, check_msg = agent_manager.check_file_consistency(
+                    ip, local_packet_agent, remote_path, port
+                )
+
+                if '不存在' in check_msg:
+                    env_result['status'] = 'not_found'
+                    env_result['message'] = 'Agent未安装'
+                elif is_consistent:
+                    env_result['status'] = 'up_to_date'
+                    env_result['message'] = '版本一致'
+                else:
+                    env_result['status'] = 'needs_update'
+                    env_result['message'] = '需要更新'
+
+                # 尝试提取远程MD5
+                if '远程:' in check_msg:
+                    try:
+                        remote_md5 = check_msg.split('远程:')[1].split('...')[0].strip()
+                        env_result['remote_md5'] = remote_md5
+                    except:
+                        pass
+
+            except Exception as e:
+                env_result['status'] = 'error'
+                env_result['message'] = f'检查异常: {str(e)}'
+
+            return (str(env.id), env_result)
+
+        # 使用线程池并行检查
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(check_env_version, env) for env in envs]
+            for future in as_completed(futures):
+                env_id, result = future.result()
+                results[env_id] = result
+
+        return JsonResponse({
+            'success': True,
+            'results': results,
+            'local_md5': local_md5[:8] if local_md5 else None
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': '请求数据格式错误'})
+    except Exception as e:
+        logger.exception(f"检查Agent版本时出错: {e}")
+        return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
+
+
+@csrf_exempt
 def syslog_receiver(request):
     """Syslog日志接收页面"""
     return render(request, 'syslog_receiver.html')
