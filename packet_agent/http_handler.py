@@ -856,8 +856,18 @@ def detect_file_type_by_magic_bytes(data: bytes) -> Dict[str, Any]:
                 return result
             except:
                 pass
-        # 纯文本
-        if header.decode('utf-8', errors='ignore').isprintable() or header.decode('ascii', errors='ignore').isprintable():
+        # 纯文本检测：检查大部分字符是否为可打印字符（允许换行、制表符）
+        # 统计可打印字符比例
+        printable_count = 0
+        total_count = len(header)
+        for byte in header:
+            # 可打印 ASCII 范围：32-126，加上换行(10)、制表(9)、回车(13)
+            if (32 <= byte <= 126) or byte in (9, 10, 13):
+                printable_count += 1
+        printable_ratio = printable_count / total_count if total_count > 0 else 0
+
+        # 如果超过 85% 是可打印字符，认为是文本文件
+        if printable_ratio >= 0.85:
             result['detected_type'] = '文本文件'
             result['category'] = 'document'
             return result
