@@ -531,3 +531,401 @@ class HTTPServerWrapper:
     def clear_logs(self):
         """清除日志"""
         CustomHTTPHandler.request_log = []
+
+
+# ==================== 文件类型检测 ====================
+
+import subprocess
+import os
+import platform
+
+# 支持的文件类型（对应 file -b 输出）
+FILE_TYPE_MAPPING = {
+    # 图像
+    'JPEG image data': 'JPEG图像文件',
+    'PNG image data': 'PNG图像文件',
+    'GIF image data': 'GIF图像文件',
+    'TIFF image data': 'TIFF图像文件',
+    # 音频
+    'Audio file with ID3': 'MPEG音频文件',
+    'FLAC audio': 'FLAC音频文件',
+    'WAVE audio': 'WAV音频文件',
+    'AIFF audio': 'AIFF音频文件',
+    'MPEG ADTS': 'MPEG音频文件',
+    # 压缩
+    'Zip archive': 'ZIP压缩文件',
+    'RAR archive': 'RAR压缩文件',
+    '7-zip archive': '7Z压缩文件',
+    'bzip2 compressed': 'BZIP2压缩文件',
+    'gzip compressed': 'GZ压缩文件',
+    'POSIX tar archive': 'TAR压缩文件',
+    # 文档
+    'Microsoft Word': 'Microsoft Word文档文件',
+    'Microsoft Excel': 'Microsoft Excel文档文件',
+    'Microsoft PowerPoint': 'Microsoft PowerPoint文档文件',
+    'PDF document': 'PDF文件',
+    # 可执行
+    'PE32 executable': 'EXE可执行文件',
+    'ELF executable': 'ELF可执行文件',
+    'executable': '可执行文件',
+    # 网络数据
+    'pcap capture file': 'PCAP文件',
+    'tcpdump capture file': 'PCAP文件',
+    # 脚本
+    'POSIX shell script': 'Shell脚本文件',
+    'Bourne-Again shell script': 'Shell脚本文件',
+    'Python script': 'Python脚本文件',
+    'Perl script': 'Perl脚本文件',
+    # 文本
+    'ASCII text': '文本文件',
+    'UTF-8 Unicode text': '文本文件',
+    'HTML document': 'HTML文件',
+    'XML document': 'XML文件',
+    'JSON data': 'JSON文件',
+}
+
+
+def detect_file_type_by_content(file_path: str) -> Dict[str, Any]:
+    """
+    使用 file -b 命令检测文件真实类型（通过文件内容，不依赖后缀名）
+
+    Args:
+        file_path: 文件路径
+
+    Returns:
+        dict: {
+            'raw_type': 'file -b 的原始输出',
+            'detected_type': '映射后的中文类型',
+            'method': 'file_command',
+            'success': True/False,
+            'error': '错误信息（如果有）'
+        }
+    """
+    result = {
+        'raw_type': None,
+        'detected_type': '未知文件类型',
+        'method': 'file_command',
+        'success': False,
+        'error': None
+    }
+
+    if not os.path.exists(file_path):
+        result['error'] = f'文件不存在: {file_path}'
+        return result
+
+    try:
+        system = platform.system()
+
+        # 尝试使用 file 命令
+        if system == 'Windows':
+            # Windows 上尝试 Git Bash 的 file 命令
+            file_cmd_paths = [
+                'file',  # 如果在 PATH 中
+                r'C:\Program Files\Git\usr\bin\file.exe',
+                r'C:\Program Files (x86)\Git\usr\bin\file.exe',
+            ]
+
+            file_cmd = None
+            for path in file_cmd_paths:
+                try:
+                    subprocess.run([path, '--version'], capture_output=True, timeout=5)
+                    file_cmd = path
+                    break
+                except:
+                    continue
+
+            if not file_cmd:
+                # 使用魔数检测作为后备
+                return detect_file_type_by_magic(file_path)
+        else:
+            file_cmd = 'file'
+
+        # 执行 file -b 命令
+        proc = subprocess.run(
+            [file_cmd, '-b', file_path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if proc.returncode == 0:
+            raw_type = proc.stdout.strip()
+            result['raw_type'] = raw_type
+            result['success'] = True
+
+            # 映射到中文类型
+            detected = '未知文件类型'
+            for pattern, type_name in FILE_TYPE_MAPPING.items():
+                if pattern.lower() in raw_type.lower():
+                    detected = type_name
+                    break
+            result['detected_type'] = detected
+        else:
+            result['error'] = proc.stderr.strip()
+            # 使用魔数检测作为后备
+            return detect_file_type_by_magic(file_path)
+
+    except subprocess.TimeoutExpired:
+        result['error'] = 'file 命令执行超时'
+        return detect_file_type_by_magic(file_path)
+    except FileNotFoundError:
+        result['error'] = 'file 命令未找到'
+        return detect_file_type_by_magic(file_path)
+    except Exception as e:
+        result['error'] = str(e)
+        return detect_file_type_by_magic(file_path)
+
+    return result
+
+
+def detect_file_type_by_magic(file_path: str) -> Dict[str, Any]:
+    """
+    通过文件魔数（Magic Number）检测文件类型（后备方案）
+
+    Args:
+        file_path: 文件路径
+
+    Returns:
+        dict: 检测结果
+    """
+    result = {
+        'raw_type': None,
+        'detected_type': '未知文件类型',
+        'method': 'magic_number',
+        'success': False,
+        'error': None
+    }
+
+    # 文件魔数对照表
+    MAGIC_NUMBERS = [
+        (b'\x89PNG\r\n\x1a\n', 'PNG图像文件'),
+        (b'\xff\xd8\xff', 'JPEG图像文件'),
+        (b'GIF87a', 'GIF图像文件'),
+        (b'GIF89a', 'GIF图像文件'),
+        (b'II*\x00', 'TIFF图像文件'),
+        (b'MM\x00*', 'TIFF图像文件'),
+        (b'PK\x03\x04', 'ZIP压缩文件'),
+        (b'PK\x05\x06', 'ZIP压缩文件'),
+        (b'Rar!\x1a\x07', 'RAR压缩文件'),
+        (b'7z\xbc\xaf\x27\x1c', '7Z压缩文件'),
+        (b'BZ', 'BZIP2压缩文件'),
+        (b'\x1f\x8b', 'GZ压缩文件'),
+        (b'%PDF', 'PDF文件'),
+        (b'MZ', 'EXE可执行文件'),
+        (b'\x7fELF', 'ELF可执行文件'),
+        (b'\xd4\xc3\xb2\xa1', 'PCAP文件'),
+        (b'\xa1\xb2\xc3\xd4', 'PCAP文件'),
+        (b'\x0a\x0d\x0d\x0a', 'PCAPNG文件'),
+    ]
+
+    try:
+        with open(file_path, 'rb') as f:
+            header = f.read(32)
+
+        result['success'] = True
+        result['raw_type'] = header[:16].hex()
+
+        for magic, type_name in MAGIC_NUMBERS:
+            if header.startswith(magic):
+                result['detected_type'] = type_name
+                return result
+
+        # 检测文本类型
+        try:
+            text = header.decode('utf-8', errors='ignore')
+            if text.startswith('#!'):
+                result['detected_type'] = 'Shell脚本文件'
+            elif text.startswith('<?php'):
+                result['detected_type'] = 'PHP脚本文件'
+            elif text.startswith('<!DOCTYPE') or text.startswith('<html'):
+                result['detected_type'] = 'HTML文件'
+            elif text.startswith('<?xml'):
+                result['detected_type'] = 'XML文件'
+            elif text.startswith('{') or text.startswith('['):
+                result['detected_type'] = 'JSON文件'
+        except:
+            pass
+
+    except Exception as e:
+        result['error'] = str(e)
+
+    return result
+
+
+# ==================== 文件管理器 ====================
+
+class HTTPFileManager:
+    """HTTP 文件管理器 - 管理上传/下载文件"""
+
+    def __init__(self):
+        # 默认文件目录
+        self.base_dir = self._get_default_dir()
+        self._ensure_dir()
+
+    def _get_default_dir(self) -> str:
+        """获取默认文件目录"""
+        system = platform.system()
+        if system == 'Windows':
+            return r'C:\packet_agent\http'
+        else:
+            return '/opt/packet_agent/http'
+
+    def _ensure_dir(self):
+        """确保目录存在"""
+        if not os.path.exists(self.base_dir):
+            try:
+                os.makedirs(self.base_dir, exist_ok=True)
+                logger.info(f'创建 HTTP 文件目录: {self.base_dir}')
+            except Exception as e:
+                logger.error(f'创建目录失败: {e}')
+
+    def set_base_dir(self, path: str):
+        """设置基础目录"""
+        self.base_dir = path
+        self._ensure_dir()
+
+    def list_files(self) -> List[Dict[str, Any]]:
+        """列出所有文件"""
+        files = []
+        try:
+            if not os.path.exists(self.base_dir):
+                return files
+
+            for filename in os.listdir(self.base_dir):
+                file_path = os.path.join(self.base_dir, filename)
+                if os.path.isfile(file_path):
+                    # 获取文件信息
+                    stat = os.stat(file_path)
+                    # 检测文件类型
+                    type_info = detect_file_type_by_content(file_path)
+
+                    files.append({
+                        'name': filename,
+                        'path': file_path,
+                        'size': stat.st_size,
+                        'size_str': self._format_size(stat.st_size),
+                        'modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime)),
+                        'type': type_info['detected_type'],
+                        'raw_type': type_info['raw_type'],
+                    })
+        except Exception as e:
+            logger.error(f'列出文件失败: {e}')
+
+        return files
+
+    def _format_size(self, size: int) -> str:
+        """格式化文件大小"""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024:
+                return f'{size:.1f} {unit}'
+            size /= 1024
+        return f'{size:.1f} TB'
+
+    def get_file(self, filename: str) -> Tuple[bool, bytes, str]:
+        """
+        获取文件内容（用于下载）
+
+        Returns:
+            (success, content, message)
+        """
+        file_path = os.path.join(self.base_dir, filename)
+
+        if not os.path.exists(file_path):
+            return (False, b'', f'文件不存在: {filename}')
+
+        # 安全检查：防止路径遍历
+        if not os.path.abspath(file_path).startswith(os.path.abspath(self.base_dir)):
+            return (False, b'', '非法路径')
+
+        try:
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            return (True, content, f'文件读取成功: {filename}')
+        except Exception as e:
+            return (False, b'', str(e))
+
+    def save_file(self, filename: str, content: bytes) -> Tuple[bool, Dict[str, Any], str]:
+        """
+        保存文件（用于上传）
+
+        Returns:
+            (success, type_info, message)
+        """
+        file_path = os.path.join(self.base_dir, filename)
+
+        # 安全检查：防止路径遍历
+        if not os.path.abspath(file_path).startswith(os.path.abspath(self.base_dir)):
+            return (False, {}, '非法路径')
+
+        try:
+            with open(file_path, 'wb') as f:
+                f.write(content)
+
+            # 检测文件类型
+            type_info = detect_file_type_by_content(file_path)
+
+            logger.info(f'文件保存成功: {file_path}, 类型: {type_info["detected_type"]}')
+            return (True, type_info, f'文件上传成功: {filename}')
+        except Exception as e:
+            return (False, {}, str(e))
+
+    def delete_file(self, filename: str) -> Tuple[bool, str]:
+        """删除文件"""
+        file_path = os.path.join(self.base_dir, filename)
+
+        if not os.path.exists(file_path):
+            return (False, f'文件不存在: {filename}')
+
+        # 安全检查
+        if not os.path.abspath(file_path).startswith(os.path.abspath(self.base_dir)):
+            return (False, '非法路径')
+
+        try:
+            os.remove(file_path)
+            return (True, f'文件删除成功: {filename}')
+        except Exception as e:
+            return (False, str(e))
+
+    def analyze_file(self, filename: str) -> Dict[str, Any]:
+        """分析文件"""
+        file_path = os.path.join(self.base_dir, filename)
+
+        if not os.path.exists(file_path):
+            return {'success': False, 'error': f'文件不存在: {filename}'}
+
+        result = {
+            'success': True,
+            'filename': filename,
+            'path': file_path,
+        }
+
+        # 文件基本信息
+        stat = os.stat(file_path)
+        result['size'] = stat.st_size
+        result['size_str'] = self._format_size(stat.st_size)
+        result['modified'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime))
+
+        # 文件类型检测
+        type_info = detect_file_type_by_content(file_path)
+        result['type'] = type_info
+
+        # 读取文件头部内容（用于关键字检测）
+        try:
+            with open(file_path, 'rb') as f:
+                header = f.read(4096)
+            result['header_hex'] = header[:64].hex()
+
+            # 尝试检测关键字
+            try:
+                text = header.decode('utf-8', errors='ignore')
+                result['keywords'] = HTTPAnalyzer.extract_keywords(text)
+            except:
+                result['keywords'] = []
+        except Exception as e:
+            result['read_error'] = str(e)
+
+        return result
+
+
+# 全局文件管理器实例
+file_manager = HTTPFileManager()

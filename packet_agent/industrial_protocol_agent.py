@@ -5632,7 +5632,7 @@ def mms_server_status():
 
 # HTTP 模块可用性检查
 try:
-    from http_handler import HTTPClient, HTTPServerWrapper, HTTPAnalyzer, HTTP_METHODS
+    from http_handler import HTTPClient, HTTPServerWrapper, HTTPAnalyzer, HTTP_METHODS, detect_file_type_by_content, file_manager
     HTTP_AVAILABLE = True
     http_clients = {}  # 存储多个客户端实例
     http_client_lock = threading.Lock()
@@ -5770,6 +5770,160 @@ def http_server_clear_logs():
         return jsonify({'success': True, 'message': '日志已清除'})
 
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== HTTP 文件管理路由 ====================
+
+@app.route('/api/industrial_protocol/http_files/list', methods=['GET'])
+def http_files_list():
+    """列出 HTTP 文件目录中的所有文件"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        files = file_manager.list_files()
+        return jsonify({
+            'success': True,
+            'files': files,
+            'count': len(files),
+            'base_dir': file_manager.base_dir
+        })
+
+    except Exception as e:
+        add_log('ERROR', f'列出HTTP文件失败: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_files/download/<filename>', methods=['GET'])
+def http_files_download(filename):
+    """下载文件"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        success, content, message = file_manager.get_file(filename)
+
+        if success:
+            from flask import Response
+            # 检测文件类型
+            type_info = detect_file_type_by_content(os.path.join(file_manager.base_dir, filename))
+
+            response = Response(
+                content,
+                mimetype='application/octet-stream',
+                headers={
+                    'Content-Disposition': f'attachment; filename="{filename}"',
+                    'X-File-Type': type_info.get('detected_type', 'unknown'),
+                    'X-File-Size': len(content),
+                }
+            )
+            add_log('INFO', f'HTTP文件下载: {filename}, 类型: {type_info.get("detected_type")}')
+            return response
+        else:
+            return jsonify({'success': False, 'error': message}), 404
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP文件下载失败: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_files/upload', methods=['POST'])
+def http_files_upload():
+    """上传文件"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': '没有上传文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': '没有选择文件'}), 400
+
+        filename = file.filename
+        content = file.read()
+
+        success, type_info, message = file_manager.save_file(filename, content)
+
+        if success:
+            add_log('INFO', f'HTTP文件上传: {filename}, 类型: {type_info.get("detected_type")}, 大小: {len(content)} bytes')
+            return jsonify({
+                'success': True,
+                'message': message,
+                'filename': filename,
+                'size': len(content),
+                'type_info': type_info
+            })
+        else:
+            return jsonify({'success': False, 'error': message}), 500
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP文件上传失败: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_files/analyze/<filename>', methods=['GET'])
+def http_files_analyze(filename):
+    """分析文件（检测真实类型）"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        result = file_manager.analyze_file(filename)
+        add_log('INFO', f'HTTP文件分析: {filename}, 类型: {result.get("type", {}).get("detected_type")}')
+        return jsonify(result)
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP文件分析失败: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_files/delete/<filename>', methods=['DELETE'])
+def http_files_delete(filename):
+    """删除文件"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        success, message = file_manager.delete_file(filename)
+
+        if success:
+            add_log('INFO', f'HTTP文件删除: {filename}')
+            return jsonify({'success': True, 'message': message})
+        else:
+            return jsonify({'success': False, 'error': message}), 404
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP文件删除失败: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_files/set_dir', methods=['POST'])
+def http_files_set_dir():
+    """设置文件目录"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        data = request.json or {}
+        new_dir = data.get('directory', '')
+
+        if not new_dir:
+            return jsonify({'success': False, 'error': '请指定目录路径'}), 400
+
+        file_manager.set_base_dir(new_dir)
+        add_log('INFO', f'HTTP文件目录设置: {new_dir}')
+
+        return jsonify({
+            'success': True,
+            'message': f'目录已设置: {new_dir}',
+            'base_dir': file_manager.base_dir
+        })
+
+    except Exception as e:
+        add_log('ERROR', f'设置HTTP文件目录失败: {str(e)}')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
