@@ -5628,6 +5628,151 @@ def mms_server_status():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ==================== HTTP 协议路由 ====================
+
+# HTTP 模块可用性检查
+try:
+    from http_handler import HTTPClient, HTTPServerWrapper, HTTPAnalyzer, HTTP_METHODS
+    HTTP_AVAILABLE = True
+    http_clients = {}  # 存储多个客户端实例
+    http_client_lock = threading.Lock()
+    http_server = HTTPServerWrapper()
+except ImportError as e:
+    HTTP_AVAILABLE = False
+    logger.warning(f'HTTP 模块加载失败: {e}')
+
+
+@app.route('/api/industrial_protocol/http_client/send', methods=['POST'])
+def http_client_send():
+    """发送 HTTP 请求"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        data = request.json
+        host = data.get('host', '')
+        port = int(data.get('port', 80))
+        method = data.get('method', 'GET').upper()
+        path = data.get('path', '/')
+        headers = data.get('headers', {})
+        body = data.get('body', '')
+        timeout = float(data.get('timeout', 10.0))
+
+        if not host:
+            return jsonify({'success': False, 'error': '请输入主机地址'}), 400
+
+        if method not in HTTP_METHODS:
+            return jsonify({'success': False, 'error': f'不支持的请求方法: {method}'}), 400
+
+        client = HTTPClient()
+        success, result, message = client.send_request(host, port, method, path, headers, body, timeout)
+
+        add_log('INFO', f'HTTP请求: {method} {host}:{port}{path} - {message}')
+
+        return jsonify({
+            'success': success,
+            'result': result,
+            'message': message
+        })
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP请求异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_client/methods', methods=['GET'])
+def http_client_methods():
+    """获取支持的 HTTP 方法列表"""
+    return jsonify({
+        'success': True,
+        'methods': HTTP_METHODS
+    })
+
+
+@app.route('/api/industrial_protocol/http_server/start', methods=['POST'])
+def http_server_start():
+    """启动 HTTP 服务器"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        data = request.json or {}
+        port = int(data.get('port', 8080))
+        host = data.get('host', '0.0.0.0')
+
+        success, message = http_server.start(port, host)
+
+        if success:
+            add_log('INFO', f'HTTP服务器启动成功: {host}:{port}')
+        else:
+            add_log('ERROR', f'HTTP服务器启动失败: {message}')
+
+        return jsonify({'success': success, 'message': message})
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP服务器启动异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_server/stop', methods=['POST'])
+def http_server_stop():
+    """停止 HTTP 服务器"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        success, message = http_server.stop()
+        add_log('INFO', f'HTTP服务器停止: {message}')
+        return jsonify({'success': success, 'message': message})
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP服务器停止异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_server/status', methods=['GET'])
+def http_server_status():
+    """获取 HTTP 服务器状态"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        status = http_server.get_status()
+        return jsonify({'success': True, 'status': status})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_server/logs', methods=['GET'])
+def http_server_logs():
+    """获取 HTTP 服务器请求日志"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        limit = int(request.args.get('limit', 100))
+        logs = http_server.get_logs(limit)
+        return jsonify({'success': True, 'logs': logs, 'count': len(logs)})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/industrial_protocol/http_server/clear_logs', methods=['POST'])
+def http_server_clear_logs():
+    """清除 HTTP 服务器请求日志"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        http_server.clear_logs()
+        return jsonify({'success': True, 'message': '日志已清除'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     import sys
     import os

@@ -46,6 +46,11 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="http-tab" data-bs-toggle="tab" data-bs-target="#http-pane" type="button" role="tab" aria-controls="http-pane" aria-selected="false">
+                        <i class="fas fa-globe me-2"></i>HTTP
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="goose-sv-tab" data-bs-toggle="tab" data-bs-target="#goose-sv-pane" type="button" role="tab" aria-controls="goose-sv-pane" aria-selected="false">
                         <i class="fas fa-bolt me-2"></i>GOOSE/SV
                     </button>
@@ -1811,6 +1816,236 @@
                                             <i class="fas fa-sync me-1"></i>更新变量值
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HTTP Tab -->
+        <div class="tab-pane fade" id="http-pane" role="tabpanel" aria-labelledby="http-tab">
+            <div class="row">
+                <!-- 左侧：HTTP 客户端 -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-desktop me-2"></i>HTTP 客户端</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- 连接配置 -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="fas fa-network-wired me-2"></i>连接配置</h6>
+                                <div class="row align-items-end mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">设备来源</label>
+                                        <div class="btn-group w-100" role="group">
+                                            <input type="radio" class="btn-check" name="http_client_agent_source" id="http_client_agent_source_test_env" value="test_env" checked>
+                                            <label class="btn btn-outline-primary btn-sm" for="http_client_agent_source_test_env">测试环境</label>
+                                            <input type="radio" class="btn-check" name="http_client_agent_source" id="http_client_agent_source_custom" value="custom">
+                                            <label class="btn btn-outline-primary btn-sm" for="http_client_agent_source_custom">指定IP</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6" id="http_client_test_env_container">
+                                        <label for="http_client_test_env" class="form-label">测试环境 <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="http_client_test_env">
+                                            <option value="">请选择测试环境</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6" id="http_client_custom_ip_container" style="display: none;">
+                                        <label for="http_client_agent_ip" class="form-label">代理程序IP <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="http_client_agent_ip" placeholder="例如: 192.168.1.100">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button id="http_client_connect_agent" class="btn btn-primary w-100">
+                                            <i class="fas fa-plug me-2"></i>连接
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="fas fa-cog me-2"></i>请求配置</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_client_host" class="form-label">目标主机 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="http_client_host" placeholder="例如: 192.168.1.100 或 example.com">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_client_port" class="form-label">端口 <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="http_client_port" value="80" min="1" max="65535">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_client_method" class="form-label">请求方法</label>
+                                        <select class="form-select" id="http_client_method">
+                                            <option value="GET">GET</option>
+                                            <option value="POST">POST</option>
+                                            <option value="PUT">PUT</option>
+                                            <option value="DELETE">DELETE</option>
+                                            <option value="HEAD">HEAD</option>
+                                            <option value="OPTIONS">OPTIONS</option>
+                                            <option value="PATCH">PATCH</option>
+                                            <option value="TRACE">TRACE</option>
+                                            <option value="CONNECT">CONNECT</option>
+                                            <option value="PROPFIND">PROPFIND (WebDAV)</option>
+                                            <option value="PROPPATCH">PROPPATCH (WebDAV)</option>
+                                            <option value="MKCOL">MKCOL (WebDAV)</option>
+                                            <option value="COPY">COPY (WebDAV)</option>
+                                            <option value="MOVE">MOVE (WebDAV)</option>
+                                            <option value="LOCK">LOCK (WebDAV)</option>
+                                            <option value="UNLOCK">UNLOCK (WebDAV)</option>
+                                            <option value="VERSION-CONTROL">VERSION-CONTROL</option>
+                                            <option value="CHECKOUT">CHECKOUT</option>
+                                            <option value="UNCHECKOUT">UNCHECKOUT</option>
+                                            <option value="CHECKIN">CHECKIN</option>
+                                            <option value="UPDATE">UPDATE</option>
+                                            <option value="LABEL">LABEL</option>
+                                            <option value="REPORT">REPORT</option>
+                                            <option value="MKWORKSPACE">MKWORKSPACE</option>
+                                            <option value="MKACTIVITY">MKACTIVITY</option>
+                                            <option value="BASELINE-CONTROL">BASELINE-CONTROL</option>
+                                            <option value="MERGE">MERGE</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_client_path" class="form-label">请求路径</label>
+                                        <input type="text" class="form-control" id="http_client_path" value="/" placeholder="例如: /api/test">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_client_timeout" class="form-label">超时(秒)</label>
+                                        <input type="number" class="form-control" id="http_client_timeout" value="10" min="1" max="60">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_client_headers" class="form-label">自定义头部</label>
+                                        <textarea class="form-control" id="http_client_headers" rows="2" placeholder="Content-Type: application/json&#10;Authorization: Bearer xxx"></textarea>
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <label for="http_client_body" class="form-label">请求体</label>
+                                        <textarea class="form-control" id="http_client_body" rows="3" placeholder='{"key": "value"}'></textarea>
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <button id="http_client_send" class="btn btn-success w-100" disabled>
+                                            <i class="fas fa-paper-plane me-1"></i>发送请求
+                                        </button>
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <div class="alert alert-info mb-0" id="http_client_status">
+                                            <i class="fas fa-info-circle me-2"></i>状态：Agent未连接
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 分析结果 -->
+                            <div id="http_client_result_section" style="display: none;">
+                                <hr class="my-3">
+                                <h6 class="text-muted mb-3"><i class="fas fa-chart-bar me-2"></i>分析结果</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <tbody id="http_client_result_table">
+                                            <tr><td colspan="2" class="text-center text-muted">暂无数据</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：HTTP 服务端 -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-server me-2"></i>HTTP 服务端</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- 连接配置 -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="fas fa-network-wired me-2"></i>连接配置</h6>
+                                <div class="row align-items-end mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">设备来源</label>
+                                        <div class="btn-group w-100" role="group">
+                                            <input type="radio" class="btn-check" name="http_server_agent_source" id="http_server_agent_source_test_env" value="test_env" checked>
+                                            <label class="btn btn-outline-primary btn-sm" for="http_server_agent_source_test_env">测试环境</label>
+                                            <input type="radio" class="btn-check" name="http_server_agent_source" id="http_server_agent_source_custom" value="custom">
+                                            <label class="btn btn-outline-primary btn-sm" for="http_server_agent_source_custom">指定IP</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6" id="http_server_test_env_container">
+                                        <label for="http_server_test_env" class="form-label">测试环境 <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="http_server_test_env">
+                                            <option value="">请选择测试环境</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6" id="http_server_custom_ip_container" style="display: none;">
+                                        <label for="http_server_agent_ip" class="form-label">代理程序IP <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="http_server_agent_ip" placeholder="例如: 192.168.1.100">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button id="http_server_connect_agent" class="btn btn-primary w-100">
+                                            <i class="fas fa-plug me-2"></i>连接
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="fas fa-cog me-2"></i>服务端配置</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_server_port" class="form-label">监听端口 <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="http_server_port" value="8080" min="1" max="65535">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_server_host" class="form-label">绑定地址</label>
+                                        <input type="text" class="form-control" id="http_server_host" value="0.0.0.0" placeholder="0.0.0.0 监听所有网卡">
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <div class="btn-group w-100" role="group">
+                                            <button id="http_server_start" class="btn btn-success w-50" disabled>
+                                                <i class="fas fa-play me-1"></i>启动服务器
+                                            </button>
+                                            <button id="http_server_stop" class="btn btn-danger w-50" disabled>
+                                                <i class="fas fa-stop me-1"></i>停止服务器
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <div class="alert alert-info mb-0" id="http_server_status">
+                                            <i class="fas fa-info-circle me-2"></i>状态：未启动
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 请求日志 -->
+                            <div id="http_server_log_section" style="display: none;">
+                                <hr class="my-3">
+                                <h6 class="text-muted mb-3"><i class="fas fa-list me-2"></i>请求日志</h6>
+                                <div class="mb-2">
+                                    <button id="http_server_refresh_logs" class="btn btn-outline-primary btn-sm me-2">
+                                        <i class="fas fa-sync me-1"></i>刷新
+                                    </button>
+                                    <button id="http_server_clear_logs" class="btn btn-outline-warning btn-sm">
+                                        <i class="fas fa-trash me-1"></i>清除
+                                    </button>
+                                </div>
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm table-bordered table-hover">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>时间</th>
+                                                <th>客户端IP</th>
+                                                <th>方法</th>
+                                                <th>路径</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="http_server_log_table">
+                                            <tr><td colspan="4" class="text-center text-muted">暂无请求</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -7323,6 +7558,373 @@ function safeAddEventListener(elementId, event, handler) {
                 status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent已连接，服务器未启动';
                 status.className = 'alert alert-info mb-0';
             }
+        }
+
+        // ==================== HTTP 客户端功能 ====================
+
+        // HTTP Client状态变量
+        let httpClientAgentUrl = '';
+        let httpClientAgentConnected = false;
+
+        // HTTP Client Agent设备来源切换
+        document.querySelectorAll('input[name="http_client_agent_source"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'test_env') {
+                    document.getElementById('http_client_test_env_container').style.display = 'block';
+                    document.getElementById('http_client_custom_ip_container').style.display = 'none';
+                } else {
+                    document.getElementById('http_client_test_env_container').style.display = 'none';
+                    document.getElementById('http_client_custom_ip_container').style.display = 'block';
+                }
+                httpClientAgentConnected = false;
+                httpClientAgentUrl = '';
+                updateHttpClientStatus();
+            });
+        });
+
+        // HTTP Client连接Agent
+        document.getElementById('http_client_connect_agent').addEventListener('click', function() {
+            const source = document.querySelector('input[name="http_client_agent_source"]:checked').value;
+            let agentUrl = '';
+
+            if (source === 'test_env') {
+                const testEnv = document.getElementById('http_client_test_env').value;
+                if (!testEnv) {
+                    showToast('请选择测试环境', 'warning');
+                    return;
+                }
+                const selectedOption = document.getElementById('http_client_test_env').selectedOptions[0];
+                agentUrl = `http://${selectedOption.dataset.ip}:8889`;
+            } else {
+                const customIp = document.getElementById('http_client_agent_ip').value.trim();
+                if (!customIp) {
+                    showToast('请输入代理程序IP', 'warning');
+                    return;
+                }
+                agentUrl = `http://${customIp}:8889`;
+            }
+
+            fetch(`${agentUrl}/api/health`)
+                .then(response => response.json())
+                .then(data => {
+                    httpClientAgentUrl = agentUrl;
+                    httpClientAgentConnected = true;
+                    document.getElementById('http_client_send').disabled = false;
+                    showToast('Agent连接成功', 'success');
+                    updateHttpClientStatus();
+                })
+                .catch(error => {
+                    showToast('连接失败: ' + error.message, 'error');
+                });
+        });
+
+        // HTTP Client发送请求
+        document.getElementById('http_client_send').addEventListener('click', function() {
+            if (!httpClientAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+
+            const host = document.getElementById('http_client_host').value.trim();
+            const port = parseInt(document.getElementById('http_client_port').value) || 80;
+            const method = document.getElementById('http_client_method').value;
+            const path = document.getElementById('http_client_path').value.trim() || '/';
+            const timeout = parseFloat(document.getElementById('http_client_timeout').value) || 10;
+            const headersText = document.getElementById('http_client_headers').value.trim();
+            const body = document.getElementById('http_client_body').value.trim();
+
+            if (!host) {
+                showToast('请输入目标主机', 'warning');
+                return;
+            }
+
+            // 解析头部
+            let headers = {};
+            if (headersText) {
+                headersText.split('\n').forEach(line => {
+                    const idx = line.indexOf(':');
+                    if (idx > 0) {
+                        headers[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+                    }
+                });
+            }
+
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>发送中...';
+
+            fetch(`${httpClientAgentUrl}/api/industrial_protocol/http_client/send`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host, port, method, path, headers, body, timeout})
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-paper-plane me-1"></i>发送请求';
+
+                if (data.success) {
+                    displayHttpClientResult(data.result);
+                    showToast('请求成功', 'success');
+                } else {
+                    showToast('请求失败: ' + (data.error || data.message), 'error');
+                }
+            })
+            .catch(error => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-paper-plane me-1"></i>发送请求';
+                showToast('请求异常: ' + error.message, 'error');
+            });
+        });
+
+        function displayHttpClientResult(result) {
+            document.getElementById('http_client_result_section').style.display = 'block';
+            const tbody = document.getElementById('http_client_result_table');
+            tbody.innerHTML = '';
+
+            if (result.response) {
+                const rows = [
+                    {label: '状态码', value: result.response.status_code || '-'},
+                    {label: '响应头长度', value: result.response.header_length + ' 字节'},
+                    {label: '响应体长度', value: result.response.body_length + ' 字节'},
+                    {label: 'Content-Type', value: result.response.content_type || '-'},
+                ];
+                rows.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<th style="width: 30%">${row.label}</th><td>${row.value}</td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            if (result.file_type) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<th>文件类型</th><td>${result.file_type.category || result.file_type.extension || '未知'}</td>`;
+                tbody.appendChild(tr);
+            }
+
+            if (result.request) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<th>请求头长度</th><td>${result.request.header_length} 字节</td>`;
+                tbody.appendChild(tr);
+            }
+
+            if (result.request_rate !== undefined) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<th>请求速率</th><td>${result.request_rate.toFixed(2)} 请求/秒</td>`;
+                tbody.appendChild(tr);
+            }
+
+            // 关键字
+            if (result.request && result.request.keywords && result.request.keywords.length > 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<th class="text-warning">请求关键字</th><td class="text-warning">${result.request.keywords.join(', ')}</td>`;
+                tbody.appendChild(tr);
+            }
+            if (result.response && result.response.keywords && result.response.keywords.length > 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<th class="text-warning">响应关键字</th><td class="text-warning">${result.response.keywords.join(', ')}</td>`;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateHttpClientStatus() {
+            const status = document.getElementById('http_client_status');
+            if (!httpClientAgentConnected) {
+                status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent未连接';
+                status.className = 'alert alert-info mb-0';
+            } else {
+                status.innerHTML = '<i class="fas fa-check-circle me-2"></i>状态：Agent已连接';
+                status.className = 'alert alert-success mb-0';
+            }
+        }
+
+        // ==================== HTTP 服务端功能 ====================
+
+        // HTTP Server状态变量
+        let httpServerAgentUrl = '';
+        let httpServerAgentConnected = false;
+        let httpServerRunning = false;
+
+        // HTTP Server Agent设备来源切换
+        document.querySelectorAll('input[name="http_server_agent_source"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'test_env') {
+                    document.getElementById('http_server_test_env_container').style.display = 'block';
+                    document.getElementById('http_server_custom_ip_container').style.display = 'none';
+                } else {
+                    document.getElementById('http_server_test_env_container').style.display = 'none';
+                    document.getElementById('http_server_custom_ip_container').style.display = 'block';
+                }
+                httpServerAgentConnected = false;
+                httpServerAgentUrl = '';
+                updateHttpServerStatus();
+            });
+        });
+
+        // HTTP Server连接Agent
+        document.getElementById('http_server_connect_agent').addEventListener('click', function() {
+            const source = document.querySelector('input[name="http_server_agent_source"]:checked').value;
+            let agentUrl = '';
+
+            if (source === 'test_env') {
+                const testEnv = document.getElementById('http_server_test_env').value;
+                if (!testEnv) {
+                    showToast('请选择测试环境', 'warning');
+                    return;
+                }
+                const selectedOption = document.getElementById('http_server_test_env').selectedOptions[0];
+                agentUrl = `http://${selectedOption.dataset.ip}:8889`;
+            } else {
+                const customIp = document.getElementById('http_server_agent_ip').value.trim();
+                if (!customIp) {
+                    showToast('请输入代理程序IP', 'warning');
+                    return;
+                }
+                agentUrl = `http://${customIp}:8889`;
+            }
+
+            fetch(`${agentUrl}/api/industrial_protocol/http_server/status`)
+                .then(response => response.json())
+                .then(data => {
+                    httpServerAgentUrl = agentUrl;
+                    httpServerAgentConnected = true;
+                    document.getElementById('http_server_start').disabled = false;
+                    showToast('Agent连接成功', 'success');
+                    updateHttpServerStatus();
+                })
+                .catch(error => {
+                    showToast('连接失败: ' + error.message, 'error');
+                });
+        });
+
+        // HTTP Server启动
+        document.getElementById('http_server_start').addEventListener('click', function() {
+            if (!httpServerAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+
+            const port = parseInt(document.getElementById('http_server_port').value) || 8080;
+            const host = document.getElementById('http_server_host').value.trim() || '0.0.0.0';
+
+            this.disabled = true;
+
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_server/start`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({port, host})
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.disabled = false;
+                if (data.success) {
+                    httpServerRunning = true;
+                    document.getElementById('http_server_stop').disabled = false;
+                    document.getElementById('http_server_start').disabled = true;
+                    document.getElementById('http_server_log_section').style.display = 'block';
+                    showToast('HTTP服务器启动成功', 'success');
+                    updateHttpServerStatus();
+                } else {
+                    showToast('启动失败: ' + (data.error || data.message), 'error');
+                }
+            });
+        });
+
+        // HTTP Server停止
+        document.getElementById('http_server_stop').addEventListener('click', function() {
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_server/stop`, {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    httpServerRunning = false;
+                    document.getElementById('http_server_start').disabled = false;
+                    document.getElementById('http_server_stop').disabled = true;
+                    updateHttpServerStatus();
+                    showToast('HTTP服务器已停止', 'info');
+                });
+        });
+
+        // HTTP Server刷新日志
+        document.getElementById('http_server_refresh_logs')?.addEventListener('click', function() {
+            if (!httpServerAgentConnected) return;
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_server/logs`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayHttpServerLogs(data.logs);
+                    }
+                });
+        });
+
+        // HTTP Server清除日志
+        document.getElementById('http_server_clear_logs')?.addEventListener('click', function() {
+            if (!httpServerAgentConnected) return;
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_server/clear_logs`, {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayHttpServerLogs([]);
+                        showToast('日志已清除', 'info');
+                    }
+                });
+        });
+
+        function displayHttpServerLogs(logs) {
+            const tbody = document.getElementById('http_server_log_table');
+            tbody.innerHTML = '';
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">暂无请求</td></tr>';
+                return;
+            }
+            logs.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${log.timestamp || '-'}</td>
+                    <td>${log.client_ip || '-'}</td>
+                    <td><span class="badge bg-primary">${log.method || '-'}</span></td>
+                    <td>${log.path || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateHttpServerStatus() {
+            const status = document.getElementById('http_server_status');
+            if (!httpServerAgentConnected) {
+                status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent未连接';
+                status.className = 'alert alert-info mb-0';
+            } else if (httpServerRunning) {
+                status.innerHTML = '<i class="fas fa-check-circle me-2"></i>状态：服务器运行中';
+                status.className = 'alert alert-success mb-0';
+            } else {
+                status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent已连接，服务器未启动';
+                status.className = 'alert alert-info mb-0';
+            }
+        }
+
+        // 为HTTP测试环境下拉框填充数据
+        const httpClientTestEnvSelect = document.getElementById('http_client_test_env');
+        if (httpClientTestEnvSelect) {
+            httpClientTestEnvSelect.innerHTML = '<option value="">请选择测试环境</option>';
+            testEnvironments.forEach(env => {
+                const option = document.createElement('option');
+                option.value = env.id;
+                option.textContent = `${env.name} (${env.ip})`;
+                option.dataset.ip = env.ip;
+                option.dataset.env = JSON.stringify(env);
+                httpClientTestEnvSelect.appendChild(option);
+            });
+        }
+
+        const httpServerTestEnvSelect = document.getElementById('http_server_test_env');
+        if (httpServerTestEnvSelect) {
+            httpServerTestEnvSelect.innerHTML = '<option value="">请选择测试环境</option>';
+            testEnvironments.forEach(env => {
+                const option = document.createElement('option');
+                option.value = env.id;
+                option.textContent = `${env.name} (${env.ip})`;
+                option.dataset.ip = env.ip;
+                option.dataset.env = JSON.stringify(env);
+                httpServerTestEnvSelect.appendChild(option);
+            });
         }
 
         // ==================== GOOSE/SV 功能 ====================
