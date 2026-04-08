@@ -434,7 +434,90 @@ class CustomHTTPHandler(BaseHTTPRequestHandler):
 
             request_info = HTTPAnalyzer.parse_request(raw_request)
 
-            # 构建响应
+            # 处理文件请求 /files/<filename>
+            if self.path.startswith('/files/'):
+                filename = self.path[7:]  # 去掉 /files/
+                # 安全检查：防止路径遍历
+                if '..' in filename or filename.startswith('/') or filename.startswith('\\'):
+                    self.send_response(403)
+                    self.end_headers()
+                    return
+
+                file_path = os.path.join(file_manager.base_dir, filename)
+
+                if method == 'GET':
+                    # 下载文件
+                    success, content, msg = file_manager.get_file(filename)
+                    if success:
+                        # 检测文件类型
+                        type_info = detect_file_type_by_content(file_path)
+                        content_type = 'application/octet-stream'
+                        # 根据检测类型设置 Content-Type
+                        if '图像' in type_info.get('detected_type', ''):
+                            content_type = 'image/' + type_info.get('raw_type', 'png').split()[0].lower()
+                        elif '文本' in type_info.get('detected_type', '') or 'JSON' in type_info.get('detected_type', ''):
+                            content_type = 'text/plain'
+
+                        self.send_response(200)
+                        self.send_header('Content-Type', content_type)
+                        self.send_header('Content-Length', len(content))
+                        self.send_header('X-File-Type', type_info.get('detected_type', '未知'))
+                        self.end_headers()
+                        self.wfile.write(content)
+                    else:
+                        self.send_response(404)
+                        self.send_header('Content-Type', 'application/json')
+                        error_body = json.dumps({'error': msg})
+                        self.send_header('Content-Length', len(error_body))
+                        self.end_headers()
+                        self.wfile.write(error_body.encode())
+                    return
+
+                elif method == 'PUT' or method == 'POST':
+                    # 上传文件
+                    success, type_info, msg = file_manager.save_file(filename, body)
+                    if success:
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/json')
+                        response_body = json.dumps({
+                            'success': True,
+                            'filename': filename,
+                            'size': len(body),
+                            'type': type_info.get('detected_type', '未知'),
+                            'message': msg
+                        })
+                        self.send_header('Content-Length', len(response_body))
+                        self.end_headers()
+                        self.wfile.write(response_body.encode())
+                    else:
+                        self.send_response(500)
+                        self.send_header('Content-Type', 'application/json')
+                        error_body = json.dumps({'success': False, 'error': msg})
+                        self.send_header('Content-Length', len(error_body))
+                        self.end_headers()
+                        self.wfile.write(error_body.encode())
+                    return
+
+                elif method == 'DELETE':
+                    # 删除文件
+                    success, msg = file_manager.delete_file(filename)
+                    if success:
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/json')
+                        response_body = json.dumps({'success': True, 'message': msg})
+                        self.send_header('Content-Length', len(response_body))
+                        self.end_headers()
+                        self.wfile.write(response_body.encode())
+                    else:
+                        self.send_response(404)
+                        self.send_header('Content-Type', 'application/json')
+                        error_body = json.dumps({'success': False, 'error': msg})
+                        self.send_header('Content-Length', len(error_body))
+                        self.end_headers()
+                        self.wfile.write(error_body.encode())
+                    return
+
+            # 默认响应（非文件请求）
             response_body = json.dumps({
                 'status': 'ok',
                 'method': method,

@@ -1865,17 +1865,35 @@
                                 </div>
                             </div>
 
+                            <!-- 目标服务器连接 -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="fas fa-link me-2"></i>目标服务器连接</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="http_client_target_host" class="form-label">服务器IP <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="http_client_target_host" placeholder="HTTP服务端IP（经过防火墙）">
+                                        <div class="form-text">流量将经过防火墙到达此服务器</div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="http_client_target_port" class="form-label">端口</label>
+                                        <input type="number" class="form-control" id="http_client_target_port" value="80" min="1" max="65535">
+                                    </div>
+                                    <div class="col-md-2 mb-3">
+                                        <button id="http_client_connect_target" class="btn btn-outline-success w-100" disabled>
+                                            <i class="fas fa-link me-1"></i>连接
+                                        </button>
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <div class="alert alert-warning mb-0 py-2" id="http_client_target_status">
+                                            <i class="fas fa-info-circle me-2"></i>状态：请先连接Agent，再连接目标服务器
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="mb-4">
                                 <h6 class="text-muted mb-3"><i class="fas fa-cog me-2"></i>请求配置</h6>
                                 <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="http_client_host" class="form-label">目标主机 <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="http_client_host" placeholder="例如: 192.168.1.100 或 example.com">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="http_client_port" class="form-label">端口 <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="http_client_port" value="80" min="1" max="65535">
-                                    </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="http_client_method" class="form-label">请求方法</label>
                                         <select class="form-select" id="http_client_method">
@@ -1910,7 +1928,27 @@
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="http_client_path" class="form-label">请求路径</label>
-                                        <input type="text" class="form-control" id="http_client_path" value="/" placeholder="例如: /api/test">
+                                        <input type="text" class="form-control" id="http_client_path" value="/" placeholder="例如: /api/test 或 /files/test.png">
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label">文件操作</label>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <input type="text" class="form-control form-control-sm" id="http_client_filename" placeholder="文件名（如test.png）">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <button id="http_client_download_btn" class="btn btn-outline-info btn-sm w-100" disabled>
+                                                    <i class="fas fa-download me-1"></i>下载文件
+                                                </button>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <input type="file" id="http_client_upload_file" class="form-control form-control-sm" style="display:none">
+                                                <button id="http_client_upload_btn" class="btn btn-outline-warning btn-sm w-100" disabled>
+                                                    <i class="fas fa-upload me-1"></i>上传文件
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="form-text">下载: GET /files/&lt;文件名&gt;，上传: PUT /files/&lt;文件名&gt;，流量经过防火墙</div>
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="http_client_timeout" class="form-label">超时(秒)</label>
@@ -1928,11 +1966,6 @@
                                         <button id="http_client_send" class="btn btn-success w-100" disabled>
                                             <i class="fas fa-paper-plane me-1"></i>发送请求
                                         </button>
-                                    </div>
-                                    <div class="col-md-12 mb-3">
-                                        <div class="alert alert-info mb-0" id="http_client_status">
-                                            <i class="fas fa-info-circle me-2"></i>状态：Agent未连接
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -7627,6 +7660,9 @@ function safeAddEventListener(elementId, event, handler) {
         // HTTP Client状态变量
         let httpClientAgentUrl = '';
         let httpClientAgentConnected = false;
+        let httpClientTargetConnected = false;
+        let httpClientTargetHost = '';
+        let httpClientTargetPort = 80;
 
         // HTTP Client Agent设备来源切换
         document.querySelectorAll('input[name="http_client_agent_source"]').forEach(radio => {
@@ -7639,6 +7675,7 @@ function safeAddEventListener(elementId, event, handler) {
                     document.getElementById('http_client_custom_ip_container').style.display = 'block';
                 }
                 httpClientAgentConnected = false;
+                httpClientTargetConnected = false;
                 httpClientAgentUrl = '';
                 updateHttpClientStatus();
             });
@@ -7671,13 +7708,63 @@ function safeAddEventListener(elementId, event, handler) {
                 .then(data => {
                     httpClientAgentUrl = agentUrl;
                     httpClientAgentConnected = true;
-                    document.getElementById('http_client_send').disabled = false;
-                    showToast('Agent连接成功', 'success');
-                    updateHttpClientStatus();
+                    // 启用目标服务器连接按钮
+                    document.getElementById('http_client_connect_target').disabled = false;
+                    updateHttpClientTargetStatus();
+                    showToast('Agent连接成功，请连接目标服务器', 'success');
                 })
                 .catch(error => {
                     showToast('连接失败: ' + error.message, 'error');
                 });
+        });
+
+        // HTTP Client连接目标服务器
+        document.getElementById('http_client_connect_target')?.addEventListener('click', function() {
+            if (!httpClientAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+
+            const targetHost = document.getElementById('http_client_target_host').value.trim();
+            const targetPort = parseInt(document.getElementById('http_client_target_port').value) || 80;
+
+            if (!targetHost) {
+                showToast('请输入目标服务器IP', 'warning');
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>连接中...';
+
+            // 通过 Agent 测试与目标服务器的连接
+            fetch(`${httpClientAgentUrl}/api/industrial_protocol/http_client/test_connection`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host: targetHost, port: targetPort, timeout: 5})
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-link me-1"></i>连接';
+                if (data.success) {
+                    httpClientTargetConnected = true;
+                    httpClientTargetHost = targetHost;
+                    httpClientTargetPort = targetPort;
+                    // 启用发送请求和文件操作按钮
+                    document.getElementById('http_client_send').disabled = false;
+                    document.getElementById('http_client_download_btn').disabled = false;
+                    document.getElementById('http_client_upload_btn').disabled = false;
+                    updateHttpClientTargetStatus();
+                    showToast('目标服务器连接成功', 'success');
+                } else {
+                    showToast('连接目标服务器失败: ' + (data.error || '未知错误'), 'error');
+                }
+            })
+            .catch(error => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-link me-1"></i>连接';
+                showToast('连接失败: ' + error.message, 'error');
+            });
         });
 
         // HTTP Client发送请求
@@ -7687,8 +7774,8 @@ function safeAddEventListener(elementId, event, handler) {
                 return;
             }
 
-            const host = document.getElementById('http_client_host').value.trim();
-            const port = parseInt(document.getElementById('http_client_port').value) || 80;
+            const host = document.getElementById('http_client_target_host').value.trim();
+            const port = parseInt(document.getElementById('http_client_target_port').value) || 80;
             const method = document.getElementById('http_client_method').value;
             const path = document.getElementById('http_client_path').value.trim() || '/';
             const timeout = parseFloat(document.getElementById('http_client_timeout').value) || 10;
@@ -7696,7 +7783,7 @@ function safeAddEventListener(elementId, event, handler) {
             const body = document.getElementById('http_client_body').value.trim();
 
             if (!host) {
-                showToast('请输入目标主机', 'warning');
+                showToast('请输入目标服务器IP', 'warning');
                 return;
             }
 
@@ -7726,7 +7813,7 @@ function safeAddEventListener(elementId, event, handler) {
 
                 if (data.success) {
                     displayHttpClientResult(data.result);
-                    showToast('请求成功', 'success');
+                    showToast('请求成功，流量已通过防火墙', 'success');
                 } else {
                     showToast('请求失败: ' + (data.error || data.message), 'error');
                 }
@@ -7736,6 +7823,135 @@ function safeAddEventListener(elementId, event, handler) {
                 this.innerHTML = '<i class="fas fa-paper-plane me-1"></i>发送请求';
                 showToast('请求异常: ' + error.message, 'error');
             });
+        });
+
+        // HTTP Client 下载文件
+        document.getElementById('http_client_download_btn')?.addEventListener('click', function() {
+            if (!httpClientAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+
+            const host = document.getElementById('http_client_target_host').value.trim();
+            const port = parseInt(document.getElementById('http_client_target_port').value) || 80;
+            const filename = document.getElementById('http_client_filename').value.trim();
+
+            if (!host) {
+                showToast('请输入目标服务器IP', 'warning');
+                return;
+            }
+            if (!filename) {
+                showToast('请输入文件名', 'warning');
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>下载中...';
+
+            // 通过 Agent 发送 GET /files/<filename> 请求
+            fetch(`${httpClientAgentUrl}/api/industrial_protocol/http_client/send`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    host, port,
+                    method: 'GET',
+                    path: `/files/${filename}`,
+                    headers: {},
+                    body: '',
+                    timeout: 30
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-download me-1"></i>下载文件';
+
+                if (data.success) {
+                    displayHttpClientResult(data.result);
+                    showToast(`文件下载成功，流量已通过防火墙`, 'success');
+                    // 显示检测到的文件类型
+                    if (data.result && data.result.file_type) {
+                        showToast(`检测到文件类型: ${data.result.file_type.category || '未知'}`, 'info');
+                    }
+                } else {
+                    showToast('下载失败: ' + (data.error || data.message), 'error');
+                }
+            })
+            .catch(error => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-download me-1"></i>下载文件';
+                showToast('下载失败: ' + error.message, 'error');
+            });
+        });
+
+        // HTTP Client 上传文件
+        document.getElementById('http_client_upload_btn')?.addEventListener('click', function() {
+            if (!httpClientAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+
+            const host = document.getElementById('http_client_target_host').value.trim();
+            const port = parseInt(document.getElementById('http_client_target_port').value) || 80;
+            const filename = document.getElementById('http_client_filename').value.trim();
+
+            if (!host) {
+                showToast('请输入目标服务器IP', 'warning');
+                return;
+            }
+            if (!filename) {
+                showToast('请输入文件名', 'warning');
+                return;
+            }
+
+            // 触发文件选择
+            const fileInput = document.getElementById('http_client_upload_file');
+            fileInput.click();
+
+            fileInput.onchange = () => {
+                const file = fileInput.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = e.target.result;
+
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>上传中...';
+
+                    // 通过 Agent 发送 PUT /files/<filename> 请求
+                    fetch(`${httpClientAgentUrl}/api/industrial_protocol/http_client/send`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            host, port,
+                            method: 'PUT',
+                            path: `/files/${filename}`,
+                            headers: {'Content-Type': 'application/octet-stream'},
+                            body: btoa(content),  // Base64 编码
+                            timeout: 30
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-upload me-1"></i>上传文件';
+
+                        if (data.success) {
+                            displayHttpClientResult(data.result);
+                            showToast(`文件上传成功，流量已通过防火墙`, 'success');
+                        } else {
+                            showToast('上传失败: ' + (data.error || data.message), 'error');
+                        }
+                    })
+                    .catch(error => {
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-upload me-1"></i>上传文件';
+                        showToast('上传失败: ' + error.message, 'error');
+                    });
+                };
+                reader.readAsBinaryString(file);
+            };
         });
 
         function displayHttpClientResult(result) {
@@ -7788,14 +8004,17 @@ function safeAddEventListener(elementId, event, handler) {
             }
         }
 
-        function updateHttpClientStatus() {
-            const status = document.getElementById('http_client_status');
+        function updateHttpClientTargetStatus() {
+            const status = document.getElementById('http_client_target_status');
             if (!httpClientAgentConnected) {
-                status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent未连接';
-                status.className = 'alert alert-info mb-0';
+                status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：请先连接Agent，再连接目标服务器';
+                status.className = 'alert alert-warning mb-0 py-2';
+            } else if (httpClientTargetConnected) {
+                status.innerHTML = `<i class="fas fa-check-circle me-2"></i>状态：已连接 ${httpClientTargetHost}:${httpClientTargetPort}（流量经过防火墙）`;
+                status.className = 'alert alert-success mb-0 py-2';
             } else {
-                status.innerHTML = '<i class="fas fa-check-circle me-2"></i>状态：Agent已连接';
-                status.className = 'alert alert-success mb-0';
+                status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent已连接，请输入目标服务器IP并连接';
+                status.className = 'alert alert-info mb-0 py-2';
             }
         }
 

@@ -5642,6 +5642,40 @@ except ImportError as e:
     logger.warning(f'HTTP 模块加载失败: {e}')
 
 
+@app.route('/api/industrial_protocol/http_client/test_connection', methods=['POST'])
+def http_client_test_connection():
+    """测试与目标服务器的连接"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        data = request.json
+        host = data.get('host', '')
+        port = int(data.get('port', 80))
+        timeout = float(data.get('timeout', 5))
+
+        if not host:
+            return jsonify({'success': False, 'error': '请输入主机地址'}), 400
+
+        # 尝试建立 TCP 连接测试
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        try:
+            sock.connect((host, port))
+            sock.close()
+            add_log('INFO', f'HTTP连接测试成功: {host}:{port}')
+            return jsonify({'success': True, 'message': f'连接成功: {host}:{port}'})
+        except socket.timeout:
+            return jsonify({'success': False, 'error': '连接超时'}), 200
+        except socket.error as e:
+            return jsonify({'success': False, 'error': f'连接失败: {e}'}), 200
+
+    except Exception as e:
+        add_log('ERROR', f'HTTP连接测试异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/industrial_protocol/http_client/send', methods=['POST'])
 def http_client_send():
     """发送 HTTP 请求"""
