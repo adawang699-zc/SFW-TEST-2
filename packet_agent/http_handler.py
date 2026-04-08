@@ -291,8 +291,50 @@ class HTTPClient:
             elapsed = time.time() - self.start_time
             request_rate = self.request_count / elapsed if elapsed > 0 else 0
 
-            # 检测文件类型
-            file_type = HTTPAnalyzer.detect_file_type(path, response_info.get('content_type'))
+            # 检测文件类型（基于响应体内容的魔数检测）
+            file_type = {
+                'extension': None,
+                'category': None,
+                'content_type': response_info.get('content_type'),
+                'detected_type': '未知文件类型',
+                'method': 'none'
+            }
+
+            # 从 URL 提取扩展名
+            if '.' in path.split('?')[0]:
+                ext = '.' + path.split('?')[0].rsplit('.', 1)[-1].lower()
+                file_type['extension'] = ext
+                for category, extensions in FILE_EXTENSIONS.items():
+                    if ext in extensions:
+                        file_type['category'] = category
+                        break
+
+            # 如果有响应体，使用魔数检测真实类型
+            if response_info['body_length'] > 0 and response_data:
+                # 提取响应体
+                if b'\r\n\r\n' in response_data:
+                    _, body = response_data.split(b'\r\n\r\n', 1)
+                    # 使用魔数检测
+                    magic_type = detect_file_type_by_magic_bytes(body)
+                    if magic_type['success']:
+                        file_type['detected_type'] = magic_type['detected_type']
+                        file_type['method'] = 'magic_number'
+                        file_type['category'] = magic_type.get('category', file_type['category'])
+                    elif response_info.get('content_type'):
+                        # 回退到 Content-Type 检测
+                        content_type = response_info.get('content_type', '')
+                        if 'image' in content_type:
+                            file_type['category'] = 'image'
+                            file_type['detected_type'] = f'{content_type.split("/")[-1]}图像文件'
+                        elif 'video' in content_type:
+                            file_type['category'] = 'video'
+                        elif 'audio' in content_type:
+                            file_type['category'] = 'audio'
+                        elif 'zip' in content_type or 'compressed' in content_type:
+                            file_type['category'] = 'archive'
+                        elif 'pdf' in content_type:
+                            file_type['category'] = 'document'
+                            file_type['detected_type'] = 'PDF文件'
 
             # 记录日志
             log_entry = {
@@ -666,6 +708,163 @@ FILE_TYPE_MAPPING = {
     'XML document': 'XML文件',
     'JSON data': 'JSON文件',
 }
+
+
+def detect_file_type_by_magic_bytes(data: bytes) -> Dict[str, Any]:
+    """
+    通过魔数（Magic Number）检测字节数据的文件类型
+    用于 HTTP 响应体的文件类型检测
+
+    Args:
+        data: 文件的字节数据（至少前32字节）
+
+    Returns:
+        dict: {
+            'detected_type': '检测到的文件类型',
+            'category': '文件类别',
+            'success': True/False
+        }
+    """
+    result = {
+        'detected_type': '未知文件类型',
+        'category': None,
+        'success': False
+    }
+
+    if not data or len(data) < 2:
+        return result
+
+    header = data[:32] if len(data) >= 32 else data
+    result['success'] = True
+
+    # 文件魔数对照表 (魔数, 类型, 类别)
+    MAGIC_PATTERNS = [
+        # 图像
+        (b'\x89PNG\r\n\x1a\n', 'PNG图像文件', 'image'),
+        (b'\xff\xd8\xff', 'JPEG图像文件', 'image'),
+        (b'GIF87a', 'GIF图像文件', 'image'),
+        (b'GIF89a', 'GIF图像文件', 'image'),
+        (b'II*\x00', 'TIFF图像文件', 'image'),
+        (b'MM\x00*', 'TIFF图像文件', 'image'),
+        (b'BM', 'BMP图像文件', 'image'),
+        (b'\x00\x00\x01\x00', 'ICO图标文件', 'image'),
+        (b'RIFF', 'WebP图像文件', 'image'),  # 需要进一步检查 WEBP 标识
+        # 音频
+        (b'ID3', 'MP3音频文件', 'audio'),
+        (b'\xff\xfb', 'MP3音频文件', 'audio'),
+        (b'\xff\xfa', 'MP3音频文件', 'audio'),
+        (b'\xff\xf3', 'MP3音频文件', 'audio'),
+        (b'\xff\xf2', 'MP3音频文件', 'audio'),
+        (b'fLaC', 'FLAC音频文件', 'audio'),
+        (b'RIFF', 'WAV音频文件', 'audio'),  # RIFF...WAVE
+        (b'OggS', 'OGG音频文件', 'audio'),
+        # 视频
+        (b'\x00\x00\x00\x1cftyp', 'MP4视频文件', 'video'),
+        (b'\x00\x00\x00\x20ftyp', 'MP4视频文件', 'video'),
+        (b'\x1aE\xdf\xa3', 'MKV视频文件', 'video'),
+        (b'RIFF', 'AVI视频文件', 'video'),
+        (b'\x00\x00\x01\xba', 'MPEG视频文件', 'video'),
+        (b'\x00\x00\x01\xb3', 'MPEG视频文件', 'video'),
+        # 压缩
+        (b'PK\x03\x04', 'ZIP压缩文件', 'archive'),
+        (b'PK\x05\x06', 'ZIP压缩文件', 'archive'),
+        (b'Rar!\x1a\x07', 'RAR压缩文件', 'archive'),
+        (b'7z\xbc\xaf\x27\x1c', '7Z压缩文件', 'archive'),
+        (b'BZ', 'BZIP2压缩文件', 'archive'),
+        (b'\x1f\x8b', 'GZ压缩文件', 'archive'),
+        (b'\xfd7zXZ\x00', 'XZ压缩文件', 'archive'),
+        # 文档
+        (b'%PDF', 'PDF文件', 'document'),
+        (b'PK\x03\x04', 'Office文档文件', 'document'),  # docx/xlsx/pptx 都是 zip
+        # 可执行
+        (b'MZ', 'EXE可执行文件', 'executable'),
+        (b'\x7fELF', 'ELF可执行文件', 'executable'),
+        (b'\xca\xfe\xba\xbe', 'Java类文件', 'executable'),
+        (b'dex\n', 'Android DEX文件', 'executable'),
+        # 网络数据
+        (b'\xd4\xc3\xb2\xa1', 'PCAP文件', 'network'),
+        (b'\xa1\xb2\xc3\xd4', 'PCAP文件', 'network'),
+        (b'\x0a\x0d\x0d\x0a', 'PCAPNG文件', 'network'),
+        # 数据库
+        (b'SQLite format 3', 'SQLite数据库', 'database'),
+    ]
+
+    # 检测魔数
+    for magic, type_name, category in MAGIC_PATTERNS:
+        if header.startswith(magic):
+            result['detected_type'] = type_name
+            result['category'] = category
+            return result
+
+    # 特殊处理 RIFF 格式（WAV/AVI/WebP）
+    if header.startswith(b'RIFF') and len(header) >= 12:
+        riff_type = header[8:12]
+        if riff_type == b'WAVE':
+            result['detected_type'] = 'WAV音频文件'
+            result['category'] = 'audio'
+            return result
+        elif riff_type == b'AVI ':
+            result['detected_type'] = 'AVI视频文件'
+            result['category'] = 'video'
+            return result
+        elif riff_type == b'WEBP':
+            result['detected_type'] = 'WebP图像文件'
+            result['category'] = 'image'
+            return result
+
+    # 检测文本类型
+    try:
+        text = header.decode('utf-8', errors='ignore')
+        # Shell 脚本
+        if text.startswith('#!'):
+            if 'bash' in text or 'sh' in text:
+                result['detected_type'] = 'Shell脚本文件'
+                result['category'] = 'script'
+            elif 'python' in text:
+                result['detected_type'] = 'Python脚本文件'
+                result['category'] = 'script'
+            elif 'perl' in text:
+                result['detected_type'] = 'Perl脚本文件'
+                result['category'] = 'script'
+            else:
+                result['detected_type'] = '脚本文件'
+                result['category'] = 'script'
+            return result
+        # PHP
+        if text.startswith('<?php'):
+            result['detected_type'] = 'PHP脚本文件'
+            result['category'] = 'script'
+            return result
+        # HTML
+        if text.startswith('<!DOCTYPE') or text.lower().startswith('<html'):
+            result['detected_type'] = 'HTML文件'
+            result['category'] = 'document'
+            return result
+        # XML
+        if text.startswith('<?xml'):
+            result['detected_type'] = 'XML文件'
+            result['category'] = 'document'
+            return result
+        # JSON
+        if text.startswith('{') or text.startswith('['):
+            # 验证是否为有效 JSON
+            try:
+                import json
+                json.loads(data[:1000].decode('utf-8', errors='ignore'))
+                result['detected_type'] = 'JSON文件'
+                result['category'] = 'document'
+                return result
+            except:
+                pass
+        # 纯文本
+        if header.decode('utf-8', errors='ignore').isprintable() or header.decode('ascii', errors='ignore').isprintable():
+            result['detected_type'] = '文本文件'
+            result['category'] = 'document'
+            return result
+    except:
+        pass
+
+    return result
 
 
 def detect_file_type_by_content(file_path: str) -> Dict[str, Any]:
