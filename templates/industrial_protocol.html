@@ -2048,6 +2048,42 @@
                                     </table>
                                 </div>
                             </div>
+
+                            <!-- 文件管理 -->
+                            <div id="http_files_section" style="display: none;">
+                                <hr class="my-3">
+                                <h6 class="text-muted mb-3"><i class="fas fa-folder me-2"></i>文件管理</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <input type="file" id="http_file_upload_input" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="http_file_upload_btn" class="btn btn-success btn-sm me-2">
+                                            <i class="fas fa-upload me-1"></i>上传
+                                        </button>
+                                        <button id="http_files_refresh" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-sync me-1"></i>刷新列表
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                                    <table class="table table-sm table-bordered table-hover">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>文件名</th>
+                                                <th>大小</th>
+                                                <th>真实类型</th>
+                                                <th>修改时间</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="http_files_table">
+                                            <tr><td colspan="5" class="text-center text-muted">暂无文件</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <small class="text-muted" id="http_files_dir">目录: C:\packet_agent\http</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -7782,6 +7818,8 @@ function safeAddEventListener(elementId, event, handler) {
                 }
                 httpServerAgentConnected = false;
                 httpServerAgentUrl = '';
+                // 隐藏文件管理区域
+                document.getElementById('http_files_section').style.display = 'none';
                 updateHttpServerStatus();
             });
         });
@@ -7814,8 +7852,14 @@ function safeAddEventListener(elementId, event, handler) {
                     httpServerAgentUrl = agentUrl;
                     httpServerAgentConnected = true;
                     document.getElementById('http_server_start').disabled = false;
+                    // 显示文件管理区域
+                    document.getElementById('http_files_section').style.display = 'block';
+                    // 更新目录显示
+                    document.getElementById('http_files_dir').textContent = '目录: ' + (data.base_dir || 'C:\\packet_agent\\http');
                     showToast('Agent连接成功', 'success');
                     updateHttpServerStatus();
+                    // 自动刷新文件列表
+                    refreshHttpFiles();
                 })
                 .catch(error => {
                     showToast('连接失败: ' + error.message, 'error');
@@ -7924,6 +7968,159 @@ function safeAddEventListener(elementId, event, handler) {
                 status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent已连接，服务器未启动';
                 status.className = 'alert alert-info mb-0';
             }
+        }
+
+        // HTTP 文件管理功能
+        function refreshHttpFiles() {
+            if (!httpServerAgentConnected) return;
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_files/list`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayHttpFiles(data.files);
+                        // 更新目录显示
+                        if (data.base_dir) {
+                            document.getElementById('http_files_dir').textContent = '目录: ' + data.base_dir;
+                        }
+                    } else {
+                        showToast('获取文件列表失败: ' + (data.error || '未知错误'), 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('获取文件列表失败: ' + error.message, 'error');
+                });
+        }
+
+        function displayHttpFiles(files) {
+            const tbody = document.getElementById('http_files_table');
+            tbody.innerHTML = '';
+            if (files.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无文件</td></tr>';
+                return;
+            }
+            files.forEach(file => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><i class="fas fa-file me-2"></i>${file.name}</td>
+                    <td>${file.size_str}</td>
+                    <td><span class="badge bg-secondary">${file.type}</span></td>
+                    <td>${file.modified}</td>
+                    <td>
+                        <button class="btn btn-outline-success btn-sm me-1" onclick="downloadHttpFile('${file.name}')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteHttpFile('${file.name}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 刷新文件列表按钮
+        document.getElementById('http_files_refresh')?.addEventListener('click', function() {
+            refreshHttpFiles();
+        });
+
+        // 上传文件按钮
+        document.getElementById('http_file_upload_btn')?.addEventListener('click', function() {
+            if (!httpServerAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+            const fileInput = document.getElementById('http_file_upload_input');
+            if (!fileInput.files.length) {
+                showToast('请选择文件', 'warning');
+                return;
+            }
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>上传中...';
+
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_files/upload`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-upload me-1"></i>上传';
+                if (data.success) {
+                    showToast(`文件上传成功: ${data.filename}`, 'success');
+                    // 显示检测到的真实类型
+                    if (data.type && data.type.detected_type) {
+                        showToast(`检测到文件类型: ${data.type.detected_type}`, 'info');
+                    }
+                    refreshHttpFiles();
+                    fileInput.value = '';  // 清空选择
+                } else {
+                    showToast('上传失败: ' + (data.error || '未知错误'), 'error');
+                }
+            })
+            .catch(error => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-upload me-1"></i>上传';
+                showToast('上传失败: ' + error.message, 'error');
+            });
+        });
+
+        // 下载文件
+        function downloadHttpFile(filename) {
+            if (!httpServerAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_files/download/${encodeURIComponent(filename)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('下载失败');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showToast('文件下载成功', 'success');
+                })
+                .catch(error => {
+                    showToast('下载失败: ' + error.message, 'error');
+                });
+        }
+
+        // 删除文件
+        function deleteHttpFile(filename) {
+            if (!httpServerAgentConnected) {
+                showToast('请先连接Agent', 'warning');
+                return;
+            }
+            if (!confirm(`确定要删除文件 "${filename}" 吗？`)) {
+                return;
+            }
+            fetch(`${httpServerAgentUrl}/api/industrial_protocol/http_files/delete/${encodeURIComponent(filename)}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('文件删除成功', 'success');
+                    refreshHttpFiles();
+                } else {
+                    showToast('删除失败: ' + (data.error || '未知错误'), 'error');
+                }
+            })
+            .catch(error => {
+                showToast('删除失败: ' + error.message, 'error');
+            });
         }
 
         // ==================== GOOSE/SV 功能 ====================

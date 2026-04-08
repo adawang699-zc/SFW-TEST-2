@@ -5738,7 +5738,9 @@ def http_server_status():
 
     try:
         status = http_server.get_status()
-        return jsonify({'success': True, 'status': status})
+        # 添加文件管理目录
+        status['base_dir'] = file_manager.base_dir
+        return jsonify({'success': True, 'status': status, 'base_dir': file_manager.base_dir})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
