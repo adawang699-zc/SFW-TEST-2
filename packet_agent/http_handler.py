@@ -472,10 +472,10 @@ class HTTPServerWrapper:
         self.server = None
         self.thread = None
         self.running = False
-        self.port = 8080
+        self.port = 80
         self.host = '0.0.0.0'
 
-    def start(self, port: int = 8080, host: str = '0.0.0.0') -> Tuple[bool, str]:
+    def start(self, port: int = 80, host: str = '0.0.0.0') -> Tuple[bool, str]:
         """启动 HTTP 服务器"""
         if self.running:
             return (False, "服务器已在运行")

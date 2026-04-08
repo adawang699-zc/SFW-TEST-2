@@ -1996,7 +1996,7 @@
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="http_server_port" class="form-label">监听端口 <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="http_server_port" value="8080" min="1" max="65535">
+                                        <input type="number" class="form-control" id="http_server_port" value="80" min="1" max="65535">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="http_server_host" class="form-label">绑定地址</label>
@@ -3802,6 +3802,32 @@ function safeAddEventListener(elementId, event, handler) {
                             option.textContent = `${env.name} (${env.ip})`;
                             option.dataset.env = JSON.stringify(env);
                             dcpTestEnvSelect.appendChild(option);
+                        });
+                    }
+                    // 为HTTP客户端测试环境下拉框填充数据
+                    const httpClientTestEnvSelect = document.getElementById('http_client_test_env');
+                    if (httpClientTestEnvSelect) {
+                        httpClientTestEnvSelect.innerHTML = '<option value="">请选择测试环境</option>';
+                        testEnvironments.forEach(env => {
+                            const option = document.createElement('option');
+                            option.value = env.id;
+                            option.textContent = `${env.name} (${env.ip})`;
+                            option.dataset.ip = env.ip;
+                            option.dataset.env = JSON.stringify(env);
+                            httpClientTestEnvSelect.appendChild(option);
+                        });
+                    }
+                    // 为HTTP服务端测试环境下拉框填充数据
+                    const httpServerTestEnvSelect = document.getElementById('http_server_test_env');
+                    if (httpServerTestEnvSelect) {
+                        httpServerTestEnvSelect.innerHTML = '<option value="">请选择测试环境</option>';
+                        testEnvironments.forEach(env => {
+                            const option = document.createElement('option');
+                            option.value = env.id;
+                            option.textContent = `${env.name} (${env.ip})`;
+                            option.dataset.ip = env.ip;
+                            option.dataset.env = JSON.stringify(env);
+                            httpServerTestEnvSelect.appendChild(option);
                         });
                     }
                 }
@@ -7803,7 +7829,7 @@ function safeAddEventListener(elementId, event, handler) {
                 return;
             }
 
-            const port = parseInt(document.getElementById('http_server_port').value) || 8080;
+            const port = parseInt(document.getElementById('http_server_port').value) || 80;
             const host = document.getElementById('http_server_host').value.trim() || '0.0.0.0';
 
             this.disabled = true;
@@ -7898,33 +7924,6 @@ function safeAddEventListener(elementId, event, handler) {
                 status.innerHTML = '<i class="fas fa-info-circle me-2"></i>状态：Agent已连接，服务器未启动';
                 status.className = 'alert alert-info mb-0';
             }
-        }
-
-        // 为HTTP测试环境下拉框填充数据
-        const httpClientTestEnvSelect = document.getElementById('http_client_test_env');
-        if (httpClientTestEnvSelect) {
-            httpClientTestEnvSelect.innerHTML = '<option value="">请选择测试环境</option>';
-            testEnvironments.forEach(env => {
-                const option = document.createElement('option');
-                option.value = env.id;
-                option.textContent = `${env.name} (${env.ip})`;
-                option.dataset.ip = env.ip;
-                option.dataset.env = JSON.stringify(env);
-                httpClientTestEnvSelect.appendChild(option);
-            });
-        }
-
-        const httpServerTestEnvSelect = document.getElementById('http_server_test_env');
-        if (httpServerTestEnvSelect) {
-            httpServerTestEnvSelect.innerHTML = '<option value="">请选择测试环境</option>';
-            testEnvironments.forEach(env => {
-                const option = document.createElement('option');
-                option.value = env.id;
-                option.textContent = `${env.name} (${env.ip})`;
-                option.dataset.ip = env.ip;
-                option.dataset.env = JSON.stringify(env);
-                httpServerTestEnvSelect.appendChild(option);
-            });
         }
 
         // ==================== GOOSE/SV 功能 ====================
