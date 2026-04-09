@@ -1,0 +1,12 @@
+{
+  "name": "ppt-generator",
+  "version": "1.0.0",
+  "description": "Industrial Firewall Testing Platform Training PPT Generator",
+  "main": "generate_ppt.js",
+  "scripts": {
+    "generate": "node generate_ppt.js"
+  },
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  }
+}
