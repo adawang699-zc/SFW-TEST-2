@@ -823,7 +823,7 @@ class HTTPFileManager:
                         'size_str': self._format_size(stat.st_size),
                         'modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime)),
                         'type': type_info['detected_type'],
-                        'raw_type': type_info['raw_type'],
+                        'extension': type_info.get('extension', ''),
                     })
         except Exception as e:
             logger.error(f'列出文件失败: {e}')
