@@ -7848,16 +7848,13 @@ function safeAddEventListener(elementId, event, handler) {
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>下载中...';
 
-            // 通过 Agent 发送 GET /files/<filename> 请求
-            fetch(`${httpClientAgentUrl}/api/industrial_protocol/http_client/send`, {
+            // 通过 Agent 下载文件到客户端环境
+            fetch(`${httpClientAgentUrl}/api/industrial_protocol/http_client/download`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     host, port,
-                    method: 'GET',
-                    path: `/files/${filename}`,
-                    headers: {},
-                    body: '',
+                    filename: filename,
                     timeout: 30
                 })
             })
@@ -7867,14 +7864,11 @@ function safeAddEventListener(elementId, event, handler) {
                 this.innerHTML = '<i class="fas fa-download me-1"></i>下载文件';
 
                 if (data.success) {
-                    displayHttpClientResult(data.result);
-                    showToast(`文件下载成功，流量已通过防火墙`, 'success');
-                    // 显示检测到的文件类型
-                    if (data.result && data.result.file_type) {
-                        showToast(`检测到文件类型: ${data.result.file_type.category || '未知'}`, 'info');
-                    }
+                    showToast(`文件下载成功: ${data.filename} (${data.size} bytes)`, 'success');
+                    showToast(`已保存到客户端: ${data.saved_to}`, 'info');
+                    showToast(`文件类型: ${data.file_type}`, 'info');
                 } else {
-                    showToast('下载失败: ' + (data.error || data.message), 'error');
+                    showToast('下载失败: ' + (data.error || '未知错误'), 'error');
                 }
             })
             .catch(error => {

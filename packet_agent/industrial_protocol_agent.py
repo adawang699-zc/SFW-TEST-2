@@ -5714,6 +5714,88 @@ def http_client_send():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/industrial_protocol/http_client/download', methods=['POST'])
+def http_client_download():
+    """下载文件到客户端 Agent 所在的测试环境"""
+    if not HTTP_AVAILABLE:
+        return jsonify({'success': False, 'error': 'HTTP模块未加载'}), 500
+
+    try:
+        data = request.json
+        host = data.get('host', '')
+        port = int(data.get('port', 80))
+        filename = data.get('filename', '')
+        timeout = float(data.get('timeout', 30))
+
+        if not host:
+            return jsonify({'success': False, 'error': '请输入主机地址'}), 400
+        if not filename:
+            return jsonify({'success': False, 'error': '请输入文件名'}), 400
+
+        # 构建 HTTP GET 请求
+        path = f'/files/{filename}'
+        request_lines = [f"GET {path} HTTP/1.1"]
+        request_lines.append(f"Host: {host}")
+        request_lines.append("Connection: close")
+        request_lines.append("")
+        request_lines.append("")
+        raw_request = "\r\n".join(request_lines).encode('utf-8')
+
+        # 发送请求
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, port))
+        sock.sendall(raw_request)
+
+        # 接收响应
+        response_data = b''
+        while True:
+            chunk = sock.recv(8192)
+            if not chunk:
+                break
+            response_data += chunk
+        sock.close()
+
+        # 解析响应
+        if b'\r\n\r\n' in response_data:
+            header_part, body = response_data.split(b'\r\n\r\n', 1)
+            header_text = header_part.decode('utf-8', errors='ignore')
+
+            # 检查状态码
+            status_line = header_text.split('\r\n')[0]
+            if '200' not in status_line:
+                return jsonify({
+                    'success': False,
+                    'error': f'服务器返回错误: {status_line}'
+                })
+
+            # 保存文件到客户端 Agent 的文件目录
+            success, type_info, message = file_manager.save_file(filename, body)
+
+            if success:
+                add_log('INFO', f'HTTP下载文件: {filename} ({len(body)} bytes) -> {file_manager.base_dir}')
+                return jsonify({
+                    'success': True,
+                    'filename': filename,
+                    'size': len(body),
+                    'file_type': type_info.get('detected_type', '未知'),
+                    'saved_to': file_manager.base_dir,
+                    'message': f'文件已下载到客户端: {file_manager.base_dir}\\{filename}'
+                })
+            else:
+                return jsonify({'success': False, 'error': f'保存文件失败: {message}'})
+        else:
+            return jsonify({'success': False, 'error': '无效的HTTP响应'}), 500
+
+    except socket.timeout:
+        return jsonify({'success': False, 'error': '连接超时'}), 200
+    except socket.error as e:
+        return jsonify({'success': False, 'error': f'连接错误: {e}'}), 200
+    except Exception as e:
+        add_log('ERROR', f'HTTP下载异常: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/industrial_protocol/http_client/methods', methods=['GET'])
 def http_client_methods():
     """获取支持的 HTTP 方法列表"""
