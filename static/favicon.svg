@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 背景圆形 -->
+  <circle cx="32" cy="32" r="30" fill="#667eea"/>
+
+  <!-- 盾牌形状 -->
+  <path d="M32 8 L52 16 L52 32 C52 44 42 52 32 56 C22 52 12 44 12 32 L12 16 Z"
+        fill="#ffffff" opacity="0.95"/>
+
+  <!-- 火焰图标 -->
+  <path d="M32 18 C28 24 26 28 26 34 C26 40 29 44 32 46 C35 44 38 40 38 34 C38 28 36 24 32 18 Z"
+        fill="#f5576c"/>
+
+  <!-- 火焰内部 -->
+  <path d="M32 26 C30 30 29 32 29 36 C29 39 30 42 32 43 C34 42 35 39 35 36 C35 32 34 30 32 26 Z"
+        fill="#fee140"/>
+
+  <!-- 防火墙线条 -->
+  <line x1="20" y1="24" x2="26" y2="24" stroke="#667eea" stroke-width="2" stroke-linecap="round"/>
+  <line x1="38" y1="24" x2="44" y2="24" stroke="#667eea" stroke-width="2" stroke-linecap="round"/>
+  <line x1="20" y1="36" x2="26" y2="36" stroke="#667eea" stroke-width="2" stroke-linecap="round"/>
+  <line x1="38" y1="36" x2="44" y2="36" stroke="#667eea" stroke-width="2" stroke-linecap="round"/>
+</svg>

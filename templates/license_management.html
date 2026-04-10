@@ -175,15 +175,23 @@
                                             </div>
                                             <form id="deviceLicenseForm">
                                                 <div class="mb-3">
+                                                    <label for="license_method" class="form-label">授权方式</label>
+                                                    <select class="form-select" id="license_method">
+                                                        <option value="DR" selected>DR</option>
+                                                        <option value="dev-Code">dev-Code</option>
+                                                    </select>
+                                                    <div class="form-text">选择设备授权的生成方式</div>
+                                                </div>
+                                                <div class="mb-3" id="auth_name_group">
                                                     <label for="auth_name" class="form-label">授权机构名称</label>
-                                                    <input type="text" class="form-control" id="auth_name" 
+                                                    <input type="text" class="form-control" id="auth_name"
                                                            value="北京天地和兴科技股份有限公司武汉研发中心测试专用授权" required>
-                                                    <div class="form-text">授权机构的完整名称</div>
+                                                    <div class="form-text">授权机构的完整名称（DR方式需要）</div>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="device_machine_code" class="form-label">设备机器码</label>
-                                                    <input type="text" class="form-control" id="device_machine_code" 
-                                                           placeholder="例如: 18b10008f910f88a93b8b7a7f5c58eba" required>
+                                                    <input type="text" class="form-control" id="device_machine_code"
+                                                           placeholder="例如: 5a2c544613553aa4bed38e6ecbe739c0" required>
                                                     <div class="form-text">目标设备的唯一机器码标识</div>
                                                 </div>
                                                 <div class="row">
@@ -759,9 +767,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>连接中...';
-        
+
         addLog('测试授权服务器连接...');
-        
+
         fetch('/api/license/device/test_connection/', {
             method: 'POST',
             headers: {
@@ -773,7 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = originalText;
-            
+
             if (data.success) {
                 addLog('授权服务器连接成功', 'success');
             } else {
@@ -787,32 +795,58 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // 授权方式切换
+    document.getElementById('license_method').addEventListener('change', function() {
+        const method = this.value;
+        const authNameGroup = document.getElementById('auth_name_group');
+        const authNameInput = document.getElementById('auth_name');
+
+        if (method === 'dev-Code') {
+            // 新授权方式不需要授权机构名称
+            authNameGroup.style.display = 'none';
+            authNameInput.removeAttribute('required');
+        } else {
+            // DR 方式需要授权机构名称
+            authNameGroup.style.display = 'block';
+            authNameInput.setAttribute('required', 'required');
+        }
+        addLog(`切换授权方式: ${method}`, 'info');
+    });
+
     // 设备授权生成
     document.getElementById('deviceLicenseForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         if (!checkAuthentication()) return;
-        
+
+        const method = document.getElementById('license_method').value;
         const authName = document.getElementById('auth_name').value.trim();
         const machineCode = document.getElementById('device_machine_code').value.trim();
-        
-        if (!authName || !machineCode) {
-            addLog('请填写完整的设备授权信息', 'error');
+
+        // DR 方式需要授权机构名称
+        if (method === 'DR' && !authName) {
+            addLog('DR方式需要填写授权机构名称', 'error');
             return;
         }
-        
+
+        if (!machineCode) {
+            addLog('请填写设备机器码', 'error');
+            return;
+        }
+
         const btn = document.getElementById('generateDeviceLicense');
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
-        
-        addLog(`开始生成设备授权 - 机器码: ${machineCode}`);
-        
+
+        addLog(`开始生成设备授权 - 方式: ${method}, 机器码: ${machineCode}`);
+
         const payload = {
             name: authName,
-            machine_code: machineCode
+            machine_code: machineCode,
+            method: method
         };
-        
+
         fetch('/api/license/device/generate/', {
             method: 'POST',
             headers: {
@@ -825,9 +859,12 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = originalText;
-            
+
             if (data.success) {
                 addLog(`设备授权生成成功 - 文件: ${data.filename}`, 'success');
+                if (data.output) {
+                    addLog(`输出: ${data.output}`, 'info');
+                }
                 currentDownloadFile = data.filename;
                 document.getElementById('downloadSection').style.display = 'block';
                 document.getElementById('noDownload').style.display = 'none';

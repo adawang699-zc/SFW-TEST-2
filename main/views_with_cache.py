@@ -1056,19 +1056,27 @@ def generate_device_license(request):
     """生成设备授权"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': '仅支持POST请求'})
-    
+
     try:
-        from .license_utils import generate_device_license as gen_device_license
-        
         data = json.loads(request.body)
         auth_name = data.get('name', '').strip()
         machine_code = data.get('machine_code', '').strip()
-        
-        if not auth_name or not machine_code:
-            return JsonResponse({'success': False, 'error': '缺少必要参数'})
-        
-        success, result = gen_device_license(auth_name, machine_code)
-        
+        method = data.get('method', 'DR')  # 默认 DR 方式
+
+        if not machine_code:
+            return JsonResponse({'success': False, 'error': '缺少设备机器码'})
+
+        if method == 'dev-Code':
+            # 新授权方式：SSH 到授权服务器执行 licgen 命令
+            success, result = _generate_device_license_dev_code(machine_code)
+        else:
+            # 老授权方式 (DR)
+            if not auth_name:
+                return JsonResponse({'success': False, 'error': 'DR方式需要授权机构名称'})
+
+            from .license_utils import generate_device_license as gen_device_license
+            success, result = gen_device_license(auth_name, machine_code)
+
         if success:
             # 存储文件内容供下载
             device_license_files[result['filename']] = {
@@ -1076,20 +1084,103 @@ def generate_device_license(request):
                 'timestamp': time.time(),
                 'machine_code': machine_code
             }
-            
-            return JsonResponse({
+
+            response_data = {
                 'success': True,
                 'filename': result['filename'],
-                'message': result['message']
-            })
+                'message': result.get('message', '')
+            }
+            if result.get('output'):
+                response_data['output'] = result['output']
+
+            return JsonResponse(response_data)
         else:
             return JsonResponse({'success': False, 'error': result})
-            
+
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'error': '无效的JSON格式'})
     except Exception as e:
         logger.exception(f"生成设备授权异常: {e}")
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+def _generate_device_license_dev_code(machine_code: str) -> tuple:
+    """
+    新授权方式：SSH 到授权服务器执行 licgen 命令
+
+    Args:
+        machine_code: 设备机器码
+
+    Returns:
+        (success, result): 成功返回(True, {'filename': ..., 'content': ...})，失败返回(False, error)
+    """
+    import paramiko
+    from io import BytesIO
+
+    # 授权服务器配置
+    LICENSE_SERVER = '10.40.24.17'
+    LICENSE_USER = 'tdhx'
+    LICENSE_PASSWORD = 'tdhx@2017'
+    LICENSE_PORT = 22
+    LICGEN_PATH = '/home/tdhx/license/x64/licgen'
+
+    filename = f'{machine_code}.lic'
+
+    try:
+        # 连接 SSH
+        logger.info(f"连接授权服务器: {LICENSE_SERVER}")
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(LICENSE_SERVER, port=LICENSE_PORT, username=LICENSE_USER, password=LICENSE_PASSWORD, timeout=30)
+
+        # 执行 licgen 命令
+        command = f'{LICGEN_PATH} -m {machine_code} -p {filename}'
+        logger.info(f"执行命令: {command}")
+
+        stdin, stdout, stderr = ssh.exec_command(command)
+        output = stdout.read().decode('utf-8')
+        error = stderr.read().decode('utf-8')
+
+        logger.info(f"命令输出: {output}")
+        if error:
+            logger.warning(f"命令错误输出: {error}")
+
+        # 检查是否生成成功
+        if 'generate successful' not in output.lower() and 'successful' not in output.lower():
+            # 尝试从输出判断是否成功
+            ssh.close()
+            return False, f"授权生成失败: {output or error}"
+
+        # 下载生成的 .lic 文件
+        sftp = ssh.open_sftp()
+
+        # 获取文件内容
+        remote_path = f'/home/tdhx/{filename}'
+        with sftp.file(remote_path, 'rb') as remote_file:
+            file_content = remote_file.read()
+
+        # 关闭连接
+        sftp.close()
+        ssh.close()
+
+        logger.info(f"设备授权生成成功: {filename}")
+
+        return True, {
+            'filename': filename,
+            'content': file_content,
+            'message': f'{filename} generate successful.',
+            'output': output.strip()
+        }
+
+    except paramiko.AuthenticationException:
+        logger.error("授权服务器认证失败")
+        return False, "授权服务器认证失败"
+    except paramiko.SSHException as e:
+        logger.error(f"SSH连接错误: {e}")
+        return False, f"SSH连接错误: {str(e)}"
+    except Exception as e:
+        logger.exception(f"生成设备授权(dev-Code)失败: {e}")
+        return False, str(e)
 
 
 def download_device_license(request):

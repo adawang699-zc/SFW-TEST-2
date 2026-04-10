@@ -1,56 +1,675 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}首页 - 测试系统{% endblock %}
+{% block title %}首页 - 防火墙测试平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+    :root {
+        /* 明亮工业配色 */
+        --bg-light: #f8fafc;
+        --bg-card: #ffffff;
+        --border-light: #e2e8f0;
+        --border-medium: #cbd5e1;
+        --text-dark: #1e293b;
+        --text-body: #475569;
+        --text-muted: #64748b;
+        --accent-blue: #2563eb;
+        --accent-blue-light: #3b82f6;
+        --accent-red: #dc2626;
+        --accent-red-light: #ef4444;
+        --accent-green: #16a34a;
+        --accent-green-light: #22c55e;
+        --accent-yellow: #ca8a04;
+        --accent-yellow-light: #eab308;
+        --accent-orange: #ea580c;
+    }
+
+    .home-container {
+        font-family: 'Noto Sans SC', sans-serif;
+        color: var(--text-dark);
+        min-height: calc(100vh - 120px);
+        background: var(--bg-light);
+    }
+
+    /* Hero Section - 明亮工业风格 */
+    .hero-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 48px 40px;
+        margin-bottom: 24px;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: var(--accent-red);
+        border-radius: 8px 8px 0 0;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 40px;
+    }
+
+    .hero-text {
+        flex: 1;
+    }
+
+    .hero-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 2.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 12px;
+        color: var(--text-dark);
+    }
+
+    .hero-title span {
+        color: var(--accent-red);
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
+        color: var(--text-muted);
+        margin-bottom: 28px;
+        font-weight: 400;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary-custom {
+        background: var(--accent-red);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary-custom:hover {
+        background: var(--accent-red-light);
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline-custom {
+        background: var(--bg-card);
+        color: var(--text-dark);
+        border: 1px solid var(--border-medium);
+        padding: 12px 24px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-outline-custom:hover {
+        border-color: var(--accent-blue);
+        color: var(--accent-blue);
+        text-decoration: none;
+        background: #eff6ff;
+    }
+
+    .hero-visual {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .shield-icon {
+        width: 100px;
+        height: 120px;
+        position: relative;
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .shield-icon i {
+        font-size: 80px;
+        color: var(--accent-red);
+    }
+
+    /* Stats Section */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    @media (max-width: 992px) {
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 20px 24px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+    }
+
+    .stat-card.device::before { background: var(--accent-blue); }
+    .stat-card.env::before { background: var(--accent-green); }
+    .stat-card.testcase::before { background: var(--accent-yellow); }
+    .stat-card.template::before { background: var(--accent-red); }
+
+    .stat-number {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 6px;
+    }
+
+    .stat-card.device .stat-number { color: var(--accent-blue); }
+    .stat-card.env .stat-number { color: var(--accent-green); }
+    .stat-card.testcase .stat-number { color: var(--accent-yellow); }
+    .stat-card.template .stat-number { color: var(--accent-red); }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 500;
+    }
+
+    /* Section Header */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--border-light);
+    }
+
+    .section-header h5 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-body);
+        margin: 0;
+    }
+
+    .section-header .line {
+        flex: 1;
+        height: 1px;
+        background: var(--border-light);
+    }
+
+    /* Feature Grid */
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    @media (max-width: 992px) {
+        .feature-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .feature-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .feature-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 20px;
+        transition: all 0.2s ease;
+        height: 100%;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .feature-card:hover {
+        border-color: var(--accent-blue-light);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+    }
+
+    .feature-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .feature-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        border-radius: 8px;
+    }
+
+    .feature-icon.blue { background: #dbeafe; color: var(--accent-blue); }
+    .feature-icon.red { background: #fee2e2; color: var(--accent-red); }
+    .feature-icon.green { background: #dcfce7; color: var(--accent-green); }
+    .feature-icon.yellow { background: #fef9c3; color: var(--accent-yellow); }
+
+    .feature-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .feature-desc {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+        line-height: 1.5;
+    }
+
+    .feature-links {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .feature-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: var(--bg-light);
+        color: var(--text-body);
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+        border-radius: 4px;
+        border-left: 2px solid transparent;
+    }
+
+    .feature-link:hover {
+        color: var(--accent-blue);
+        background: #eff6ff;
+        border-left-color: var(--accent-blue);
+        text-decoration: none;
+    }
+
+    .feature-link i {
+        width: 14px;
+        text-align: center;
+        font-size: 0.75rem;
+    }
+
+    /* Footer Info */
+    .footer-info {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 16px 24px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .footer-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+
+    @media (max-width: 576px) {
+        .footer-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            text-align: center;
+        }
+    }
+
+    .footer-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .footer-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 500;
+    }
+
+    .footer-value {
+        font-size: 0.85rem;
+        color: var(--text-dark);
+        font-weight: 500;
+    }
+
+    /* Animation */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .hero-section {
+        animation: fadeInUp 0.4s ease;
+    }
+
+    .stat-card {
+        animation: fadeInUp 0.4s ease;
+        animation-fill-mode: both;
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 0.05s; }
+    .stat-card:nth-child(2) { animation-delay: 0.1s; }
+    .stat-card:nth-child(3) { animation-delay: 0.15s; }
+    .stat-card:nth-child(4) { animation-delay: 0.2s; }
+
+    .feature-card {
+        animation: fadeInUp 0.4s ease;
+        animation-fill-mode: both;
+    }
+
+    .feature-card:nth-child(1) { animation-delay: 0.1s; }
+    .feature-card:nth-child(2) { animation-delay: 0.15s; }
+    .feature-card:nth-child(3) { animation-delay: 0.2s; }
+    .feature-card:nth-child(4) { animation-delay: 0.25s; }
+    .feature-card:nth-child(5) { animation-delay: 0.3s; }
+    .feature-card:nth-child(6) { animation-delay: 0.35s; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-5 text-center">
-                    <i class="fas fa-shield-alt fa-4x text-primary mb-4"></i>
-                    <h1 class="display-4 mb-3">欢迎使用防火墙测试系统</h1>
-                    <p class="lead text-muted mb-4">专业的防火墙策略配置与测试平台</p>
-                    <a href="{% url 'main:firewall_policy' %}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-arrow-right me-2"></i>开始使用
+<div class="home-container">
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1 class="hero-title">工业防火墙<span>测试平台</span></h1>
+                <p class="hero-subtitle">专业的防火墙策略配置、协议测试与设备管理一体化解决方案</p>
+                <div class="hero-actions">
+                    <a href="{% url 'main:firewall_policy' %}" class="btn-primary-custom">
+                        <i class="fas fa-play"></i>开始测试
                     </a>
+                    <a href="{% url 'main:device_monitor' %}" class="btn-outline-custom">
+                        <i class="fas fa-server"></i>设备管理
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual d-none d-lg-block">
+                <div class="shield-icon">
+                    <i class="fas fa-shield-alt"></i>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>功能说明</h5>
+
+    <!-- Stats Section -->
+    <div class="stats-row">
+        <div class="stat-card device">
+            <div class="stat-number" id="deviceCount">--</div>
+            <div class="stat-label">测试设备</div>
+        </div>
+        <div class="stat-card env">
+            <div class="stat-number" id="envCount">--</div>
+            <div class="stat-label">测试环境</div>
+        </div>
+        <div class="stat-card testcase">
+            <div class="stat-number" id="testcaseCount">--</div>
+            <div class="stat-label">测试用例</div>
+        </div>
+        <div class="stat-card template">
+            <div class="stat-number" id="templateCount">--</div>
+            <div class="stat-label">知识库模板</div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="section-header">
+        <h5>功能模块</h5>
+        <div class="line"></div>
+    </div>
+
+    <div class="feature-grid">
+        <!-- 设备管理 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon blue">
+                    <i class="fas fa-server"></i>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <h6><i class="fas fa-check-circle text-success me-2"></i>已实现功能</h6>
-                            <ul class="list-unstyled ms-4">
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>防火墙策略配置</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>批量请求发送</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>实时日志显示</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>多种请求类型支持</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <h6><i class="fas fa-list me-2"></i>支持的请求类型</h6>
-                            <ul class="list-unstyled ms-4">
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>自定义服务</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>服务组</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>地址列表/地址组</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>包过滤策略</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>深度解析策略</li>
-                                <li><i class="fas fa-chevron-right text-primary me-2"></i>VPN策略</li>
-                            </ul>
-                        </div>
-                    </div>
+                <h5 class="feature-title">设备管理</h5>
+            </div>
+            <p class="feature-desc">管理测试设备，实时监控设备状态、资源使用和告警信息</p>
+            <div class="feature-links">
+                <a href="{% url 'main:device_monitor' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>测试设备
+                </a>
+                <a href="{% url 'main:test_env' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>测试环境
+                </a>
+            </div>
+        </div>
+
+        <!-- 策略测试 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon red">
+                    <i class="fas fa-cogs"></i>
                 </div>
+                <h5 class="feature-title">策略测试</h5>
+            </div>
+            <p class="feature-desc">配置和测试防火墙策略，包括包过滤、深度检测、VPN等</p>
+            <div class="feature-links">
+                <a href="{% url 'main:firewall_policy' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>策略配置
+                </a>
+                <a href="{% url 'main:service_deploy' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>服务下发
+                </a>
+            </div>
+        </div>
+
+        <!-- 工控协议 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon green">
+                    <i class="fas fa-industry"></i>
+                </div>
+                <h5 class="feature-title">工控协议</h5>
+            </div>
+            <p class="feature-desc">支持GOOSE/SV、Modbus、S7等多种工控协议测试</p>
+            <div class="feature-links">
+                <a href="{% url 'main:industrial_protocol' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>协议测试
+                </a>
+                <a href="{% url 'main:packet_send' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>报文发送
+                </a>
+            </div>
+        </div>
+
+        <!-- 扫描工具 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon yellow">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h5 class="feature-title">扫描工具</h5>
+            </div>
+            <p class="feature-desc">端口扫描、报文回放等网络诊断和测试工具</p>
+            <div class="feature-links">
+                <a href="{% url 'main:port_scan' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>端口扫描
+                </a>
+                <a href="{% url 'main:packet_replay' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>报文回放
+                </a>
+            </div>
+        </div>
+
+        <!-- 监控接收 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon blue">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h5 class="feature-title">监控接收</h5>
+            </div>
+            <p class="feature-desc">Syslog日志接收、SNMP Trap监控等日志分析功能</p>
+            <div class="feature-links">
+                <a href="{% url 'main:syslog_receiver' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>Syslog接收
+                </a>
+                <a href="{% url 'main:snmp' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>SNMP监控
+                </a>
+            </div>
+        </div>
+
+        <!-- 系统工具 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon red">
+                    <i class="fas fa-wrench"></i>
+                </div>
+                <h5 class="feature-title">系统工具</h5>
+            </div>
+            <p class="feature-desc">知识库管理、授权管理等系统配置和维护功能</p>
+            <div class="feature-links">
+                <a href="{% url 'main:knowledge_base' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>知识库管理
+                </a>
+                <a href="{% url 'main:license_management' %}" class="feature-link">
+                    <i class="fas fa-chevron-right"></i>授权管理
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Info -->
+    <div class="footer-info">
+        <div class="footer-grid">
+            <div class="footer-item">
+                <span class="footer-label">系统版本</span>
+                <span class="footer-value">v2.0.0</span>
+            </div>
+            <div class="footer-item">
+                <span class="footer-label">技术支持</span>
+                <span class="footer-value">天地和兴科技有限公司</span>
+            </div>
+            <div class="footer-item">
+                <span class="footer-label">联系方式</span>
+                <span class="footer-value">support@tdhx.com</span>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+});
+
+function loadStats() {
+    fetch('/api/device/list/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('deviceCount').textContent = data.devices.length;
+            }
+        })
+        .catch(() => {});
+
+    fetch('/api/test_env/list/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('envCount').textContent = data.environments.length;
+            }
+        })
+        .catch(() => {});
+
+    fetch('/api/service_test_case/list/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('testcaseCount').textContent = data.test_cases.length;
+            }
+        })
+        .catch(() => {});
+
+    fetch('/api/knowledge/templates/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('templateCount').textContent = data.templates.length;
+            }
+        })
+        .catch(() => {});
+}
+</script>
 {% endblock %}
