@@ -10,11 +10,40 @@ import socket
 
 logger = logging.getLogger(__name__)
 
-# 默认SSH凭据
+# 从配置模块导入设备凭据配置
+from djangoProject.config import (
+    DEVICE_DEFAULT_USER, DEVICE_DEFAULT_PASSWORD,
+    DEVICE_BACKEND_PASSWORD_FIREWALL, DEVICE_BACKEND_PASSWORD_AUDIT,
+    DEVICE_BACKEND_PASSWORD_OTHER
+)
+
+# 默认 SSH 凭据（从环境变量读取）
+DEFAULT_USER = DEVICE_DEFAULT_USER
+DEFAULT_PASSWORD = DEVICE_DEFAULT_PASSWORD
 
 
-DEFAULT_USER = os.environ.get('DEVICE_DEFAULT_USER', 'admin')
-DEFAULT_PASSWORD = os.environ.get('DEVICE_DEFAULT_PASSWORD', '')
+def get_backend_password(device_type, custom_password=None):
+    """
+    获取后台密码
+
+    Args:
+        device_type: 设备类型
+        custom_password: 自定义密码（优先使用）
+
+    Returns:
+        后台密码
+    """
+    # 优先使用自定义密码
+    if custom_password:
+        return custom_password
+
+    # 根据设备类型选择默认密码
+    if device_type == 'ic_firewall':
+        return DEVICE_BACKEND_PASSWORD_FIREWALL
+    elif device_type in ('ic_audit', 'ids'):
+        return DEVICE_BACKEND_PASSWORD_AUDIT
+    else:
+        return DEVICE_BACKEND_PASSWORD_OTHER
 
 def execute(cmd, host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, port=22):
     """
@@ -203,14 +232,15 @@ def execute_in_backend(cmds, host, user=DEFAULT_USER, password=DEFAULT_PASSWORD,
     else:
         # 如果是列表，合并为单个命令
         cmd = ' && '.join(cmds) if isinstance(cmds, (list, tuple)) else str(cmds)
-    
-    # 根据设备类型自动选择后台密码
-    if backend_password is None:
-        if device_type == 'ic_firewall':
-            backend_password = DEFAULT_BACKEND_PASSWORD
-        else:
-            backend_password = DEFAULT_BACKEND_PASSWORD_OTHER
-    
+
+    # 获取后台密码（优先使用传入的密码，否则根据设备类型选择默认值）
+    backend_password = get_backend_password(device_type, backend_password)
+
+    # 检查后台密码是否配置
+    if not backend_password:
+        logger.error(f'后台密码未配置，设备类型: {device_type}，请设置环境变量或在设备配置中指定后台密码')
+        return False
+
     try:
         myssh = paramiko.SSHClient()
         myssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -330,32 +360,35 @@ def execute_in_backend(cmds, host, user=DEFAULT_USER, password=DEFAULT_PASSWORD,
         return False
 
 
-def get_cpu_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type=None):
+def get_cpu_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type=None, backend_password=None):
     """
-    获取CPU使用率
-    
+    获取CPU信息（使用率和名称）
+
     Args:
         host: 主机地址
         user: SSH用户名
         password: SSH密码
         device_type: 设备类型（用于选择正确的后台密码）
-    
+        backend_password: 后台密码（可选，优先使用）
+
     Returns:
-        CPU使用率百分比
+        dict: {'usage': CPU使用率百分比, 'name': CPU名称}
     """
+    cpu_usage = 0.0
+    cpu_name = ''
+
     try:
-        # 使用top命令获取CPU使用率（需要在root权限下执行）
-        # cmd = "top -bn1 | grep \"Cpu(s)\" | sed \"s/.*, *\\([0-9.]*\\)%* id.*/\\1/\" | awk '{print 100 - $1}'"
+        # 获取 CPU 使用率
         cmd = "top -n1 | grep \"Cpu(s)\" |awk '{print 100 - $8}'"
-        result = execute_in_backend(cmd, host, user, password, device_type=device_type)
+        result = execute_in_backend(cmd, host, user, password, backend_password=backend_password, device_type=device_type)
         if result and result != False:
-            # 清理输出：移除所有非数字字符，只保留最后一行数字
             lines = result.strip().split('\n')
-            # 查找最后一行包含数字的行
             cpu_value = None
             for line in reversed(lines):
                 line = line.strip()
-                # 移除所有非数字和点的字符
+                # 跳过包含提示符的行
+                if 'root@' in line or line.startswith('[') or line.startswith('#'):
+                    continue
                 cleaned = ''.join(c if c.isdigit() or c == '.' else '' for c in line)
                 if cleaned:
                     try:
@@ -363,36 +396,68 @@ def get_cpu_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type
                         break
                     except ValueError:
                         continue
-            
-            if cpu_value is not None:
-                if 0 <= cpu_value <= 100:
-                    logger.info(f'获取CPU使用率: {cpu_value:.2f}%')
-                    return round(cpu_value, 2)
-                else:
-                    logger.warning(f'CPU使用率超出范围: {cpu_value}')
+
+            if cpu_value is not None and 0 <= cpu_value <= 100:
+                cpu_usage = round(cpu_value, 2)
+                logger.info(f'获取CPU使用率: {cpu_usage:.2f}%')
             else:
                 logger.warning(f'未找到有效的CPU使用率数值，输出: {result[:200]}')
         else:
             logger.warning(f'top命令执行失败或返回空')
+
+        # 获取 CPU 名称 - 使用 lscpu 命令更可靠
+        cmd_name = "lscpu | grep 'Model name' | awk -F: '{print $2}'"
+        result_name = execute_in_backend(cmd_name, host, user, password, backend_password=backend_password, device_type=device_type)
+        if result_name and result_name != False:
+            # 清理输出
+            lines = result_name.strip().split('\n')
+            for line in lines:
+                line = line.strip()
+                # 跳过空行和提示符
+                if not line or 'root@' in line or line.startswith('[') or line.startswith('#'):
+                    continue
+                cpu_name = line
+                break
+
+            if not cpu_name:
+                # 备选方案：从 /proc/cpuinfo 获取
+                cmd_cpuinfo = "cat /proc/cpuinfo | grep -E '^model name' | head -1 | sed 's/model name.*: //' | tr -d '\\t'"
+                result_cpuinfo = execute_in_backend(cmd_cpuinfo, host, user, password, backend_password=backend_password, device_type=device_type)
+                if result_cpuinfo and result_cpuinfo != False:
+                    for line in result_cpuinfo.strip().split('\n'):
+                        line = line.strip()
+                        if line and 'root@' not in line and not line.startswith('['):
+                            cpu_name = line
+                            break
+
+            if cpu_name:
+                cpu_name = ' '.join(cpu_name.split())  # 清理多余空格
+                logger.info(f'获取CPU名称: {cpu_name}')
+
     except Exception as e:
         logger.error(f'获取CPU信息失败: {e}')
-    
-    logger.warning(f'CPU获取失败，返回0.0')
-    return 0.0
+
+    return {'usage': cpu_usage, 'name': cpu_name}
 
 
-def get_memory_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type=None):
+def get_memory_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type=None, backend_password=None):
     """
     获取内存使用信息
-    
+
+    Args:
+        host: 主机地址
+        user: SSH用户名
+        password: SSH密码
+        device_type: 设备类型
+        backend_password: 后台密码（可选，优先使用）
+
     Returns:
         dict: {'total': 总内存(MB), 'used': 已用内存(MB), 'free': 空闲内存(MB), 'usage': 使用率(%)}
     """
     try:
         # 使用free命令获取内存信息（需要在root权限下执行）
-        # 获取Mem行的total和-/+ buffers/cache行的used和free
         cmd = "free -m"
-        result = execute_in_backend(cmd, host, user, password, device_type=device_type)
+        result = execute_in_backend(cmd, host, user, password, backend_password=backend_password, device_type=device_type)
         if result and result != False:
             lines = result.strip().split('\n')
             total = 0
@@ -480,24 +545,24 @@ def get_memory_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_t
 # 存储上次网络统计信息（用于计算速率）
 _network_cache = {}
 
-def get_network_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type=None):
+def get_network_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type=None, backend_password=None):
     """
     获取网络流量信息（包含速率计算）
-    
+
     Args:
         host: 主机地址
         user: SSH用户名
         password: SSH密码
-        device_type: 设备类型（用于选择正确的后台密码）
-    
+        device_type: 设备类型
+        backend_password: 后台密码（可选，优先使用）
+
     Returns:
         dict: {'rx_bytes': 接收字节数, 'tx_bytes': 发送字节数, 'rx_rate': 接收速率(bps), 'tx_rate': 发送速率(bps)}
     """
     try:
         # 获取网络接口统计信息
-        # /proc/net/dev格式: interface | rx_bytes rx_packets ... tx_bytes tx_packets ...
         cmd = "cat /proc/net/dev | grep -E 'eth|ens|enp|agl0|ext' | awk '{rx+=$2; tx+=$10} END {print rx, tx}'"
-        result = execute_in_backend(cmd, host, user, password, device_type=device_type)
+        result = execute_in_backend(cmd, host, user, password, backend_password=backend_password, device_type=device_type)
         if result and result != False:
             # 清理输出：移除所有非数字字符，只保留数字和空格
             lines = result.strip().split('\n')
@@ -601,6 +666,142 @@ def get_network_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_
     
     logger.warning(f'网络获取失败，返回0')
     return {'rx_bytes': 0, 'tx_bytes': 0, 'rx_rate': 0, 'tx_rate': 0}
+
+
+def get_disk_info(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, device_type=None, backend_password=None):
+    """
+    获取磁盘使用信息
+
+    Args:
+        host: 主机地址
+        user: SSH用户名
+        password: SSH密码
+        device_type: 设备类型
+        backend_password: 后台密码（可选，优先使用）
+
+    Returns:
+        dict: {
+            'total': 总空间(GB),
+            'used': 已用空间(GB),
+            'free': 可用空间(GB),
+            'usage': 使用率(%),
+            'data_total': /data目录总空间(GB),
+            'data_used': /data目录已用空间(GB),
+            'data_usage': /data目录使用率(%),
+            'data_percent_of_total': /data使用量占总磁盘容量百分比(%)
+        }
+    """
+    try:
+        # 获取所有物理磁盘挂载点的使用情况（排除tmpfs、devtmpfs等虚拟文件系统）
+        # 只统计真实的块设备（/dev/开头）
+        cmd = "df -BG | grep '^/dev/' | awk '{print $1, $2, $3, $4, $5}'"
+        result = execute_in_backend(cmd, host, user, password, backend_password=backend_password, device_type=device_type)
+
+        total_gb = 0.0
+        used_gb = 0.0
+        free_gb = 0.0
+
+        if result:
+            lines = result.strip().split('\n')
+            seen_devices = set()  # 避免重复统计同一设备的不同挂载点
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) >= 5:
+                    device_name = parts[0]  # 如 /dev/sda2
+                    try:
+                        size_gb = float(parts[1].replace('G', ''))
+                        used_val = float(parts[2].replace('G', ''))
+                        avail_gb = float(parts[3].replace('G', ''))
+
+                        # 使用设备名去重（同一设备可能有多个挂载点）
+                        if device_name not in seen_devices:
+                            seen_devices.add(device_name)
+                            total_gb += size_gb
+                            used_gb += used_val
+                            free_gb += avail_gb
+                    except (ValueError, IndexError):
+                        continue
+
+        # 计算总体使用率
+        usage = 0.0
+        if total_gb > 0:
+            usage = round((used_gb / total_gb) * 100, 1)
+
+        # 获取 /data 目录使用情况
+        data_total_gb = 0.0
+        data_used_gb = 0.0
+        data_usage = 0.0
+        data_percent_of_total = 0.0
+
+        cmd = "df -BG /data 2>/dev/null | tail -1 | awk '{print $2, $3, $4, $5}'"
+        result = execute_in_backend(cmd, host, user, password, backend_password=backend_password, device_type=device_type)
+
+        if result:
+            line = result.strip()
+            parts = line.split()
+            if len(parts) >= 5:
+                try:
+                    data_total_gb = float(parts[1].replace('G', ''))
+                    data_used_gb = float(parts[2].replace('G', ''))
+                    usage_str = parts[4].replace('%', '')
+                    data_usage = float(usage_str)
+                except (ValueError, IndexError):
+                    pass
+
+        # 计算 /data 使用量占总磁盘容量的百分比（不是占已用量的百分比）
+        if total_gb > 0 and data_used_gb > 0:
+            data_percent_of_total = round((data_used_gb / total_gb) * 100, 1)
+
+        logger.info(f'磁盘: total={total_gb}GB, used={used_gb}GB, usage={usage}%, data_total={data_total_gb}GB, data_used={data_used_gb}GB, data_usage={data_usage}%, data_percent={data_percent_of_total}%')
+
+        return {
+            'total': round(total_gb, 1),
+            'used': round(used_gb, 1),
+            'free': round(free_gb, 1),
+            'usage': usage,
+            'data_total': round(data_total_gb, 1),
+            'data_used': round(data_used_gb, 1),
+            'data_usage': round(data_usage, 1),
+            'data_percent_of_total': data_percent_of_total
+        }
+
+    except Exception as e:
+        logger.error(f'获取磁盘信息失败: {e}')
+
+    return {
+        'total': 0, 'used': 0, 'free': 0, 'usage': 0.0,
+        'data_total': 0, 'data_used': 0, 'data_usage': 0.0, 'data_percent_of_total': 0.0
+    }
+
+
+def parse_size_to_gb(size_str):
+    """
+    解析大小字符串为GB（如 '100G', '500M', '1.5T'）
+
+    Args:
+        size_str: 大小字符串
+
+    Returns:
+        float: GB值
+    """
+    try:
+        size_str = size_str.upper().strip()
+        if size_str.endswith('T'):
+            return float(size_str[:-1]) * 1024
+        elif size_str.endswith('G'):
+            return float(size_str[:-1])
+        elif size_str.endswith('M'):
+            return float(size_str[:-1]) / 1024
+        elif size_str.endswith('K'):
+            return float(size_str[:-1]) / 1024 / 1024
+        else:
+            return float(size_str) / 1024 / 1024 / 1024
+    except:
+        return 0
 
 
 def get_coredump_files(host, user=DEFAULT_USER, password=DEFAULT_PASSWORD, coredump_dir='/data/coredump', device_type=None):

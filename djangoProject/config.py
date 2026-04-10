@@ -25,3 +25,15 @@ USER_AGENT = os.getenv('USER_AGENT',
 # ===== 日志配置 =====
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# ===== 设备管理配置 =====
+DEVICE_DEFAULT_USER = os.getenv('DEVICE_DEFAULT_USER', 'admin')
+DEVICE_DEFAULT_PASSWORD = os.getenv('DEVICE_DEFAULT_PASSWORD', '')
+
+# 后台 root 密码默认值（按设备类型）
+# 工控防火墙后台密码
+DEVICE_BACKEND_PASSWORD_FIREWALL = os.getenv('DEVICE_BACKEND_PASSWORD_FIREWALL', '#HiNA_!ns@USHDLk')
+# 审计/IDS 后台密码
+DEVICE_BACKEND_PASSWORD_AUDIT = os.getenv('DEVICE_BACKEND_PASSWORD_AUDIT', 'DFS#@!#_dsdfMDCK')
+# 其他设备后台密码
+DEVICE_BACKEND_PASSWORD_OTHER = os.getenv('DEVICE_BACKEND_PASSWORD_OTHER', '')

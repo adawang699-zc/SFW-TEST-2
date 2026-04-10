@@ -13,57 +13,33 @@
 
     <div class="row">
         <!-- 设备列表 -->
-        <div class="col-lg-8">
+        <div class="col-12">
             <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-between align-items-center py-3">
                     <h5 class="mb-0"><i class="fas fa-list me-2"></i>设备列表</h5>
-                    <div>
-                        <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal" data-bs-target="#alertConfigModal">
-                            <i class="fas fa-bell me-2"></i>告警配置
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="input-group" style="width: 300px;">
+                            <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control" id="device_search" placeholder="搜索设备名称或IP地址..." style="border-left: 0;">
+                            <button class="btn btn-outline-secondary" type="button" id="clear_search" title="清空搜索">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#alertConfigModal" title="告警配置">
+                            <i class="fas fa-bell"></i>
                         </button>
-                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
-                            <i class="fas fa-plus me-2"></i>添加设备
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal" title="添加设备">
+                            <i class="fas fa-plus"></i>
                         </button>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div id="device_list" class="list-group">
+                <div class="card-body p-2">
+                    <div id="device_list">
                         <div class="text-center text-muted py-5">
                             <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
                             <p>暂无设备，请添加设备</p>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Coredump文件监测 -->
-        <div class="col-lg-4">
-            <div class="card mb-4" id="coredump_card" style="display: none;">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Coredump文件监测</h5>
-                    <button class="btn btn-sm btn-outline-primary" id="refresh_coredump">
-                        <i class="fas fa-sync-alt me-2"></i>刷新
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div id="coredump_list" class="table-responsive">
-                        <table class="table table-sm table-hover">
-                            <thead>
-                                <tr>
-                                    <th>文件名</th>
-                                    <th>大小</th>
-                                    <th>修改时间</th>
-                                </tr>
-                            </thead>
-                            <tbody id="coredump_table_body">
-                                <tr>
-                                    <td colspan="3" class="text-center text-muted">暂无coredump文件</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -108,7 +84,20 @@
                     </div>
                     <div class="mb-3">
                         <label for="device_password" class="form-label">SSH密码</label>
-                        <input type="password" class="form-control" id="device_password" value="tdhx@2017" placeholder="tdhx@2017" autocomplete="current-password">
+                        <input type="password" class="form-control" id="device_password" placeholder="请输入SSH密码" autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_backend_password" class="form-label">后台密码 <small class="text-muted">(可选，留空使用设备类型默认密码)</small></label>
+                        <input type="password" class="form-control" id="device_backend_password" placeholder="后台root密码，留空使用默认">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="device_long_running">
+                            <label class="form-check-label" for="device_long_running">
+                                <i class="fas fa-running text-warning me-1"></i>长跑环境
+                            </label>
+                            <div class="form-text">长跑环境将自动启动监测并持续运行</div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="device_description" class="form-label">设备描述</label>
@@ -224,9 +213,8 @@
                 <div class="mb-3">
                     <label for="command_type" class="form-label">命令类型</label>
                     <select class="form-select" id="command_type">
-                        <option value="normal">普通命令</option>
                         <option value="vtysh">Vtysh命令</option>
-                        <option value="backend">后台命令（需要root权限）</option>
+                        <option value="backend" selected>后台命令（需要root权限）</option>
                     </select>
                 </div>
                 <div class="mb-3">
@@ -236,8 +224,8 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">执行结果</label>
-                    <div class="border rounded p-3 bg-dark text-light" style="min-height: 200px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem;" id="command_output">
-                        <div class="text-muted">等待执行命令...</div>
+                    <div class="border rounded p-3" style="min-height: 200px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; background-color: #1e1e1e; color: #d4d4d4;" id="command_output">
+                        <div class="text-secondary">等待执行命令...</div>
                     </div>
                 </div>
             </div>
@@ -252,45 +240,633 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 设备列表存储
-    let devices = [];
-    let deviceMonitorIntervals = {}; // 为每个设备存储监控间隔
-    let deviceMonitorData = {}; // 存储每个设备的监控数据
-    let currentDevice = null; // 当前选中的设备（用于coredump）
-    let deviceMonitoringStatus = {}; // 存储每个设备的监测开关状态
+// 全局变量（必须在 DOMContentLoaded 外部定义）
+let devices = [];
+let deviceMonitorIntervals = {};  // CPU/内存/网络监控（1分钟）
+let deviceDiskIntervals = {};      // 磁盘监控（5分钟）
+let deviceMonitorData = {};
+let deviceDiskData = {};           // 磁盘数据独立存储
+let currentDevice = null;
+let deviceMonitoringStatus = {};
+let deviceAlertStatus = {};
+let searchKeyword = '';
 
-    // 初始化 - 先加载数据，再加载监测状态，最后渲染列表
+// 辅助函数（全局可访问）
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 切换设备监测开关（全局函数）
+function toggleDeviceMonitoring(deviceId) {
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    const isMonitoring = deviceMonitoringStatus[deviceId] || false;
+    const newStatus = !isMonitoring;
+
+    // 立即更新 UI 状态，让用户感觉响应快
+    deviceMonitoringStatus[deviceId] = newStatus;
+    renderDeviceList();
+
+    // 异步发送请求
+    fetch('/api/device/monitoring/toggle/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            device_id: deviceId,
+            enabled: newStatus,
+            device_info: {
+                name: device.name,
+                ip: device.ip,
+                type: device.type,
+                user: device.user,
+                password: device.password,
+                port: device.port
+            }
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 成功，状态已更新
+        } else {
+            // 失败，恢复状态
+            deviceMonitoringStatus[deviceId] = !newStatus;
+            renderDeviceList();
+            alert('操作失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(err => {
+        // 出错，恢复状态
+        deviceMonitoringStatus[deviceId] = !newStatus;
+        renderDeviceList();
+        alert('操作失败: ' + err.message);
+    });
+}
+
+// 执行命令（全局函数）
+function executeCommand(deviceId) {
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    document.getElementById('executeCommandModal').dataset.deviceId = deviceId;
+    document.getElementById('command_output').innerHTML = '<div class="text-secondary">等待执行命令...</div>';
+
+    const modal = new bootstrap.Modal(document.getElementById('executeCommandModal'));
+    modal.show();
+}
+
+// 删除设备（全局函数）
+function deleteDevice(deviceId) {
+    if (!confirm('确定要删除该设备吗？')) return;
+
+    fetch('/api/device/delete/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ id: deviceId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (deviceMonitorIntervals[deviceId]) {
+                clearInterval(deviceMonitorIntervals[deviceId]);
+                delete deviceMonitorIntervals[deviceId];
+            }
+            if (deviceDiskIntervals[deviceId]) {
+                clearInterval(deviceDiskIntervals[deviceId]);
+                delete deviceDiskIntervals[deviceId];
+            }
+            delete deviceMonitorData[deviceId];
+            delete deviceDiskData[deviceId];
+            delete deviceMonitoringStatus[deviceId];
+
+            if (currentDevice && currentDevice.id === deviceId) {
+                currentDevice = null;
+            }
+            loadDevices();
+        } else {
+            alert('删除失败: ' + data.error);
+        }
+    })
+    .catch(err => alert('删除失败: ' + err.message));
+}
+
+// 忽略告警（全局函数）
+function ignoreAlert(deviceId) {
+    if (!confirm('确定要忽略此告警吗？忽略后一周内不会再发送相同类型的告警邮件。')) return;
+
+    fetch('/api/device/alert_ignore/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ device_id: deviceId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            delete deviceAlertStatus[deviceId];
+            renderDeviceList();
+            alert('告警已忽略');
+        } else {
+            alert('操作失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(err => {
+        alert('操作失败: ' + err.message);
+    });
+}
+
+// 渲染设备列表（全局函数）
+function renderDeviceList() {
+    const deviceList = document.getElementById('device_list');
+
+    let filteredDevices = devices;
+    if (searchKeyword) {
+        filteredDevices = devices.filter(device =>
+            device.name.toLowerCase().includes(searchKeyword) ||
+            device.ip.toLowerCase().includes(searchKeyword)
+        );
+    }
+
+    if (filteredDevices.length === 0) {
+        deviceList.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                <p>${searchKeyword ? '未找到匹配的设备' : '暂无设备，请添加设备'}</p>
+            </div>
+        `;
+        return;
+    }
+
+    deviceList.innerHTML = filteredDevices.map(device => {
+        const typeNames = {
+            'security_device': '安全设备',
+            'ic_firewall': '工控防火墙',
+            'ic_audit': '工控审计',
+            'ids': 'IDS',
+            'other': '其他'
+        };
+        const typeName = typeNames[device.type] || '未知';
+
+        const typeColors = {
+            'security_device': 'secondary',
+            'ic_firewall': 'danger',
+            'ic_audit': 'warning',
+            'ids': 'info',
+            'other': 'dark'
+        };
+        const typeColor = typeColors[device.type] || 'secondary';
+
+        const monitorData = deviceMonitorData[device.id] || {};
+        const cpu = monitorData.cpu || { usage: 0, name: '' };
+        const memory = monitorData.memory || { usage: 0, used: 0, total: 0 };
+        const network = monitorData.network || { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 };
+
+        const isMonitoring = deviceMonitoringStatus[device.id] || false;
+        device.monitoring = isMonitoring;
+
+        const alertInfo = deviceAlertStatus[device.id] || {};
+        const hasAlert = alertInfo.has_alert || false;
+        const alertType = alertInfo.alert_type || '';
+
+        return `
+            <div class="card mb-3 shadow-sm" data-device-id="${device.id}" style="border-left: 4px solid var(--bs-${hasAlert ? 'danger' : typeColor});">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h5 class="card-title mb-0">${escapeHtml(device.name)}</h5>
+                                <span class="badge bg-${typeColor}">${typeName}</span>
+                                ${device.is_long_running ? '<span class="badge bg-warning text-dark"><i class="fas fa-running me-1"></i>长跑</span>' : ''}
+                                ${device.monitoring ? '<span class="badge bg-success"><i class="fas fa-eye me-1"></i>监测中</span>' : '<span class="badge bg-secondary">未监测</span>'}
+                                ${hasAlert ? `<span class="badge bg-danger" style="cursor: pointer;" onclick="ignoreAlert('${device.id}')" title="点击忽略此告警（一周内不再提醒）"><i class="fas fa-exclamation-triangle me-1"></i>${alertType === 'cpu' ? 'CPU告警' : alertType === 'memory' ? '内存告警' : alertType === 'coredump' ? 'Coredump' : '异常'}<i class="fas fa-times ms-1"></i></span>` : ''}
+                            </div>
+                            <div class="text-muted small">
+                                <i class="fas fa-network-wired me-1"></i>${device.ip}:${device.port}
+                                <span class="mx-2">|</span>
+                                <i class="fas fa-user me-1"></i>${device.user}
+                                ${device.description ? `<span class="mx-2">|</span><i class="fas fa-info-circle me-1"></i>${escapeHtml(device.description)}` : ''}
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm ${device.monitoring ? 'btn-success' : 'btn-outline-secondary'}"
+                                    onclick="toggleDeviceMonitoring('${device.id}')"
+                                    id="monitor_btn_${device.id}"
+                                    title="${device.monitoring ? '关闭监测' : '开启监测'}">
+                                <i class="fas fa-${device.monitoring ? 'pause' : 'play'} me-1"></i>${device.monitoring ? '监测中' : '开启监测'}
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="executeCommand('${device.id}')" title="执行命令">
+                                <i class="fas fa-terminal"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteDevice('${device.id}')" title="删除设备">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 实时监控信息 -->
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-4" style="max-width: 280px;">
+                            <div class="border rounded p-2 h-100" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted"><i class="fas fa-microchip me-1"></i>CPU</small>
+                                    <span class="badge ${cpu.usage > 80 ? 'bg-danger' : cpu.usage > 60 ? 'bg-warning text-dark' : 'bg-primary'}" id="cpu_badge_${device.id}">${cpu.usage.toFixed(1)}%</span>
+                                </div>
+                                <div class="progress mb-1" style="height: 6px;">
+                                    <div class="progress-bar ${cpu.usage > 80 ? 'bg-danger' : cpu.usage > 60 ? 'bg-warning' : 'bg-primary'}"
+                                         role="progressbar" style="width: ${cpu.usage}%" id="cpu_progress_${device.id}"></div>
+                                </div>
+                                <small class="text-muted d-block text-truncate" id="cpu_name_${device.id}" title="${escapeHtml(cpu.name)}">${cpu.name || '--'}</small>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-4" style="max-width: 280px;">
+                            <div class="border rounded p-2 h-100" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted"><i class="fas fa-memory me-1"></i>内存</small>
+                                    <span class="badge ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning text-dark' : 'bg-success'}" id="memory_badge_${device.id}">${memory.usage.toFixed(1)}%</span>
+                                </div>
+                                <div class="progress mb-1" style="height: 6px;">
+                                    <div class="progress-bar ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning' : 'bg-success'}"
+                                         role="progressbar" style="width: ${memory.usage}%" id="memory_progress_${device.id}"></div>
+                                </div>
+                                <small class="text-muted" id="memory_detail_${device.id}">${memory.used || 0} MB / ${memory.total || 0} MB</small>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-4" style="max-width: 280px;">
+                            <div class="border rounded p-2 h-100" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted"><i class="fas fa-hdd me-1"></i>磁盘</small>
+                                    <span class="badge bg-info" id="disk_badge_${device.id}">--</span>
+                                </div>
+                                <div class="progress mb-1" style="height: 6px;">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: 0%" id="disk_progress_${device.id}"></div>
+                                </div>
+                                <small class="text-muted d-block" id="disk_total_${device.id}">--</small>
+                                <small class="text-muted d-block" id="disk_data_${device.id}">/data: --</small>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-4" style="max-width: 280px;">
+                            <div class="border rounded p-2 h-100" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                                <small class="text-muted d-block mb-1"><i class="fas fa-exchange-alt me-1"></i>网络</small>
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <small class="d-block text-success"><i class="fas fa-download me-1"></i>接收</small>
+                                        <strong id="network_rx_${device.id}">${network.rx_rate > 0 ? formatBytes(network.rx_rate) + '/s' : (network.rx_bytes > 0 ? formatBytes(network.rx_bytes) : '--')}</strong>
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="d-block text-primary"><i class="fas fa-upload me-1"></i>发送</small>
+                                        <strong id="network_tx_${device.id}">${network.tx_rate > 0 ? formatBytes(network.tx_rate) + '/s' : (network.tx_bytes > 0 ? formatBytes(network.tx_bytes) : '--')}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// 加载设备列表
+function loadDevices() {
+    fetch('/api/device/list/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                devices = data.devices.map(d => ({
+                    id: d.id.toString(),
+                    name: d.name,
+                    type: d.type,
+                    ip: d.ip,
+                    port: d.port,
+                    user: d.user,
+                    password: d.password,
+                    backend_password: d.backend_password,
+                    is_long_running: d.is_long_running,
+                    description: d.description,
+                    created_at: d.created_at
+                }));
+                loadMonitoringStatus().then(() => {
+                    renderDeviceList();
+                    startAllDeviceMonitoring();
+                });
+            } else {
+                console.error('加载设备列表失败:', data.error);
+            }
+        })
+        .catch(err => console.error('加载设备列表失败:', err));
+}
+
+// 加载监测状态
+function loadMonitoringStatus() {
+    return fetch('/api/device/monitoring/status/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.status) {
+                deviceMonitoringStatus = data.status;
+                return data.status;
+            }
+            return {};
+        })
+        .catch(err => {
+            console.error('加载监测状态失败:', err);
+            return {};
+        });
+}
+
+// 开始监控所有设备
+function startAllDeviceMonitoring() {
+    // 清除现有定时器
+    Object.values(deviceMonitorIntervals).forEach(interval => {
+        if (interval) clearInterval(interval);
+    });
+    Object.values(deviceDiskIntervals).forEach(interval => {
+        if (interval) clearInterval(interval);
+    });
+    deviceMonitorIntervals = {};
+    deviceDiskIntervals = {};
+
+    devices.forEach(device => {
+        startDeviceMonitoring(device.id);
+    });
+}
+
+// 开始监控单个设备
+function startDeviceMonitoring(deviceId) {
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    // 清除现有定时器
+    if (deviceMonitorIntervals[deviceId]) {
+        clearInterval(deviceMonitorIntervals[deviceId]);
+    }
+    if (deviceDiskIntervals[deviceId]) {
+        clearInterval(deviceDiskIntervals[deviceId]);
+    }
+
+    // 立即获取一次
+    fetchDeviceMonitorData(deviceId);
+    fetchDeviceDiskData(deviceId);
+
+    // 每60秒更新一次（CPU、内存、网络）
+    deviceMonitorIntervals[deviceId] = setInterval(() => {
+        fetchDeviceMonitorData(deviceId);
+    }, 60000); // 1分钟
+
+    // 每300秒更新一次（磁盘）
+    deviceDiskIntervals[deviceId] = setInterval(() => {
+        fetchDeviceDiskData(deviceId);
+    }, 300000); // 5分钟
+}
+
+// 获取设备磁盘数据
+function fetchDeviceDiskData(deviceId) {
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    fetch('/api/device/disk_data/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ip: device.ip,
+            port: device.port,
+            user: device.user,
+            password: device.password,
+            device_type: device.type,
+            backend_password: device.backend_password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            deviceDiskData[deviceId] = data.disk || {
+                total: 0, used: 0, free: 0, usage: 0,
+                data_total: 0, data_used: 0, data_usage: 0, data_percent_of_total: 0
+            };
+            updateDeviceDiskDisplay(deviceId);
+        }
+    })
+    .catch(err => {
+        console.error(`获取设备 ${deviceId} 磁盘数据失败:`, err);
+    });
+}
+
+// 获取单个设备的监控数据
+function fetchDeviceMonitorData(deviceId) {
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    fetch('/api/device/monitor_data/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ip: device.ip,
+            port: device.port,
+            user: device.user,
+            password: device.password,
+            device_type: device.type,
+            backend_password: device.backend_password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            deviceMonitorData[deviceId] = {
+                cpu: data.cpu || { usage: 0, name: '' },
+                memory: data.memory || { usage: 0, used: 0, total: 0 },
+                network: data.network || { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
+            };
+            updateDeviceMonitorDisplay(deviceId);
+        } else {
+            if (data.offline) {
+                console.warn(`设备 ${deviceId} 离线: ${data.error}`);
+                return;
+            }
+            if (!deviceMonitorData[deviceId]) {
+                deviceMonitorData[deviceId] = {
+                    cpu: { usage: 0, name: '' },
+                    memory: { usage: 0, used: 0, total: 0 },
+                    network: { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
+                };
+            }
+            updateDeviceMonitorDisplay(deviceId);
+        }
+    })
+    .catch(err => {
+        console.error(`获取设备 ${deviceId} 监控数据失败:`, err);
+        if (!deviceMonitorData[deviceId]) {
+            deviceMonitorData[deviceId] = {
+                cpu: { usage: 0, name: '' },
+                memory: { usage: 0, used: 0, total: 0 },
+                network: { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
+            };
+        }
+    });
+}
+
+// 更新设备监控显示
+function updateDeviceMonitorDisplay(deviceId) {
+    const monitorData = deviceMonitorData[deviceId];
+    if (!monitorData) return;
+
+    const cpu = monitorData.cpu || { usage: 0, name: '' };
+    const memory = monitorData.memory || { usage: 0, used: 0, total: 0 };
+    const network = monitorData.network || { rx_rate: 0, tx_rate: 0 };
+
+    const cpuBadgeElement = document.getElementById(`cpu_badge_${deviceId}`);
+    const cpuProgressElement = document.getElementById(`cpu_progress_${deviceId}`);
+    const cpuNameElement = document.getElementById(`cpu_name_${deviceId}`);
+
+    if (cpuBadgeElement) {
+        cpuBadgeElement.textContent = cpu.usage.toFixed(1) + '%';
+        cpuBadgeElement.className = `badge ${cpu.usage > 80 ? 'bg-danger' : cpu.usage > 60 ? 'bg-warning text-dark' : 'bg-primary'}`;
+    }
+    if (cpuProgressElement) {
+        cpuProgressElement.style.width = cpu.usage + '%';
+        cpuProgressElement.className = `progress-bar ${cpu.usage > 80 ? 'bg-danger' : cpu.usage > 60 ? 'bg-warning' : 'bg-primary'}`;
+    }
+    if (cpuNameElement) {
+        const displayName = cpu.name.length > 20 ? cpu.name.substring(0, 20) + '...' : cpu.name;
+        cpuNameElement.textContent = displayName || '--';
+        cpuNameElement.title = cpu.name || '';
+    }
+
+    const memoryBadgeElement = document.getElementById(`memory_badge_${deviceId}`);
+    const memoryDetailElement = document.getElementById(`memory_detail_${deviceId}`);
+    const memoryProgressElement = document.getElementById(`memory_progress_${deviceId}`);
+
+    if (memoryBadgeElement) {
+        memoryBadgeElement.textContent = memory.usage.toFixed(1) + '%';
+        memoryBadgeElement.className = `badge ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning text-dark' : 'bg-success'}`;
+    }
+    if (memoryDetailElement) {
+        memoryDetailElement.textContent = `${memory.used || 0} MB / ${memory.total || 0} MB`;
+    }
+    if (memoryProgressElement) {
+        memoryProgressElement.style.width = memory.usage + '%';
+        memoryProgressElement.className = `progress-bar ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning' : 'bg-success'}`;
+    }
+
+    const networkRxElement = document.getElementById(`network_rx_${deviceId}`);
+    const networkTxElement = document.getElementById(`network_tx_${deviceId}`);
+
+    if (networkRxElement) {
+        if (network.rx_rate > 0) {
+            networkRxElement.textContent = formatBytes(network.rx_rate) + '/s';
+        } else if (network.rx_bytes > 0) {
+            networkRxElement.textContent = formatBytes(network.rx_bytes);
+        }
+    }
+    if (networkTxElement) {
+        if (network.tx_rate > 0) {
+            networkTxElement.textContent = formatBytes(network.tx_rate) + '/s';
+        } else if (network.tx_bytes > 0) {
+            networkTxElement.textContent = formatBytes(network.tx_bytes);
+        }
+    }
+}
+
+// 更新设备磁盘显示
+function updateDeviceDiskDisplay(deviceId) {
+    const disk = deviceDiskData[deviceId];
+    if (!disk) return;
+
+    const totalElement = document.getElementById(`disk_total_${deviceId}`);
+    const usageElement = document.getElementById(`disk_usage_${deviceId}`);
+    const progressElement = document.getElementById(`disk_progress_${deviceId}`);
+    const badgeElement = document.getElementById(`disk_badge_${deviceId}`);
+    const dataElement = document.getElementById(`disk_data_${deviceId}`);
+
+    if (totalElement) {
+        totalElement.textContent = `${disk.used || 0}G / ${disk.total || 0}G`;
+    }
+    if (usageElement) {
+        usageElement.textContent = `${(disk.usage || 0).toFixed(1)}%`;
+    }
+    if (progressElement) {
+        progressElement.style.width = (disk.usage || 0) + '%';
+        progressElement.className = `progress-bar ${disk.usage > 80 ? 'bg-danger' : disk.usage > 60 ? 'bg-warning' : 'bg-info'}`;
+    }
+    if (badgeElement) {
+        badgeElement.textContent = `${(disk.usage || 0).toFixed(1)}%`;
+        badgeElement.className = `badge ${disk.usage > 80 ? 'bg-danger' : disk.usage > 60 ? 'bg-warning text-dark' : 'bg-info'}`;
+    }
+    if (dataElement) {
+        dataElement.textContent = `/data: ${(disk.data_usage || 0).toFixed(1)}% (${disk.data_percent_of_total || 0}%总盘)`;
+    }
+}
+
+// 加载告警状态
+function loadAlertStatus() {
+    fetch('/api/device/alert_status/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.status) {
+                deviceAlertStatus = data.status;
+                renderDeviceList();
+            }
+        })
+        .catch(err => {
+            console.error('加载告警状态失败:', err);
+        });
+}
+
+// DOMContentLoaded 事件处理
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化
     loadDevices();
 
-    // 加载设备列表
-    function loadDevices() {
-        fetch('/api/device/list/')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    devices = data.devices.map(d => ({
-                        id: d.id.toString(),
-                        name: d.name,
-                        type: d.type,
-                        ip: d.ip,
-                        port: d.port,
-                        user: d.user,
-                        password: d.password,
-                        description: d.description,
-                        created_at: d.created_at
-                    }));
-                    loadMonitoringStatus().then(() => {
-                        renderDeviceList();
-                        startAllDeviceMonitoring();
-                    });
-                } else {
-                    console.error('加载设备列表失败:', data.error);
-                }
-            })
-            .catch(err => console.error('加载设备列表失败:', err));
-    }
-    
+    // 搜索功能
+    document.getElementById('device_search').addEventListener('input', function(e) {
+        searchKeyword = e.target.value.trim().toLowerCase();
+        renderDeviceList();
+    });
+
+    // 清空搜索
+    document.getElementById('clear_search').addEventListener('click', function() {
+        document.getElementById('device_search').value = '';
+        searchKeyword = '';
+        renderDeviceList();
+    });
+
     // 添加设备表单提交
     const saveDeviceBtn = document.getElementById('save_device_btn');
     if (saveDeviceBtn) {
@@ -300,7 +876,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const ip = document.getElementById('device_ip').value.trim();
             const port = parseInt(document.getElementById('device_port').value) || 22;
             const user = document.getElementById('device_user').value.trim() || 'admin';
-            const password = document.getElementById('device_password').value || 'tdhx@2017';
+            const password = document.getElementById('device_password').value;
+            const backend_password = document.getElementById('device_backend_password').value;
+            const is_long_running = document.getElementById('device_long_running').checked;
             const description = document.getElementById('device_description').value.trim();
 
             if (!name || !type || !ip) {
@@ -315,28 +893,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRFToken': getCookie('csrftoken')
                 },
                 body: JSON.stringify({
-                    name, type, ip, port, user, password, description
+                    name, type, ip, port, user, password, backend_password, is_long_running, description
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     loadDevices();
-                    // 关闭模态框
                     const modal = bootstrap.Modal.getInstance(document.getElementById('addDeviceModal'));
                     modal.hide();
-                    // 清空表单
                     document.getElementById('add_device_form').reset();
                     document.getElementById('device_user').value = 'admin';
-                    document.getElementById('device_password').value = 'tdhx@2017';
+                    document.getElementById('device_long_running').checked = false;
                 } else {
                     alert('保存失败: ' + data.error);
                 }
             })
             .catch(err => alert('保存失败: ' + err.message));
         });
-    } else {
-        console.error('找不到保存设备按钮');
     }
 
     // 测试连接
@@ -346,7 +920,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const ip = document.getElementById('device_ip').value.trim();
             const port = parseInt(document.getElementById('device_port').value) || 22;
             const user = document.getElementById('device_user').value.trim() || 'admin';
-            const password = document.getElementById('device_password').value || 'tdhx@2017';
+            const password = document.getElementById('device_password').value;
 
             if (!ip) {
                 alert('请输入设备IP地址');
@@ -376,371 +950,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
                 if (data.success) {
-                    alert(`连接测试成功: ${ip}`);
+                    alert('连接测试成功: ' + ip);
                 } else {
-                    alert(`连接测试失败: ${data.error || '未知错误'}`);
+                    alert('连接测试失败: ' + (data.error || '未知错误'));
                 }
             })
             .catch(err => {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
-                alert(`连接测试失败: ${err.message}`);
+                alert('连接测试失败: ' + err.message);
             });
         });
-    } else {
-        console.error('找不到测试连接按钮');
-    }
-    
-    // 自动开始监控所有设备（在函数定义之后）
-    try {
-        startAllDeviceMonitoring();
-    } catch (e) {
-        console.error('启动设备监控失败:', e);
     }
 
-    // 渲染设备列表
-    function renderDeviceList() {
-        const deviceList = document.getElementById('device_list');
-        if (devices.length === 0) {
-            deviceList.innerHTML = `
-                <div class="text-center text-muted py-5">
-                    <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
-                    <p>暂无设备，请添加设备</p>
-                </div>
-            `;
-            return;
-        }
-
-        deviceList.innerHTML = devices.map(device => {
-            const typeNames = {
-                'security_device': '安全设备',
-                'ic_firewall': '工控防火墙',
-                'ic_audit': '工控审计',
-                'ids': 'IDS',
-                'other': '其他'
-            };
-            const typeName = typeNames[device.type] || '未知';
-            
-            // 获取该设备的监控数据
-            const monitorData = deviceMonitorData[device.id] || {};
-            const cpuUsage = monitorData.cpu_usage || 0;
-            const memory = monitorData.memory || { usage: 0, used: 0, total: 0 };
-            const network = monitorData.network || { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 };
-            
-            // 获取监测状态
-            const isMonitoring = deviceMonitoringStatus[device.id] || false;
-            device.monitoring = isMonitoring;
-
-            return `
-                <div class="list-group-item" data-device-id="${device.id}">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">${escapeHtml(device.name)}</h6>
-                            <small class="text-muted">
-                                <i class="fas fa-tag me-1"></i>${typeName} | 
-                                <i class="fas fa-network-wired me-1"></i>${device.ip}:${device.port} | 
-                                <i class="fas fa-user me-1"></i>${device.user}
-                            </small>
-                            ${device.description ? `<p class="mb-0 mt-1 small text-muted">${escapeHtml(device.description)}</p>` : ''}
-                        </div>
-                        <div class="btn-group">
-                            <button class="btn btn-sm ${device.monitoring ? 'btn-success' : 'btn-outline-secondary'}" 
-                                    onclick="toggleDeviceMonitoring('${device.id}')" 
-                                    id="monitor_btn_${device.id}"
-                                    title="${device.monitoring ? '关闭监测' : '开启监测'}">
-                                <i class="fas fa-${device.monitoring ? 'pause' : 'play'} me-1"></i>${device.monitoring ? '监测中' : '开启监测'}
-                            </button>
-                            <button class="btn btn-sm btn-info" onclick="executeCommand('${device.id}')">
-                                <i class="fas fa-terminal me-1"></i>命令
-                            </button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteDevice('${device.id}')">
-                                <i class="fas fa-trash me-1"></i>删除
-                            </button>
-                        </div>
-                    </div>
-                    <!-- 实时监控信息 -->
-                    <div class="row g-2 mt-2">
-                        <div class="col-md-4">
-                            <div class="border rounded p-2 bg-light">
-                                <small class="text-muted d-block mb-1">CPU使用率</small>
-                                <div class="d-flex align-items-center">
-                                    <span class="fw-bold me-2" id="cpu_${device.id}">${cpuUsage.toFixed(1)}%</span>
-                                    <div class="progress flex-grow-1" style="height: 6px;">
-                                        <div class="progress-bar ${cpuUsage > 80 ? 'bg-danger' : cpuUsage > 60 ? 'bg-warning' : 'bg-primary'}" 
-                                             role="progressbar" 
-                                             style="width: ${cpuUsage}%"
-                                             id="cpu_progress_${device.id}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="border rounded p-2 bg-light">
-                                <small class="text-muted d-block mb-1">内存使用率</small>
-                                <div class="d-flex align-items-center">
-                                    <span class="fw-bold me-2" id="memory_${device.id}">${memory.usage.toFixed(1)}%</span>
-                                    <div class="progress flex-grow-1" style="height: 6px;">
-                                        <div class="progress-bar ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning' : 'bg-success'}" 
-                                             role="progressbar" 
-                                             style="width: ${memory.usage}%"
-                                             id="memory_progress_${device.id}"></div>
-                                    </div>
-                                </div>
-                                <small class="text-muted" id="memory_detail_${device.id}">${memory.used || 0} MB / ${memory.total || 0} MB</small>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="border rounded p-2 bg-light">
-                                <small class="text-muted d-block mb-1">网络流量</small>
-                                <div>
-                                    <small class="d-block"><i class="fas fa-download text-success me-1"></i>接收: <span id="network_rx_${device.id}">${network.rx_rate > 0 ? formatBytes(network.rx_rate) + '/s' : (network.rx_bytes > 0 ? formatBytes(network.rx_bytes) : '--')}</span></small>
-                                    <small class="d-block"><i class="fas fa-upload text-primary me-1"></i>发送: <span id="network_tx_${device.id}">${network.tx_rate > 0 ? formatBytes(network.tx_rate) + '/s' : (network.tx_bytes > 0 ? formatBytes(network.tx_bytes) : '--')}</span></small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    // 开始监控所有设备
-    function startAllDeviceMonitoring() {
-        // 停止所有现有监控
-        Object.values(deviceMonitorIntervals).forEach(interval => {
-            if (interval) clearInterval(interval);
-        });
-        deviceMonitorIntervals = {};
-
-        // 为每个设备启动监控
-        devices.forEach(device => {
-            startDeviceMonitoring(device.id);
-        });
-    }
-
-    // 开始监控单个设备
-    function startDeviceMonitoring(deviceId) {
-        const device = devices.find(d => d.id === deviceId);
-        if (!device) return;
-
-        // 如果已有监控间隔，先清除
-        if (deviceMonitorIntervals[deviceId]) {
-            clearInterval(deviceMonitorIntervals[deviceId]);
-        }
-
-        // 立即获取一次
-        fetchDeviceMonitorData(deviceId);
-
-        // 每30秒更新一次（从5秒改为30秒，减少请求频率）
-        deviceMonitorIntervals[deviceId] = setInterval(() => {
-            fetchDeviceMonitorData(deviceId);
-        }, 30000); // 30秒
-    }
-
-    // 获取单个设备的监控数据
-    function fetchDeviceMonitorData(deviceId) {
-        const device = devices.find(d => d.id === deviceId);
-        if (!device) return;
-
-        fetch('/api/device/monitor_data/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                ip: device.ip,
-                port: device.port,
-                user: device.user,
-                password: device.password,
-                device_type: device.type
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 存储监控数据
-                deviceMonitorData[deviceId] = {
-                    cpu_usage: data.cpu_usage || 0,
-                    memory: data.memory || { usage: 0, used: 0, total: 0 },
-                    network: data.network || { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
-                };
-
-                console.log(`设备 ${deviceId} 获取监控数据成功:`, deviceMonitorData[deviceId]);
-
-                // 更新界面
-                updateDeviceMonitorDisplay(deviceId);
-            } else {
-                // 检查是否是设备离线
-                if (data.offline) {
-                    console.warn(`设备 ${deviceId} 离线，跳过获取监控数据: ${data.error}`);
-                    // 设备离线时，保持上次的数据，不更新界面
-                    // 可以在这里添加离线状态显示
-                    return;
-                }
-                
-                console.error(`获取设备 ${deviceId} 监控数据失败:`, data.error);
-                // 其他错误时保持上次的数据，不清空
-                if (!deviceMonitorData[deviceId]) {
-                    deviceMonitorData[deviceId] = {
-                        cpu_usage: 0,
-                        memory: { usage: 0, used: 0, total: 0 },
-                        network: { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
-                    };
-                }
-                updateDeviceMonitorDisplay(deviceId);
-            }
-        })
-        .catch(err => {
-            console.error(`获取设备 ${deviceId} 监控数据失败:`, err);
-            // 网络错误时保持上次的数据，不清空
-            if (!deviceMonitorData[deviceId]) {
-                deviceMonitorData[deviceId] = {
-                    cpu_usage: 0,
-                    memory: { usage: 0, used: 0, total: 0 },
-                    network: { rx_rate: 0, tx_rate: 0, rx_bytes: 0, tx_bytes: 0 }
-                };
-            }
-        });
-    }
-
-    // 更新设备监控显示
-    function updateDeviceMonitorDisplay(deviceId) {
-        const monitorData = deviceMonitorData[deviceId];
-        if (!monitorData) {
-            console.warn(`设备 ${deviceId} 没有监控数据`);
-            return;
-        }
-
-        const cpuUsage = monitorData.cpu_usage || 0;
-        const memory = monitorData.memory || { usage: 0, used: 0, total: 0 };
-        const network = monitorData.network || { rx_rate: 0, tx_rate: 0 };
-
-        const deviceItem = document.querySelector(`[data-device-id="${deviceId}"]`);
-        if (!deviceItem) {
-            console.warn(`找不到设备元素: ${deviceId}`);
-            return;
-        }
-
-        // 更新CPU
-        const cpuElement = document.getElementById(`cpu_${deviceId}`);
-        const cpuProgressElement = document.getElementById(`cpu_progress_${deviceId}`);
-        if (cpuElement) {
-            cpuElement.textContent = cpuUsage.toFixed(1) + '%';
-        }
-        if (cpuProgressElement) {
-            cpuProgressElement.style.width = cpuUsage + '%';
-            cpuProgressElement.className = `progress-bar ${cpuUsage > 80 ? 'bg-danger' : cpuUsage > 60 ? 'bg-warning' : 'bg-primary'}`;
-        }
-
-        // 更新内存
-        const memoryElement = document.getElementById(`memory_${deviceId}`);
-        const memoryDetailElement = document.getElementById(`memory_detail_${deviceId}`);
-        const memoryProgressElement = document.getElementById(`memory_progress_${deviceId}`);
-        if (memoryElement) {
-            memoryElement.textContent = memory.usage.toFixed(1) + '%';
-        }
-        if (memoryDetailElement) {
-            memoryDetailElement.textContent = `${memory.used || 0} MB / ${memory.total || 0} MB`;
-        }
-        if (memoryProgressElement) {
-            memoryProgressElement.style.width = memory.usage + '%';
-            memoryProgressElement.className = `progress-bar ${memory.usage > 80 ? 'bg-danger' : memory.usage > 60 ? 'bg-warning' : 'bg-success'}`;
-        }
-
-        // 更新网络（优先显示速率，如果没有速率则显示累计流量，保持上次显示的值）
-        const networkRxElement = document.getElementById(`network_rx_${deviceId}`);
-        const networkTxElement = document.getElementById(`network_tx_${deviceId}`);
-        if (networkRxElement) {
-            if (network.rx_rate > 0) {
-                networkRxElement.textContent = formatBytes(network.rx_rate) + '/s';
-            } else if (network.rx_bytes > 0) {
-                // 如果没有速率，显示累计流量
-                networkRxElement.textContent = formatBytes(network.rx_bytes);
-            }
-            // 如果都是0，保持上次显示的值（不更新）
-        }
-        if (networkTxElement) {
-            if (network.tx_rate > 0) {
-                networkTxElement.textContent = formatBytes(network.tx_rate) + '/s';
-            } else if (network.tx_bytes > 0) {
-                // 如果没有速率，显示累计流量
-                networkTxElement.textContent = formatBytes(network.tx_bytes);
-            }
-            // 如果都是0，保持上次显示的值（不更新）
-        }
-        
-        console.log(`设备 ${deviceId} 监控数据已更新: CPU=${cpuUsage.toFixed(1)}%, 内存=${memory.usage.toFixed(1)}%`);
-    }
-
-    // 选择设备查看coredump
-    window.selectDevice = function(deviceId) {
-        currentDevice = devices.find(d => d.id === deviceId);
-        if (!currentDevice) return;
-
-        // 显示coredump卡片
-        document.getElementById('coredump_card').style.display = 'block';
-        refreshCoredump();
-    };
-
-    // 刷新Coredump文件列表
-    function refreshCoredump() {
-        if (!currentDevice) return;
-
-        fetch('/api/device/coredump/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                ip: currentDevice.ip,
-                port: currentDevice.port,
-                user: currentDevice.user,
-                password: currentDevice.password
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const tbody = document.getElementById('coredump_table_body');
-                const files = data.files || [];
-                
-                if (files.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">暂无coredump文件</td></tr>';
-                } else {
-                    tbody.innerHTML = files.map(file => `
-                        <tr>
-                            <td><code>${escapeHtml(file.name)}</code></td>
-                            <td>${escapeHtml(file.size_str || formatBytes(file.size || 0))}</td>
-                            <td>${escapeHtml(file.mtime || '')}</td>
-                        </tr>
-                    `).join('');
-                }
-            } else {
-                alert(`获取coredump文件列表失败: ${data.error || '未知错误'}`);
-            }
-        })
-        .catch(err => {
-            alert(`获取coredump文件列表失败: ${err.message}`);
-        });
-    }
-
-    document.getElementById('refresh_coredump').addEventListener('click', refreshCoredump);
-
-    // 执行命令
-    window.executeCommand = function(deviceId) {
-        const device = devices.find(d => d.id === deviceId);
-        if (!device) return;
-
-        // 保存当前设备到模态框
-        document.getElementById('executeCommandModal').dataset.deviceId = deviceId;
-        document.getElementById('command_output').innerHTML = '<div class="text-muted">等待执行命令...</div>';
-        
-        const modal = new bootstrap.Modal(document.getElementById('executeCommandModal'));
-        modal.show();
-    };
-
+    // 执行命令按钮
     document.getElementById('execute_command_btn').addEventListener('click', function() {
         const deviceId = document.getElementById('executeCommandModal').dataset.deviceId;
         const device = devices.find(d => d.id === deviceId);
@@ -759,7 +982,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>执行中...';
-        outputDiv.innerHTML = '<div class="text-info">正在执行命令...</div>';
+        outputDiv.innerHTML = '<div style="color: #569cd6;">正在执行命令...</div>';
 
         fetch('/api/device/execute/', {
             method: 'POST',
@@ -774,133 +997,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 password: device.password,
                 command_type: commandType,
                 command: commandInput,
-                device_type: device.type
+                device_type: device.type,
+                backend_password: device.backend_password
             })
         })
         .then(response => response.json())
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = originalText;
-            
             if (data.success) {
-                outputDiv.innerHTML = `<pre class="mb-0 text-light">${escapeHtml(data.output || '')}</pre>`;
+                outputDiv.innerHTML = '<pre class="mb-0" style="color: #4ec9b0;">' + escapeHtml(data.output || '') + '</pre>';
             } else {
-                outputDiv.innerHTML = `<div class="text-danger">错误: ${escapeHtml(data.error || '未知错误')}</div>`;
+                outputDiv.innerHTML = '<div style="color: #f14c4c;">错误: ' + escapeHtml(data.error || '未知错误') + '</div>';
             }
         })
         .catch(err => {
             btn.disabled = false;
             btn.innerHTML = originalText;
-            outputDiv.innerHTML = `<div class="text-danger">执行失败: ${escapeHtml(err.message)}</div>`;
+            outputDiv.innerHTML = '<div style="color: #f14c4c;">执行失败: ' + escapeHtml(err.message) + '</div>';
         });
     });
-
-    // 删除设备
-    window.deleteDevice = function(deviceId) {
-        if (!confirm('确定要删除该设备吗？')) return;
-
-        fetch('/api/device/delete/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({ id: deviceId })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 停止该设备的监控
-                if (deviceMonitorIntervals[deviceId]) {
-                    clearInterval(deviceMonitorIntervals[deviceId]);
-                    delete deviceMonitorIntervals[deviceId];
-                }
-                delete deviceMonitorData[deviceId];
-                delete deviceMonitoringStatus[deviceId];
-
-                if (currentDevice && currentDevice.id === deviceId) {
-                    currentDevice = null;
-                    document.getElementById('coredump_card').style.display = 'none';
-                }
-                
-                loadDevices();
-            } else {
-                alert('删除失败: ' + data.error);
-            }
-        })
-        .catch(err => alert('删除失败: ' + err.message));
-    };
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function formatBytes(bytes) {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-    }
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    // 切换设备监测开关
-    window.toggleDeviceMonitoring = function(deviceId) {
-        const device = devices.find(d => d.id === deviceId);
-        if (!device) return;
-
-        const isMonitoring = deviceMonitoringStatus[deviceId] || false;
-        const newStatus = !isMonitoring;
-
-        fetch('/api/device/monitoring/toggle/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                device_id: deviceId,
-                enabled: newStatus,
-                device_info: {
-                    name: device.name,
-                    ip: device.ip,
-                    type: device.type,
-                    user: device.user,
-                    password: device.password,
-                    port: device.port
-                }
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                deviceMonitoringStatus[deviceId] = newStatus;
-                renderDeviceList();
-                alert(newStatus ? '监测已开启' : '监测已关闭');
-            } else {
-                alert('操作失败: ' + (data.error || '未知错误'));
-            }
-        })
-        .catch(err => {
-            alert('操作失败: ' + err.message);
-        });
-    };
 
     // 加载告警配置
     function loadAlertConfig() {
@@ -912,7 +1028,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('smtp_server').value = config.smtp_server || '';
                 document.getElementById('smtp_port').value = config.smtp_port || 587;
                 document.getElementById('sender_email').value = config.sender_email || '';
-                // 如果密码不是'***'（占位符），才更新密码字段，否则保持原值
                 if (config.sender_password && config.sender_password !== '***') {
                     document.getElementById('sender_password').value = config.sender_password;
                 }
@@ -933,31 +1048,25 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('save_alert_config_btn').addEventListener('click', function() {
         const passwordField = document.getElementById('sender_password');
         const currentPassword = passwordField.value;
-        
-        // 如果密码字段为空或者是占位符，需要从后端获取原密码
+
         let passwordToSave = currentPassword;
         if (!currentPassword || currentPassword === '***') {
-            // 如果密码为空，尝试从已保存的配置中获取（如果有的话）
-            // 这里我们需要先获取当前配置，如果密码是空的，就不更新密码字段
             fetch('/api/device/alert_config/')
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.config && data.config.sender_password && data.config.sender_password !== '***') {
-                    // 如果后端有密码，使用后端的密码
                     passwordToSave = data.config.sender_password;
                 }
                 saveConfigWithPassword(passwordToSave);
             })
             .catch(() => {
-                // 如果获取失败，使用当前值（可能是空）
                 saveConfigWithPassword(passwordToSave);
             });
             return;
         }
-        
         saveConfigWithPassword(passwordToSave);
     });
-    
+
     function saveConfigWithPassword(password) {
         const config = {
             smtp_server: document.getElementById('smtp_server').value.trim(),
@@ -965,19 +1074,15 @@ document.addEventListener('DOMContentLoaded', function() {
             sender_email: document.getElementById('sender_email').value.trim(),
             use_tls: document.getElementById('use_tls').checked,
             use_ssl: document.getElementById('use_ssl').checked,
-            recipients: document.getElementById('recipients').value.split('\n')
-                .map(r => r.trim())
-                .filter(r => r && r.includes('@')),
+            recipients: document.getElementById('recipients').value.split('\n').map(r => r.trim()).filter(r => r && r.includes('@')),
             check_interval: parseInt(document.getElementById('check_interval').value),
             cpu_threshold: parseInt(document.getElementById('cpu_threshold').value),
             memory_threshold: parseInt(document.getElementById('memory_threshold').value)
         };
-        
-        // 如果密码不为空且不是占位符，才添加到配置中
+
         if (password && password !== '***') {
             config.sender_password = password;
         }
-        // 如果密码为空或占位符，不包含在配置中，后端会保留原密码
 
         if (!config.smtp_server || !config.sender_email || config.recipients.length === 0) {
             alert('请填写完整的配置信息');
@@ -1002,9 +1107,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('保存失败: ' + (data.error || '未知错误'));
             }
         })
-        .catch(err => {
-            alert('保存失败: ' + err.message);
-        });
+        .catch(err => alert('保存失败: ' + err.message));
     }
 
     // 测试邮件发送
@@ -1016,9 +1119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             sender_password: document.getElementById('sender_password').value,
             use_tls: document.getElementById('use_tls').checked,
             use_ssl: document.getElementById('use_ssl').checked,
-            recipients: document.getElementById('recipients').value.split('\n')
-                .map(r => r.trim())
-                .filter(r => r && r.includes('@'))
+            recipients: document.getElementById('recipients').value.split('\n').map(r => r.trim()).filter(r => r && r.includes('@'))
         };
 
         if (!config.smtp_server || !config.sender_email || !config.sender_password || config.recipients.length === 0) {
@@ -1061,22 +1162,36 @@ document.addEventListener('DOMContentLoaded', function() {
         loadAlertConfig();
     });
 
-    // 加载所有设备的监测状态
-    function loadMonitoringStatus() {
-        return fetch('/api/device/monitoring/status/')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.status) {
-                deviceMonitoringStatus = data.status;
-                return data.status;
-            }
-            return {};
-        })
-        .catch(err => {
-            console.error('加载监测状态失败:', err);
-            return {};
-        });
-    }
+    // 定期刷新告警状态（每60秒）
+    setInterval(loadAlertStatus, 60000);
+
+    // 页面可见性优化：切换到其他标签页时暂停监控请求
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            // 页面不可见，停止发送请求（清除定时器），但保持上次数据显示
+            Object.values(deviceMonitorIntervals).forEach(interval => {
+                if (interval) clearInterval(interval);
+            });
+            Object.values(deviceDiskIntervals).forEach(interval => {
+                if (interval) clearInterval(interval);
+            });
+            deviceMonitorIntervals = {};
+            deviceDiskIntervals = {};
+            console.log('页面不可见，已暂停监控请求');
+        } else {
+            // 页面可见，恢复监控（不立即发送请求，等待下一个定时周期）
+            devices.forEach(device => {
+                // 设置定时器，等待下一个周期再发送请求
+                deviceMonitorIntervals[device.id] = setInterval(() => {
+                    fetchDeviceMonitorData(device.id);
+                }, 60000); // 1分钟后发送第一个请求
+                deviceDiskIntervals[device.id] = setInterval(() => {
+                    fetchDeviceDiskData(device.id);
+                }, 300000); // 5分钟后发送第一个请求
+            });
+            console.log('页面可见，已恢复监控定时器');
+        }
+    });
 });
 </script>
 {% endblock %}

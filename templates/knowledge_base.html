@@ -1,0 +1,1289 @@
+{% extends "base.html" %}
+
+{% block title %}知识库管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-book me-2"></i>知识库管理
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- 导航标签 -->
+                    <ul class="nav nav-tabs" id="knowledgeTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="service-tab" data-bs-toggle="tab" data-bs-target="#service" type="button" role="tab">
+                                <i class="fas fa-cogs me-1"></i>预定义服务
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="vul-tab" data-bs-toggle="tab" data-bs-target="#vul" type="button" role="tab">
+                                <i class="fas fa-bug me-1"></i>漏洞库
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="virus-tab" data-bs-toggle="tab" data-bs-target="#virus" type="button" role="tab">
+                                <i class="fas fa-virus me-1"></i>病毒库
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="knowledgeTabContent">
+                        <!-- 预定义服务 -->
+                        <div class="tab-pane fade show active" id="service" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-upload me-2"></i>模板管理
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- 已保存的模板列表 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">已保存的模板</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="savedTemplates">
+                                                        <option value="">-- 选择已保存的模板 --</option>
+                                                    </select>
+                                                    <button class="btn btn-outline-primary" type="button" id="loadTemplateBtn" title="加载模板">
+                                                        <i class="fas fa-download"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" type="button" id="deleteTemplateBtn" title="删除模板">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <hr>
+
+                                            <!-- 文件上传区域 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">上传新模板</label>
+                                                <div class="drop-zone p-4 text-center border rounded" id="dropZone" style="cursor: pointer; background-color: #f8f9fa; transition: all 0.3s;">
+                                                    <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                                                    <p class="mb-1 small">点击或拖拽上传JSON模板文件</p>
+                                                    <small class="text-muted">支持 .json 格式</small>
+                                                    <input type="file" id="fileInput" accept=".json" style="display: none;">
+                                                </div>
+                                            </div>
+
+                                            <div id="fileInfo" class="alert alert-info" style="display: none;">
+                                                <i class="fas fa-file-code me-2"></i>
+                                                <span id="fileName"></span>
+                                                <button type="button" class="btn btn-sm btn-outline-danger float-end" onclick="clearFile()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="templateName" placeholder="模板名称（保存时填写）">
+                                                    <button class="btn btn-outline-success" type="button" id="saveTemplateBtn" disabled>
+                                                        <i class="fas fa-save me-1"></i>保存模板
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label for="version" class="form-label">版本号</label>
+                                                    <input type="text" class="form-control" id="version" value="" placeholder="如: 2026040901">
+                                                    <small class="text-muted">格式：YYYYMMDD+序号</small>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="updateTime" class="form-label">更新时间</label>
+                                                    <input type="text" class="form-control" id="updateTime" placeholder="如: 2026/04/09">
+                                                    <small class="text-muted">格式：YYYY/MM/DD</small>
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid gap-2">
+                                                <button type="button" class="btn btn-primary" id="createPackageBtn" disabled>
+                                                    <i class="fas fa-cog me-1"></i>生成升级包
+                                                </button>
+                                                <button type="button" class="btn btn-success" id="downloadPackageBtn" disabled>
+                                                    <i class="fas fa-download me-1"></i>下载升级包
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-server me-2"></i>升级到设备
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                <strong>说明：</strong>系统会自动获取设备Cookie。支持上传外部升级包。
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="deviceIp" class="form-label">设备IP地址</label>
+                                                <input type="text" class="form-control" id="deviceIp" placeholder="如: 10.40.20.41">
+                                            </div>
+
+                                            <!-- 外部包上传 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">外部升级包（可选）</label>
+                                                <input type="file" class="form-control" id="externalPackageFile" accept=".bin,.lib">
+                                                <small class="text-muted">提供外部包时将优先使用外部包</small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">升级包状态</label>
+                                                <div id="packageStatus" class="alert alert-secondary mb-0">
+                                                    <i class="fas fa-exclamation-circle me-2"></i>请先生成升级包或上传外部包
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid">
+                                                <button type="button" class="btn btn-warning" id="upgradeBtn" disabled>
+                                                    <i class="fas fa-upload me-1"></i>升级到设备
+                                                </button>
+                                            </div>
+
+                                            <div id="upgradeResult" class="mt-3" style="display: none;">
+                                                <h6>升级响应：</h6>
+                                                <pre id="upgradeResponse" class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;"></pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 漏洞库 -->
+                        <div class="tab-pane fade" id="vul" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-upload me-2"></i>漏洞库制作
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- 已保存的模板列表 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">已保存的模板</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="savedVulTemplates">
+                                                        <option value="">-- 选择已保存的模板 --</option>
+                                                    </select>
+                                                    <button class="btn btn-outline-primary" type="button" id="loadVulTemplateBtn" title="加载模板">
+                                                        <i class="fas fa-download"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" type="button" id="deleteVulTemplateBtn" title="删除模板">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <hr>
+
+                                            <!-- 文件上传区域 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">上传新ZIP模板</label>
+                                                <div class="drop-zone-vul p-4 text-center border rounded" id="dropZoneVul" style="cursor: pointer; background-color: #f8f9fa; transition: all 0.3s;">
+                                                    <i class="fas fa-file-archive fa-2x text-muted mb-2"></i>
+                                                    <p class="mb-1 small">点击或拖拽上传ZIP文件</p>
+                                                    <small class="text-muted">需包含 build_time 和 version 文件</small>
+                                                    <input type="file" id="vulFileInput" accept=".zip" style="display: none;">
+                                                </div>
+                                            </div>
+
+                                            <div id="vulFileInfo" class="alert alert-info" style="display: none;">
+                                                <i class="fas fa-file-archive me-2"></i>
+                                                <span id="vulFileName"></span>
+                                                <button type="button" class="btn btn-sm btn-outline-danger float-end" onclick="clearVulFile()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="vulTemplateName" placeholder="模板名称（保存时填写）">
+                                                    <button class="btn btn-outline-success" type="button" id="saveVulTemplateBtn" disabled>
+                                                        <i class="fas fa-save me-1"></i>保存模板
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label for="vulBuildTime" class="form-label">build_time</label>
+                                                    <input type="text" class="form-control" id="vulBuildTime" placeholder="如: 2026-03-09">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="vulVersion" class="form-label">version</label>
+                                                    <input type="text" class="form-control" id="vulVersion" placeholder="如: 2026030901">
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid gap-2">
+                                                <button type="button" class="btn btn-primary" id="createVulBtn" disabled>
+                                                    <i class="fas fa-cog me-1"></i>生成漏洞库升级包
+                                                </button>
+                                                <button type="button" class="btn btn-success" id="downloadVulBtn" disabled>
+                                                    <i class="fas fa-download me-1"></i>下载升级包
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-server me-2"></i>升级漏洞库
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="vulDeviceIp" class="form-label">设备IP地址</label>
+                                                <input type="text" class="form-control" id="vulDeviceIp" placeholder="如: 10.40.20.41">
+                                            </div>
+
+                                            <!-- 外部包上传 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">外部升级包（可选）</label>
+                                                <input type="file" class="form-control" id="vulExternalPackageFile" accept=".lib">
+                                                <small class="text-muted">提供外部包时将优先使用外部包</small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">升级包状态</label>
+                                                <div id="vulPackageStatus" class="alert alert-secondary mb-0">
+                                                    <i class="fas fa-exclamation-circle me-2"></i>请先生成升级包或上传外部包
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid">
+                                                <button type="button" class="btn btn-warning" id="upgradeVulBtn" disabled>
+                                                    <i class="fas fa-upload me-1"></i>升级漏洞库
+                                                </button>
+                                            </div>
+
+                                            <div id="vulUpgradeResult" class="mt-3" style="display: none;">
+                                                <h6>升级响应：</h6>
+                                                <pre id="vulUpgradeResponse" class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;"></pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 病毒库 -->
+                        <div class="tab-pane fade" id="virus" role="tabpanel">
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-upload me-2"></i>病毒库制作
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- 已保存的模板列表 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">已保存的模板</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="savedVirusTemplates">
+                                                        <option value="">-- 选择已保存的模板 --</option>
+                                                    </select>
+                                                    <button class="btn btn-outline-primary" type="button" id="loadVirusTemplateBtn" title="加载模板">
+                                                        <i class="fas fa-download"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" type="button" id="deleteVirusTemplateBtn" title="删除模板">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <hr>
+
+                                            <!-- 文件上传区域 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">上传新ZIP模板</label>
+                                                <div class="drop-zone-virus p-4 text-center border rounded" id="dropZoneVirus" style="cursor: pointer; background-color: #f8f9fa; transition: all 0.3s;">
+                                                    <i class="fas fa-file-archive fa-2x text-muted mb-2"></i>
+                                                    <p class="mb-1 small">点击或拖拽上传ZIP文件</p>
+                                                    <small class="text-muted">需包含 vul_time 和 version 文件</small>
+                                                    <input type="file" id="virusFileInput" accept=".zip" style="display: none;">
+                                                </div>
+                                            </div>
+
+                                            <div id="virusFileInfo" class="alert alert-info" style="display: none;">
+                                                <i class="fas fa-file-archive me-2"></i>
+                                                <span id="virusFileName"></span>
+                                                <button type="button" class="btn btn-sm btn-outline-danger float-end" onclick="clearVirusFile()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="virusTemplateName" placeholder="模板名称（保存时填写）">
+                                                    <button class="btn btn-outline-success" type="button" id="saveVirusTemplateBtn" disabled>
+                                                        <i class="fas fa-save me-1"></i>保存模板
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label for="virusVulTime" class="form-label">vul_time</label>
+                                                    <input type="text" class="form-control" id="virusVulTime" placeholder="如: 2026-03-09">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="virusVersion" class="form-label">version</label>
+                                                    <input type="text" class="form-control" id="virusVersion" placeholder="如: 2026030901">
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid gap-2">
+                                                <button type="button" class="btn btn-primary" id="createVirusBtn" disabled>
+                                                    <i class="fas fa-cog me-1"></i>生成病毒库升级包
+                                                </button>
+                                                <button type="button" class="btn btn-success" id="downloadVirusBtn" disabled>
+                                                    <i class="fas fa-download me-1"></i>下载升级包
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-server me-2"></i>升级病毒库
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="virusDeviceIp" class="form-label">设备IP地址</label>
+                                                <input type="text" class="form-control" id="virusDeviceIp" placeholder="如: 10.40.20.41">
+                                            </div>
+
+                                            <!-- 外部包上传 -->
+                                            <div class="mb-3">
+                                                <label class="form-label">外部升级包（可选）</label>
+                                                <input type="file" class="form-control" id="virusExternalPackageFile" accept=".lib">
+                                                <small class="text-muted">提供外部包时将优先使用外部包</small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">升级包状态</label>
+                                                <div id="virusPackageStatus" class="alert alert-secondary mb-0">
+                                                    <i class="fas fa-exclamation-circle me-2"></i>请先生成升级包或上传外部包
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid">
+                                                <button type="button" class="btn btn-warning" id="upgradeVirusBtn" disabled>
+                                                    <i class="fas fa-upload me-1"></i>升级病毒库
+                                                </button>
+                                            </div>
+
+                                            <div id="virusUpgradeResult" class="mt-3" style="display: none;">
+                                                <h6>升级响应：</h6>
+                                                <pre id="virusUpgradeResponse" class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;"></pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作日志 -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>操作日志
+                    </h5>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clearLogs">
+                        <i class="fas fa-trash me-1"></i>清空日志
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="operationLogs" class="log-container" style="height: 300px; overflow-y: auto; background-color: #f8f9fa; padding: 10px; border-radius: 5px;">
+                        <div class="text-muted text-center">暂无操作记录</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ========== 公共函数 ==========
+    let templateContent = null;
+    let packageContent = null;
+    let packageFilename = null;
+    let vulFileContent = null;
+    let vulPackageContent = null;
+    let vulPackageFilename = null;
+    let virusFileContent = null;
+    let virusPackageContent = null;
+    let virusPackageFilename = null;
+
+    // 外部包（仅预定义服务使用）
+    let externalPackageContent = null;
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function addLog(message, type = 'info') {
+        const logsContainer = document.getElementById('operationLogs');
+        const timestamp = new Date().toLocaleString();
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry mb-2';
+
+        let iconClass = 'fas fa-info-circle';
+        let textClass = 'text-info';
+
+        switch(type) {
+            case 'success': iconClass = 'fas fa-check-circle'; textClass = 'text-success'; break;
+            case 'error': iconClass = 'fas fa-exclamation-circle'; textClass = 'text-danger'; break;
+            case 'warning': iconClass = 'fas fa-exclamation-triangle'; textClass = 'text-warning'; break;
+        }
+
+        logEntry.innerHTML = `<div class="${textClass}"><i class="${iconClass} me-2"></i><span class="text-muted">[${timestamp}]</span> ${message}</div>`;
+
+        if (logsContainer.querySelector('.text-muted.text-center')) {
+            logsContainer.innerHTML = '';
+        }
+
+        logsContainer.appendChild(logEntry);
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+
+    document.getElementById('clearLogs').addEventListener('click', function() {
+        document.getElementById('operationLogs').innerHTML = '<div class="text-muted text-center">暂无操作记录</div>';
+    });
+
+    // ========== 预定义服务 ==========
+    function setDefaultVersion() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        document.getElementById('updateTime').value = `${year}/${month}/${day}`;
+        document.getElementById('version').value = `${year}${month}${day}01`;
+    }
+    setDefaultVersion();
+
+    document.getElementById('updateTime').addEventListener('change', function() {
+        const timeValue = this.value.trim();
+        const match = timeValue.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+        if (match) {
+            const year = match[1];
+            const month = match[2].padStart(2, '0');
+            const day = match[3].padStart(2, '0');
+            document.getElementById('version').value = `${year}${month}${day}01`;
+        }
+    });
+
+    function loadTemplateList() {
+        fetch('/api/knowledge/templates/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const select = document.getElementById('savedTemplates');
+                    select.innerHTML = '<option value="">-- 选择已保存的模板 --</option>';
+                    data.templates.forEach(t => {
+                        select.innerHTML += `<option value="${t.name}">${t.name} (${t.time})</option>`;
+                    });
+                }
+            })
+            .catch(err => console.error('加载模板列表失败:', err));
+    }
+    loadTemplateList();
+
+    document.getElementById('loadTemplateBtn').addEventListener('click', function() {
+        const name = document.getElementById('savedTemplates').value;
+        if (!name) { addLog('请选择要加载的模板', 'warning'); return; }
+
+        fetch(`/api/knowledge/templates/${encodeURIComponent(name)}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    templateContent = data.content;
+                    document.getElementById('fileName').textContent = name + '.json';
+                    document.getElementById('fileInfo').style.display = 'block';
+                    document.getElementById('templateName').value = name;
+                    document.getElementById('createPackageBtn').disabled = false;
+                    document.getElementById('saveTemplateBtn').disabled = false;
+                    addLog(`已加载模板: ${name}`, 'success');
+                } else {
+                    addLog(`加载失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(err => addLog(`加载失败: ${err.message}`, 'error'));
+    });
+
+    document.getElementById('deleteTemplateBtn').addEventListener('click', function() {
+        const name = document.getElementById('savedTemplates').value;
+        if (!name) { addLog('请选择要删除的模板', 'warning'); return; }
+        if (!confirm(`确定要删除模板 "${name}" 吗？`)) return;
+
+        fetch('/api/knowledge/templates/delete/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ name: name })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog(`已删除模板: ${name}`, 'success');
+                loadTemplateList();
+                if (document.getElementById('templateName').value === name) clearFile();
+            } else {
+                addLog(`删除失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(err => addLog(`删除失败: ${err.message}`, 'error'));
+    });
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-primary'); dropZone.style.backgroundColor = '#e9ecef'; });
+    dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-primary'); dropZone.style.backgroundColor = '#f8f9fa'; });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-primary'); dropZone.style.backgroundColor = '#f8f9fa'; if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]); });
+    fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) handleFile(e.target.files[0]); });
+
+    function handleFile(file) {
+        if (!file.name.endsWith('.json')) { addLog('请上传JSON格式文件', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                JSON.parse(e.target.result);
+                templateContent = e.target.result;
+                const templateName = file.name.replace(/\.json$/i, '');
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileInfo').style.display = 'block';
+                document.getElementById('templateName').value = templateName;
+                document.getElementById('createPackageBtn').disabled = false;
+                document.getElementById('saveTemplateBtn').disabled = false;
+                addLog(`已加载模板文件: ${file.name}`, 'success');
+            } catch (err) { addLog('文件内容不是有效的JSON格式', 'error'); }
+        };
+        reader.readAsText(file);
+    }
+
+    window.clearFile = function() {
+        templateContent = null;
+        document.getElementById('fileInfo').style.display = 'none';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('templateName').value = '';
+        document.getElementById('createPackageBtn').disabled = true;
+        document.getElementById('saveTemplateBtn').disabled = true;
+        updateServiceUpgradeStatus();
+    };
+
+    // 外部包上传处理
+    document.getElementById('externalPackageFile').addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const arrayBuffer = e.target.result;
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                externalPackageContent = btoa(binary);
+                addLog(`已加载外部升级包: ${file.name}`, 'success');
+                updateServiceUpgradeStatus();
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            externalPackageContent = null;
+            updateServiceUpgradeStatus();
+        }
+    });
+
+    function updateServiceUpgradeStatus() {
+        const hasPackage = packageContent || externalPackageContent;
+        document.getElementById('upgradeBtn').disabled = !hasPackage;
+        if (externalPackageContent) {
+            document.getElementById('packageStatus').className = 'alert alert-info mb-0';
+            document.getElementById('packageStatus').innerHTML = '<i class="fas fa-file-archive me-2"></i>使用外部升级包';
+        } else if (packageContent) {
+            document.getElementById('packageStatus').className = 'alert alert-success mb-0';
+            document.getElementById('packageStatus').innerHTML = `<i class="fas fa-check-circle me-2"></i>升级包已生成: ${packageFilename}`;
+        } else {
+            document.getElementById('packageStatus').className = 'alert alert-secondary mb-0';
+            document.getElementById('packageStatus').innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>请先生成升级包或上传外部包';
+        }
+    }
+
+    document.getElementById('saveTemplateBtn').addEventListener('click', function() {
+        if (!templateContent) { addLog('请先上传模板文件', 'error'); return; }
+        const name = document.getElementById('templateName').value.trim();
+        if (!name) { addLog('请输入模板名称', 'error'); return; }
+
+        fetch('/api/knowledge/templates/save/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ name: name, content: templateContent })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) { addLog(`模板已保存: ${name}`, 'success'); loadTemplateList(); }
+            else { addLog(`保存失败: ${data.error}`, 'error'); }
+        })
+        .catch(err => addLog(`保存失败: ${err.message}`, 'error'));
+    });
+
+    document.getElementById('createPackageBtn').addEventListener('click', function() {
+        if (!templateContent) { addLog('请先上传模板文件', 'error'); return; }
+        const version = document.getElementById('version').value.trim() || '1.0.0';
+        const time = document.getElementById('updateTime').value.trim();
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+        addLog(`开始生成升级包 (版本: ${version}, 时间: ${time})`);
+
+        fetch('/api/knowledge/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ template_content: templateContent, version: version, time: time })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-cog me-1"></i>生成升级包';
+            if (data.success) {
+                packageContent = data.content;
+                packageFilename = data.filename;
+                document.getElementById('downloadPackageBtn').disabled = false;
+                updateServiceUpgradeStatus();
+                addLog(`升级包生成成功: ${data.filename}`, 'success');
+            } else { addLog(`升级包生成失败: ${data.error}`, 'error'); }
+        })
+        .catch(error => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cog me-1"></i>生成升级包'; addLog(`请求失败: ${error.message}`, 'error'); });
+    });
+
+    document.getElementById('downloadPackageBtn').addEventListener('click', function() {
+        if (!packageContent || !packageFilename) { addLog('没有可下载的升级包', 'error'); return; }
+        try {
+            const binaryString = atob(packageContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = packageFilename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addLog(`升级包已下载: ${packageFilename}`, 'success');
+        } catch (error) { addLog(`下载失败: ${error.message}`, 'error'); }
+    });
+
+    document.getElementById('upgradeBtn').addEventListener('click', function() {
+        const deviceIp = document.getElementById('deviceIp').value.trim();
+        if (!deviceIp) { addLog('请输入设备IP地址', 'error'); return; }
+        // 优先使用外部包，否则使用自己制作的包
+        const contentToUse = externalPackageContent || packageContent;
+        if (!contentToUse) { addLog('请先生成升级包或上传外部包', 'error'); return; }
+
+        const isExternal = !!externalPackageContent;
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>升级中...';
+        addLog(`开始升级知识库到设备: ${deviceIp}${isExternal ? ' (使用外部包)' : ''}`);
+
+        fetch('/api/knowledge/upgrade/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ ip: deviceIp, content: contentToUse, auto_get_cookie: true })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload me-1"></i>升级到设备';
+            document.getElementById('upgradeResult').style.display = 'block';
+            if (data.success) {
+                document.getElementById('upgradeResponse').textContent = data.response;
+                addLog(`升级成功: ${deviceIp} - ${data.device_msg || '完成'}`, 'success');
+            } else {
+                document.getElementById('upgradeResponse').textContent = data.error;
+                addLog(`升级失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(error => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload me-1"></i>升级到设备'; addLog(`请求失败: ${error.message}`, 'error'); });
+    });
+
+    // ========== 漏洞库 ==========
+    // 模板管理
+    let vulFileObject = null;  // 保存原始文件对象用于模板保存
+
+    function loadVulTemplateList() {
+        fetch('/api/knowledge/vul/templates/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const select = document.getElementById('savedVulTemplates');
+                    select.innerHTML = '<option value="">-- 选择已保存的模板 --</option>';
+                    data.templates.forEach(t => {
+                        select.innerHTML += `<option value="${t.name}">${t.name} (${t.time})</option>`;
+                    });
+                }
+            })
+            .catch(err => console.error('加载漏洞库模板列表失败:', err));
+    }
+    loadVulTemplateList();
+
+    document.getElementById('loadVulTemplateBtn').addEventListener('click', function() {
+        const name = document.getElementById('savedVulTemplates').value;
+        if (!name) { addLog('请选择要加载的模板', 'warning'); return; }
+
+        fetch(`/api/knowledge/vul/templates/${encodeURIComponent(name)}/`)
+            .then(response => response.blob())
+            .then(blob => {
+                const file = new File([blob], `${name}.zip`, { type: 'application/zip' });
+                vulFileObject = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    vulFileContent = e.target.result;
+                    document.getElementById('vulFileName').textContent = name + '.zip';
+                    document.getElementById('vulFileInfo').style.display = 'block';
+                    document.getElementById('vulTemplateName').value = name;
+                    document.getElementById('createVulBtn').disabled = false;
+                    document.getElementById('saveVulTemplateBtn').disabled = false;
+                    addLog(`已加载漏洞库模板: ${name}`, 'success');
+                };
+                reader.readAsArrayBuffer(file);
+            })
+            .catch(err => addLog(`加载失败: ${err.message}`, 'error'));
+    });
+
+    document.getElementById('deleteVulTemplateBtn').addEventListener('click', function() {
+        const name = document.getElementById('savedVulTemplates').value;
+        if (!name) { addLog('请选择要删除的模板', 'warning'); return; }
+        if (!confirm(`确定要删除漏洞库模板 "${name}" 吗？`)) return;
+
+        fetch('/api/knowledge/vul/templates/delete/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ name: name })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog(`已删除漏洞库模板: ${name}`, 'success');
+                loadVulTemplateList();
+            } else {
+                addLog(`删除失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(err => addLog(`删除失败: ${err.message}`, 'error'));
+    });
+
+    document.getElementById('saveVulTemplateBtn').addEventListener('click', function() {
+        if (!vulFileObject && !vulFileContent) { addLog('请先上传ZIP文件', 'error'); return; }
+        const name = document.getElementById('vulTemplateName').value.trim();
+        if (!name) { addLog('请输入模板名称', 'error'); return; }
+
+        const formData = new FormData();
+        if (vulFileObject) {
+            formData.append('file', vulFileObject);
+        } else {
+            const blob = new Blob([vulFileContent], { type: 'application/zip' });
+            formData.append('file', blob, 'template.zip');
+        }
+        formData.append('name', name);
+
+        fetch('/api/knowledge/vul/templates/save/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog(`漏洞库模板已保存: ${name}`, 'success');
+                loadVulTemplateList();
+            } else {
+                addLog(`保存失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(err => addLog(`保存失败: ${err.message}`, 'error'));
+    });
+
+    const dropZoneVul = document.getElementById('dropZoneVul');
+    const vulFileInput = document.getElementById('vulFileInput');
+    const vulExternalPackageFile = document.getElementById('vulExternalPackageFile');
+
+    dropZoneVul.addEventListener('click', () => vulFileInput.click());
+    dropZoneVul.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneVul.classList.add('border-primary'); dropZoneVul.style.backgroundColor = '#e9ecef'; });
+    dropZoneVul.addEventListener('dragleave', (e) => { e.preventDefault(); dropZoneVul.classList.remove('border-primary'); dropZoneVul.style.backgroundColor = '#f8f9fa'; });
+    dropZoneVul.addEventListener('drop', (e) => { e.preventDefault(); dropZoneVul.classList.remove('border-primary'); dropZoneVul.style.backgroundColor = '#f8f9fa'; if (e.dataTransfer.files.length > 0) handleVulFile(e.dataTransfer.files[0]); });
+    vulFileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) handleVulFile(e.target.files[0]); });
+
+    function handleVulFile(file) {
+        if (!file.name.endsWith('.zip')) { addLog('请上传ZIP格式文件', 'error'); return; }
+        vulFileObject = file;  // 保存原始文件对象
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            vulFileContent = e.target.result;
+            document.getElementById('vulFileName').textContent = file.name;
+            document.getElementById('vulFileInfo').style.display = 'block';
+            document.getElementById('vulTemplateName').value = file.name.replace(/\.zip$/i, '');
+            document.getElementById('createVulBtn').disabled = false;
+            document.getElementById('saveVulTemplateBtn').disabled = false;
+            addLog(`已加载漏洞库ZIP文件: ${file.name}`, 'success');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    window.clearVulFile = function() {
+        vulFileContent = null;
+        vulFileObject = null;
+        document.getElementById('vulFileInfo').style.display = 'none';
+        document.getElementById('vulFileInput').value = '';
+        document.getElementById('vulTemplateName').value = '';
+        document.getElementById('createVulBtn').disabled = true;
+        document.getElementById('saveVulTemplateBtn').disabled = true;
+        updateVulUpgradeStatus();
+    };
+
+    document.getElementById('createVulBtn').addEventListener('click', function() {
+        if (!vulFileContent) { addLog('请先上传ZIP文件', 'error'); return; }
+        const buildTime = document.getElementById('vulBuildTime').value.trim();
+        const version = document.getElementById('vulVersion').value.trim();
+        if (!buildTime || !version) { addLog('请填写build_time和version', 'error'); return; }
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+        addLog(`开始生成漏洞库升级包 (build_time: ${buildTime}, version: ${version})`);
+
+        const formData = new FormData();
+        const blob = new Blob([vulFileContent], { type: 'application/zip' });
+        formData.append('file', blob, 'vul.zip');
+        formData.append('build_time', buildTime);
+        formData.append('version', version);
+
+        fetch('/api/knowledge/vul/create/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: formData })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-cog me-1"></i>生成漏洞库升级包';
+            if (data.success) {
+                vulPackageContent = data.content;
+                vulPackageFilename = data.filename;
+                document.getElementById('downloadVulBtn').disabled = false;
+                updateVulUpgradeStatus();
+                addLog(`漏洞库升级包生成成功: ${data.filename}`, 'success');
+            } else { addLog(`生成失败: ${data.error}`, 'error'); }
+        })
+        .catch(error => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cog me-1"></i>生成漏洞库升级包'; addLog(`请求失败: ${error.message}`, 'error'); });
+    });
+
+    document.getElementById('downloadVulBtn').addEventListener('click', function() {
+        if (!vulPackageContent || !vulPackageFilename) { addLog('没有可下载的升级包', 'error'); return; }
+        try {
+            const binaryString = atob(vulPackageContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = vulPackageFilename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addLog(`漏洞库升级包已下载: ${vulPackageFilename}`, 'success');
+        } catch (error) { addLog(`下载失败: ${error.message}`, 'error'); }
+    });
+
+    // 外部漏洞库包上传
+    vulExternalPackageFile.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            addLog(`已选择外部漏洞库升级包: ${e.target.files[0].name}`, 'success');
+            updateVulUpgradeStatus();
+        } else {
+            updateVulUpgradeStatus();
+        }
+    });
+
+    function updateVulUpgradeStatus() {
+        const hasExternalFile = vulExternalPackageFile && vulExternalPackageFile.files.length > 0;
+        const hasPackage = vulPackageContent || hasExternalFile;
+        document.getElementById('upgradeVulBtn').disabled = !hasPackage;
+        if (hasExternalFile) {
+            document.getElementById('vulPackageStatus').className = 'alert alert-info mb-0';
+            document.getElementById('vulPackageStatus').innerHTML = '<i class="fas fa-file-archive me-2"></i>使用外部升级包';
+        } else if (vulPackageContent) {
+            document.getElementById('vulPackageStatus').className = 'alert alert-success mb-0';
+            document.getElementById('vulPackageStatus').innerHTML = `<i class="fas fa-check-circle me-2"></i>升级包已生成: ${vulPackageFilename}`;
+        } else {
+            document.getElementById('vulPackageStatus').className = 'alert alert-secondary mb-0';
+            document.getElementById('vulPackageStatus').innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>请先生成升级包或上传外部包';
+        }
+    }
+
+    document.getElementById('upgradeVulBtn').addEventListener('click', function() {
+        const deviceIp = document.getElementById('vulDeviceIp').value.trim();
+        if (!deviceIp) { addLog('请输入设备IP地址', 'error'); return; }
+
+        // 获取要使用的文件：优先外部包，否则使用自制包
+        let fileToUpload = null;
+        let isExternal = false;
+        let uploadFilename = '';
+
+        if (vulExternalPackageFile && vulExternalPackageFile.files.length > 0) {
+            fileToUpload = vulExternalPackageFile.files[0];
+            isExternal = true;
+            uploadFilename = fileToUpload.name;
+        } else if (vulPackageContent) {
+            // 从 base64 重建文件
+            const binaryString = atob(vulPackageContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+            fileToUpload = new Blob([bytes], { type: 'application/octet-stream' });
+            uploadFilename = vulPackageFilename;
+        }
+
+        if (!fileToUpload) { addLog('请先生成升级包或上传外部包', 'error'); return; }
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>升级中...';
+        addLog(`开始升级漏洞库到设备: ${deviceIp}${isExternal ? ' (使用外部包)' : ''}`);
+
+        const formData = new FormData();
+        formData.append('file', fileToUpload, uploadFilename);
+        formData.append('ip', deviceIp);
+        formData.append('auto_get_cookie', 'true');
+
+        fetch('/api/knowledge/vul/upgrade/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload me-1"></i>升级漏洞库';
+            document.getElementById('vulUpgradeResult').style.display = 'block';
+            if (data.success) {
+                document.getElementById('vulUpgradeResponse').textContent = data.response;
+                addLog(`漏洞库升级成功: ${deviceIp} - ${data.device_msg || '完成'}`, 'success');
+            } else {
+                document.getElementById('vulUpgradeResponse').textContent = data.error;
+                addLog(`升级失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(error => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload me-1"></i>升级漏洞库'; addLog(`请求失败: ${error.message}`, 'error'); });
+    });
+
+    // ========== 病毒库 ==========
+    // 模板管理
+    let virusFileObject = null;  // 保存原始文件对象用于模板保存
+
+    function loadVirusTemplateList() {
+        fetch('/api/knowledge/virus/templates/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const select = document.getElementById('savedVirusTemplates');
+                    select.innerHTML = '<option value="">-- 选择已保存的模板 --</option>';
+                    data.templates.forEach(t => {
+                        select.innerHTML += `<option value="${t.name}">${t.name} (${t.time})</option>`;
+                    });
+                }
+            })
+            .catch(err => console.error('加载病毒库模板列表失败:', err));
+    }
+    loadVirusTemplateList();
+
+    document.getElementById('loadVirusTemplateBtn').addEventListener('click', function() {
+        const name = document.getElementById('savedVirusTemplates').value;
+        if (!name) { addLog('请选择要加载的模板', 'warning'); return; }
+
+        fetch(`/api/knowledge/virus/templates/${encodeURIComponent(name)}/`)
+            .then(response => response.blob())
+            .then(blob => {
+                const file = new File([blob], `${name}.zip`, { type: 'application/zip' });
+                virusFileObject = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    virusFileContent = e.target.result;
+                    document.getElementById('virusFileName').textContent = name + '.zip';
+                    document.getElementById('virusFileInfo').style.display = 'block';
+                    document.getElementById('virusTemplateName').value = name;
+                    document.getElementById('createVirusBtn').disabled = false;
+                    document.getElementById('saveVirusTemplateBtn').disabled = false;
+                    addLog(`已加载病毒库模板: ${name}`, 'success');
+                };
+                reader.readAsArrayBuffer(file);
+            })
+            .catch(err => addLog(`加载失败: ${err.message}`, 'error'));
+    });
+
+    document.getElementById('deleteVirusTemplateBtn').addEventListener('click', function() {
+        const name = document.getElementById('savedVirusTemplates').value;
+        if (!name) { addLog('请选择要删除的模板', 'warning'); return; }
+        if (!confirm(`确定要删除病毒库模板 "${name}" 吗？`)) return;
+
+        fetch('/api/knowledge/virus/templates/delete/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ name: name })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog(`已删除病毒库模板: ${name}`, 'success');
+                loadVirusTemplateList();
+            } else {
+                addLog(`删除失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(err => addLog(`删除失败: ${err.message}`, 'error'));
+    });
+
+    document.getElementById('saveVirusTemplateBtn').addEventListener('click', function() {
+        if (!virusFileObject && !virusFileContent) { addLog('请先上传ZIP文件', 'error'); return; }
+        const name = document.getElementById('virusTemplateName').value.trim();
+        if (!name) { addLog('请输入模板名称', 'error'); return; }
+
+        const formData = new FormData();
+        if (virusFileObject) {
+            formData.append('file', virusFileObject);
+        } else {
+            const blob = new Blob([virusFileContent], { type: 'application/zip' });
+            formData.append('file', blob, 'template.zip');
+        }
+        formData.append('name', name);
+
+        fetch('/api/knowledge/virus/templates/save/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLog(`病毒库模板已保存: ${name}`, 'success');
+                loadVirusTemplateList();
+            } else {
+                addLog(`保存失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(err => addLog(`保存失败: ${err.message}`, 'error'));
+    });
+
+    const dropZoneVirus = document.getElementById('dropZoneVirus');
+    const virusFileInput = document.getElementById('virusFileInput');
+    const virusExternalPackageFile = document.getElementById('virusExternalPackageFile');
+
+    dropZoneVirus.addEventListener('click', () => virusFileInput.click());
+    dropZoneVirus.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneVirus.classList.add('border-primary'); dropZoneVirus.style.backgroundColor = '#e9ecef'; });
+    dropZoneVirus.addEventListener('dragleave', (e) => { e.preventDefault(); dropZoneVirus.classList.remove('border-primary'); dropZoneVirus.style.backgroundColor = '#f8f9fa'; });
+    dropZoneVirus.addEventListener('drop', (e) => { e.preventDefault(); dropZoneVirus.classList.remove('border-primary'); dropZoneVirus.style.backgroundColor = '#f8f9fa'; if (e.dataTransfer.files.length > 0) handleVirusFile(e.dataTransfer.files[0]); });
+    virusFileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) handleVirusFile(e.target.files[0]); });
+
+    function handleVirusFile(file) {
+        if (!file.name.endsWith('.zip')) { addLog('请上传ZIP格式文件', 'error'); return; }
+        virusFileObject = file;  // 保存原始文件对象
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            virusFileContent = e.target.result;
+            document.getElementById('virusFileName').textContent = file.name;
+            document.getElementById('virusFileInfo').style.display = 'block';
+            document.getElementById('virusTemplateName').value = file.name.replace(/\.zip$/i, '');
+            document.getElementById('createVirusBtn').disabled = false;
+            document.getElementById('saveVirusTemplateBtn').disabled = false;
+            addLog(`已加载病毒库ZIP文件: ${file.name}`, 'success');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    window.clearVirusFile = function() {
+        virusFileContent = null;
+        virusFileObject = null;
+        document.getElementById('virusFileInfo').style.display = 'none';
+        document.getElementById('virusFileInput').value = '';
+        document.getElementById('virusTemplateName').value = '';
+        document.getElementById('createVirusBtn').disabled = true;
+        document.getElementById('saveVirusTemplateBtn').disabled = true;
+        updateVirusUpgradeStatus();
+    };
+
+    document.getElementById('createVirusBtn').addEventListener('click', function() {
+        if (!virusFileContent) { addLog('请先上传ZIP文件', 'error'); return; }
+        const vulTime = document.getElementById('virusVulTime').value.trim();
+        const version = document.getElementById('virusVersion').value.trim();
+        if (!vulTime || !version) { addLog('请填写vul_time和version', 'error'); return; }
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+        addLog(`开始生成病毒库升级包 (vul_time: ${vulTime}, version: ${version})`);
+
+        const formData = new FormData();
+        const blob = new Blob([virusFileContent], { type: 'application/zip' });
+        formData.append('file', blob, 'virus.zip');
+        formData.append('vul_time', vulTime);
+        formData.append('version', version);
+
+        fetch('/api/knowledge/virus/create/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: formData })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-cog me-1"></i>生成病毒库升级包';
+            if (data.success) {
+                virusPackageContent = data.content;
+                virusPackageFilename = data.filename;
+                document.getElementById('downloadVirusBtn').disabled = false;
+                updateVirusUpgradeStatus();
+                addLog(`病毒库升级包生成成功: ${data.filename}`, 'success');
+            } else { addLog(`生成失败: ${data.error}`, 'error'); }
+        })
+        .catch(error => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cog me-1"></i>生成病毒库升级包'; addLog(`请求失败: ${error.message}`, 'error'); });
+    });
+
+    // 外部病毒库包上传
+    virusExternalPackageFile.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            addLog(`已选择外部病毒库升级包: ${e.target.files[0].name}`, 'success');
+            updateVirusUpgradeStatus();
+        } else {
+            updateVirusUpgradeStatus();
+        }
+    });
+
+    function updateVirusUpgradeStatus() {
+        const hasExternalFile = virusExternalPackageFile && virusExternalPackageFile.files.length > 0;
+        const hasPackage = virusPackageContent || hasExternalFile;
+        document.getElementById('upgradeVirusBtn').disabled = !hasPackage;
+        if (hasExternalFile) {
+            document.getElementById('virusPackageStatus').className = 'alert alert-info mb-0';
+            document.getElementById('virusPackageStatus').innerHTML = '<i class="fas fa-file-archive me-2"></i>使用外部升级包';
+        } else if (virusPackageContent) {
+            document.getElementById('virusPackageStatus').className = 'alert alert-success mb-0';
+            document.getElementById('virusPackageStatus').innerHTML = `<i class="fas fa-check-circle me-2"></i>升级包已生成: ${virusPackageFilename}`;
+        } else {
+            document.getElementById('virusPackageStatus').className = 'alert alert-secondary mb-0';
+            document.getElementById('virusPackageStatus').innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>请先生成升级包或上传外部包';
+        }
+    }
+
+    document.getElementById('downloadVirusBtn').addEventListener('click', function() {
+        if (!virusPackageContent || !virusPackageFilename) { addLog('没有可下载的升级包', 'error'); return; }
+        try {
+            const binaryString = atob(virusPackageContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = virusPackageFilename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addLog(`病毒库升级包已下载: ${virusPackageFilename}`, 'success');
+        } catch (error) { addLog(`下载失败: ${error.message}`, 'error'); }
+    });
+
+    document.getElementById('upgradeVirusBtn').addEventListener('click', function() {
+        const deviceIp = document.getElementById('virusDeviceIp').value.trim();
+        if (!deviceIp) { addLog('请输入设备IP地址', 'error'); return; }
+
+        // 获取要使用的文件：优先外部包，否则使用自制包
+        let fileToUpload = null;
+        let isExternal = false;
+        let uploadFilename = '';
+
+        if (virusExternalPackageFile && virusExternalPackageFile.files.length > 0) {
+            fileToUpload = virusExternalPackageFile.files[0];
+            isExternal = true;
+            uploadFilename = fileToUpload.name;
+        } else if (virusPackageContent) {
+            // 从 base64 重建文件
+            const binaryString = atob(virusPackageContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+            fileToUpload = new Blob([bytes], { type: 'application/octet-stream' });
+            uploadFilename = virusPackageFilename;
+        }
+
+        if (!fileToUpload) { addLog('请先生成升级包或上传外部包', 'error'); return; }
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>升级中...';
+        addLog(`开始升级病毒库到设备: ${deviceIp}${isExternal ? ' (使用外部包)' : ''}`);
+
+        const formData = new FormData();
+        formData.append('file', fileToUpload, uploadFilename);
+        formData.append('ip', deviceIp);
+        formData.append('auto_get_cookie', 'true');
+
+        fetch('/api/knowledge/virus/upgrade/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload me-1"></i>升级病毒库';
+            document.getElementById('virusUpgradeResult').style.display = 'block';
+            if (data.success) {
+                document.getElementById('virusUpgradeResponse').textContent = data.response;
+                addLog(`病毒库升级成功: ${deviceIp} - ${data.device_msg || '完成'}`, 'success');
+            } else {
+                document.getElementById('virusUpgradeResponse').textContent = data.error;
+                addLog(`升级失败: ${data.error}`, 'error');
+            }
+        })
+        .catch(error => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload me-1"></i>升级病毒库'; addLog(`请求失败: ${error.message}`, 'error'); });
+    });
+});
+</script>
+
+<style>
+.log-entry { font-family: 'Courier New', monospace; font-size: 0.9em; line-height: 1.4; }
+.drop-zone:hover, .drop-zone-vul:hover, .drop-zone-virus:hover { background-color: #e9ecef !important; }
+.drop-zone.dragover, .drop-zone-vul.dragover, .drop-zone-virus.dragover { border-color: #0d6efd !important; background-color: #e9ecef !important; }
+</style>
+{% endblock %}

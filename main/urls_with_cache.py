@@ -47,6 +47,29 @@ urlpatterns = [
     path('service-deploy/', views_with_cache.service_deploy, name='service_deploy'),
     # 工控协议
     path('industrial-protocol/', views_with_cache.industrial_protocol, name='industrial_protocol'),
+    # 知识库管理
+    path('knowledge-base/', views_with_cache.knowledge_base, name='knowledge_base'),
+    path('api/knowledge/create/', views_with_cache.knowledge_create, name='knowledge_create'),
+    path('api/knowledge/upgrade/', views_with_cache.knowledge_upgrade, name='knowledge_upgrade'),
+    path('api/knowledge/templates/', views_with_cache.knowledge_templates_list, name='knowledge_templates_list'),
+    path('api/knowledge/templates/save/', views_with_cache.knowledge_templates_save, name='knowledge_templates_save'),
+    path('api/knowledge/templates/delete/', views_with_cache.knowledge_templates_delete, name='knowledge_templates_delete'),
+    path('api/knowledge/templates/<str:name>/', views_with_cache.knowledge_templates_get, name='knowledge_templates_get'),
+    # 漏洞库
+    path('api/knowledge/vul/create/', views_with_cache.vul_create, name='vul_create'),
+    path('api/knowledge/vul/upgrade/', views_with_cache.vul_upgrade, name='vul_upgrade'),
+    path('api/knowledge/vul/templates/', views_with_cache.vul_templates_list, name='vul_templates_list'),
+    path('api/knowledge/vul/templates/save/', views_with_cache.vul_templates_save, name='vul_templates_save'),
+    path('api/knowledge/vul/templates/delete/', views_with_cache.vul_templates_delete, name='vul_templates_delete'),
+    path('api/knowledge/vul/templates/<str:name>/', views_with_cache.vul_templates_get, name='vul_templates_get'),
+    # 病毒库
+    path('api/knowledge/virus/create/', views_with_cache.virus_create, name='virus_create'),
+    path('api/knowledge/virus/upgrade/', views_with_cache.virus_upgrade, name='virus_upgrade'),
+    path('api/knowledge/virus/templates/', views_with_cache.virus_templates_list, name='virus_templates_list'),
+    path('api/knowledge/virus/templates/save/', views_with_cache.virus_templates_save, name='virus_templates_save'),
+    path('api/knowledge/virus/templates/delete/', views_with_cache.virus_templates_delete, name='virus_templates_delete'),
+    path('api/knowledge/virus/templates/<str:name>/', views_with_cache.virus_templates_get, name='virus_templates_get'),
+    # 授权管理
     path('license-management/', views_with_cache.license_management, name='license_management'),
     path('api/services/listener/', views_with_cache.service_listener_control, name='service_listener_control'),
     path('api/services/client/', views_with_cache.service_client_control, name='service_client_control'),
@@ -68,6 +91,7 @@ urlpatterns = [
     path('api/device/delete/', views_with_cache.device_delete, name='device_delete'),
     path('api/device/test_connection/', views_with_cache.device_test_connection, name='device_test_connection'),
     path('api/device/monitor_data/', views_with_cache.device_monitor_data, name='device_monitor_data'),
+    path('api/device/disk_data/', views_with_cache.device_disk_data, name='device_disk_data'),
     path('api/device/coredump/', views_with_cache.device_coredump_list, name='device_coredump_list'),
     path('api/device/execute/', views_with_cache.device_execute_command, name='device_execute_command'),
     # 设备监测和告警
@@ -75,6 +99,8 @@ urlpatterns = [
     path('api/device/monitoring/status/', views_with_cache.device_monitoring_status, name='device_monitoring_status'),
     path('api/device/alert_config/', views_with_cache.device_alert_config, name='device_alert_config'),
     path('api/device/alert_config/test/', views_with_cache.device_alert_config_test, name='device_alert_config_test'),
+    path('api/device/alert_status/', views_with_cache.device_alert_status, name='device_alert_status'),
+    path('api/device/alert_ignore/', views_with_cache.device_alert_ignore, name='device_alert_ignore'),
     # 测试环境
     path('test-env/', views_with_cache.test_env, name='test_env'),
     path('api/test_env/list/', views_with_cache.test_env_list, name='test_env_list'),

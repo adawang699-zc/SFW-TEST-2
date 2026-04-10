@@ -1,5 +1,6 @@
 from django.shortcuts import render
 import json
+import re
 import requests
 import logging
 import socket
@@ -13,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.http import JsonResponse, FileResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from .models import TestEnvironment, TestDevice, ServiceTestCase
+from .models import TestEnvironment, TestDevice, ServiceTestCase, DeviceAlertStatus, AlertConfig
 from djangoProject.config import (
     FIREWALL_LOGIN_USER, FIREWALL_LOGIN_PASSWORD, FIREWALL_LOGIN_PIN,
     REQUEST_TIMEOUT, SSL_VERIFY, USER_AGENT
@@ -21,7 +22,7 @@ from djangoProject.config import (
 from .cookie_utils import get_cached_cookie, save_cookie_to_cache
 from .device_utils import (
     execute, execute_in_vtysh, execute_in_backend,
-    get_cpu_info, get_memory_info, get_network_info, get_coredump_files,
+    get_cpu_info, get_memory_info, get_network_info, get_disk_info, get_coredump_files,
     test_connection, DEFAULT_USER, DEFAULT_PASSWORD
 )
 try:
@@ -255,6 +256,634 @@ def industrial_protocol(request):
     工控协议页面
     """
     return render(request, 'industrial_protocol.html')
+
+
+def knowledge_base(request):
+    """知识库管理页面"""
+    return render(request, 'knowledge_base.html')
+
+
+@csrf_exempt
+def knowledge_create(request):
+    """
+    创建知识库升级包
+
+    请求体:
+    {
+        "template_content": "JSON内容",
+        "version": "1.1.1",
+        "time": "2026-10-10"
+    }
+
+    返回:
+    {
+        "success": true,
+        "content": "base64编码的加密内容",
+        "filename": "service_xxx.bin"
+    }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        template_content = data.get('template_content', '')
+        version = data.get('version', '1.0.0')
+        time = data.get('time', '')
+
+        if not template_content:
+            return JsonResponse({'success': False, 'error': '缺少模板内容'})
+
+        # 验证JSON格式
+        try:
+            json.loads(template_content)
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': '模板内容不是有效的JSON格式'})
+
+        # 创建升级包
+        from .knowledge_utils import create_knowledge_package
+        success, result = create_knowledge_package(template_content, version, time)
+
+        if success:
+            import base64
+            return JsonResponse({
+                'success': True,
+                'content': base64.b64encode(result).decode('utf-8'),
+                'filename': f'service_{version}.bin'
+            })
+        else:
+            return JsonResponse({'success': False, 'error': result})
+
+    except Exception as e:
+        logger.exception(f"创建知识库包失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def knowledge_upgrade(request):
+    """
+    升级知识库到设备
+
+    请求体:
+    {
+        "ip": "设备IP",
+        "content": "base64编码的加密内容",
+        "auto_get_cookie": true  # 自动获取cookie
+    }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        ip = data.get('ip', '')
+        content_base64 = data.get('content', '')
+        auto_get_cookie = data.get('auto_get_cookie', False)
+
+        if not ip:
+            return JsonResponse({'success': False, 'error': '缺少设备IP'})
+        if not content_base64:
+            return JsonResponse({'success': False, 'error': '缺少升级包内容'})
+
+        # 解码内容
+        import base64
+        file_content = base64.b64decode(content_base64)
+
+        # 升级到设备
+        from .knowledge_utils import upgrade_knowledge_to_device
+        success, result = upgrade_knowledge_to_device(ip, file_content, auto_get_cookie=auto_get_cookie)
+
+        if success:
+            # 解析设备响应，解码Unicode
+            try:
+                device_response = json.loads(result)
+                device_msg = device_response.get('msg', '')
+                device_status = device_response.get('status', 0)
+                return JsonResponse({
+                    'success': True,
+                    'response': json.dumps(device_response, ensure_ascii=False, indent=2),
+                    'device_msg': device_msg,
+                    'device_status': device_status
+                })
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    'success': True,
+                    'response': result
+                })
+        else:
+            return JsonResponse({'success': False, 'error': result})
+
+    except Exception as e:
+        logger.exception(f"升级知识库失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+# 知识库模板存储目录
+KNOWLEDGE_TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'knowledge_templates')
+
+def _ensure_template_dir():
+    """确保模板目录存在"""
+    if not os.path.exists(KNOWLEDGE_TEMPLATE_DIR):
+        os.makedirs(KNOWLEDGE_TEMPLATE_DIR)
+
+
+def knowledge_templates_list(request):
+    """获取已保存的模板列表"""
+    try:
+        _ensure_template_dir()
+        templates = []
+        if os.path.exists(KNOWLEDGE_TEMPLATE_DIR):
+            for filename in os.listdir(KNOWLEDGE_TEMPLATE_DIR):
+                if filename.endswith('.json'):
+                    filepath = os.path.join(KNOWLEDGE_TEMPLATE_DIR, filename)
+                    mtime = os.path.getmtime(filepath)
+                    from datetime import datetime
+                    time_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M')
+                    templates.append({
+                        'name': filename[:-5],  # 去掉.json后缀
+                        'time': time_str
+                    })
+        return JsonResponse({'success': True, 'templates': templates})
+    except Exception as e:
+        logger.exception(f"获取模板列表失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def knowledge_templates_get(request, name):
+    """获取指定模板内容"""
+    try:
+        _ensure_template_dir()
+        filepath = os.path.join(KNOWLEDGE_TEMPLATE_DIR, f"{name}.json")
+        if not os.path.exists(filepath):
+            return JsonResponse({'success': False, 'error': '模板不存在'})
+
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        return JsonResponse({'success': True, 'content': content})
+    except Exception as e:
+        logger.exception(f"获取模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def knowledge_templates_save(request):
+    """保存模板"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+        content = data.get('content', '')
+
+        if not name:
+            return JsonResponse({'success': False, 'error': '模板名称不能为空'})
+        if not content:
+            return JsonResponse({'success': False, 'error': '模板内容不能为空'})
+
+        # 验证JSON格式
+        try:
+            json.loads(content)
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': '模板内容不是有效的JSON格式'})
+
+        _ensure_template_dir()
+        filepath = os.path.join(KNOWLEDGE_TEMPLATE_DIR, f"{name}.json")
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        logger.info(f"模板已保存: {name}")
+        return JsonResponse({'success': True, 'message': f'模板 {name} 已保存'})
+    except Exception as e:
+        logger.exception(f"保存模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def knowledge_templates_delete(request):
+    """删除模板"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+
+        if not name:
+            return JsonResponse({'success': False, 'error': '模板名称不能为空'})
+
+        filepath = os.path.join(KNOWLEDGE_TEMPLATE_DIR, f"{name}.json")
+        if not os.path.exists(filepath):
+            return JsonResponse({'success': False, 'error': '模板不存在'})
+
+        os.remove(filepath)
+        logger.info(f"模板已删除: {name}")
+        return JsonResponse({'success': True, 'message': f'模板 {name} 已删除'})
+    except Exception as e:
+        logger.exception(f"删除模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+# 漏洞库模板存储目录
+VUL_TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'vul_templates')
+
+def _ensure_vul_template_dir():
+    """确保漏洞库模板目录存在"""
+    if not os.path.exists(VUL_TEMPLATE_DIR):
+        os.makedirs(VUL_TEMPLATE_DIR)
+
+
+# 病毒库模板存储目录
+VIRUS_TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'virus_templates')
+
+def _ensure_virus_template_dir():
+    """确保病毒库模板目录存在"""
+    if not os.path.exists(VIRUS_TEMPLATE_DIR):
+        os.makedirs(VIRUS_TEMPLATE_DIR)
+
+
+@csrf_exempt
+def vul_templates_list(request):
+    """获取漏洞库模板列表"""
+    try:
+        _ensure_vul_template_dir()
+        templates = []
+        if os.path.exists(VUL_TEMPLATE_DIR):
+            for filename in os.listdir(VUL_TEMPLATE_DIR):
+                if filename.endswith('.zip'):
+                    filepath = os.path.join(VUL_TEMPLATE_DIR, filename)
+                    mtime = os.path.getmtime(filepath)
+                    from datetime import datetime
+                    time_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M')
+                    templates.append({
+                        'name': filename[:-4],
+                        'time': time_str
+                    })
+        return JsonResponse({'success': True, 'templates': templates})
+    except Exception as e:
+        logger.exception(f"获取漏洞库模板列表失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def vul_templates_get(request, name):
+    """获取指定漏洞库模板文件"""
+    try:
+        _ensure_vul_template_dir()
+        filepath = os.path.join(VUL_TEMPLATE_DIR, f"{name}.zip")
+        if not os.path.exists(filepath):
+            return JsonResponse({'success': False, 'error': '模板不存在'})
+
+        # 返回文件供下载
+        from django.http import HttpResponse
+        with open(filepath, 'rb') as f:
+            content = f.read()
+        response = HttpResponse(content, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{name}.zip"'
+        return response
+    except Exception as e:
+        logger.exception(f"获取漏洞库模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def vul_templates_save(request):
+    """保存漏洞库模板"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        uploaded_file = request.FILES.get('file')
+        name = request.POST.get('name', '').strip()
+
+        if not name:
+            return JsonResponse({'success': False, 'error': '模板名称不能为空'})
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': '缺少模板文件'})
+
+        _ensure_vul_template_dir()
+        filepath = os.path.join(VUL_TEMPLATE_DIR, f"{name}.zip")
+
+        with open(filepath, 'wb') as f:
+            for chunk in uploaded_file.chunks():
+                f.write(chunk)
+
+        logger.info(f"漏洞库模板已保存: {name}")
+        return JsonResponse({'success': True, 'message': f'模板 {name} 已保存'})
+    except Exception as e:
+        logger.exception(f"保存漏洞库模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def vul_templates_delete(request):
+    """删除漏洞库模板"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+
+        if not name:
+            return JsonResponse({'success': False, 'error': '模板名称不能为空'})
+
+        filepath = os.path.join(VUL_TEMPLATE_DIR, f"{name}.zip")
+        if not os.path.exists(filepath):
+            return JsonResponse({'success': False, 'error': '模板不存在'})
+
+        os.remove(filepath)
+        logger.info(f"漏洞库模板已删除: {name}")
+        return JsonResponse({'success': True, 'message': f'模板 {name} 已删除'})
+    except Exception as e:
+        logger.exception(f"删除漏洞库模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def virus_templates_list(request):
+    """获取病毒库模板列表"""
+    try:
+        _ensure_virus_template_dir()
+        templates = []
+        if os.path.exists(VIRUS_TEMPLATE_DIR):
+            for filename in os.listdir(VIRUS_TEMPLATE_DIR):
+                if filename.endswith('.zip'):
+                    filepath = os.path.join(VIRUS_TEMPLATE_DIR, filename)
+                    mtime = os.path.getmtime(filepath)
+                    from datetime import datetime
+                    time_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M')
+                    templates.append({
+                        'name': filename[:-4],
+                        'time': time_str
+                    })
+        return JsonResponse({'success': True, 'templates': templates})
+    except Exception as e:
+        logger.exception(f"获取病毒库模板列表失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def virus_templates_get(request, name):
+    """获取指定病毒库模板文件"""
+    try:
+        _ensure_virus_template_dir()
+        filepath = os.path.join(VIRUS_TEMPLATE_DIR, f"{name}.zip")
+        if not os.path.exists(filepath):
+            return JsonResponse({'success': False, 'error': '模板不存在'})
+
+        # 返回文件供下载
+        from django.http import HttpResponse
+        with open(filepath, 'rb') as f:
+            content = f.read()
+        response = HttpResponse(content, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{name}.zip"'
+        return response
+    except Exception as e:
+        logger.exception(f"获取病毒库模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def virus_templates_save(request):
+    """保存病毒库模板"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        uploaded_file = request.FILES.get('file')
+        name = request.POST.get('name', '').strip()
+
+        if not name:
+            return JsonResponse({'success': False, 'error': '模板名称不能为空'})
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': '缺少模板文件'})
+
+        _ensure_virus_template_dir()
+        filepath = os.path.join(VIRUS_TEMPLATE_DIR, f"{name}.zip")
+
+        with open(filepath, 'wb') as f:
+            for chunk in uploaded_file.chunks():
+                f.write(chunk)
+
+        logger.info(f"病毒库模板已保存: {name}")
+        return JsonResponse({'success': True, 'message': f'模板 {name} 已保存'})
+    except Exception as e:
+        logger.exception(f"保存病毒库模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def virus_templates_delete(request):
+    """删除病毒库模板"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+
+        if not name:
+            return JsonResponse({'success': False, 'error': '模板名称不能为空'})
+
+        filepath = os.path.join(VIRUS_TEMPLATE_DIR, f"{name}.zip")
+        if not os.path.exists(filepath):
+            return JsonResponse({'success': False, 'error': '模板不存在'})
+
+        os.remove(filepath)
+        logger.info(f"病毒库模板已删除: {name}")
+        return JsonResponse({'success': True, 'message': f'模板 {name} 已删除'})
+    except Exception as e:
+        logger.exception(f"删除病毒库模板失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def vul_create(request):
+    """
+    创建漏洞库升级包
+
+    接收multipart/form-data:
+    - file: zip文件
+    - build_time: 构建时间（如 2026-03-09）
+    - version: 版本号（如 2026030901）
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        uploaded_file = request.FILES.get('file')
+        build_time = request.POST.get('build_time', '')
+        version = request.POST.get('version', '')
+
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': '缺少zip文件'})
+        if not build_time or not version:
+            return JsonResponse({'success': False, 'error': '缺少build_time或version参数'})
+
+        # 读取文件内容
+        zip_content = uploaded_file.read()
+
+        # 创建升级包
+        from .knowledge_utils import create_vul_package
+        success, result = create_vul_package(zip_content, build_time, version)
+
+        if success:
+            import base64
+            return JsonResponse({
+                'success': True,
+                'content': base64.b64encode(result).decode('utf-8'),
+                'filename': f'hx-sfw-all-vul-{version}.lib'
+            })
+        else:
+            return JsonResponse({'success': False, 'error': result})
+
+    except Exception as e:
+        logger.exception(f"创建漏洞库包失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def vul_upgrade(request):
+    """
+    升级漏洞库到设备
+
+    接收 multipart/form-data:
+    - file: 升级包文件 (.lib)
+    - ip: 设备IP
+    - auto_get_cookie: 是否自动获取Cookie
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        uploaded_file = request.FILES.get('file')
+        ip = request.POST.get('ip', '').strip()
+        auto_get_cookie = request.POST.get('auto_get_cookie', 'false').lower() == 'true'
+
+        if not ip:
+            return JsonResponse({'success': False, 'error': '缺少设备IP'})
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': '缺少升级包文件'})
+
+        file_content = uploaded_file.read()
+
+        from .knowledge_utils import upgrade_vul_to_device
+        success, result = upgrade_vul_to_device(ip, file_content, auto_get_cookie=auto_get_cookie)
+
+        if success:
+            try:
+                device_response = json.loads(result)
+                device_msg = device_response.get('msg', '')
+                device_status = device_response.get('status', 0)
+                return JsonResponse({
+                    'success': True,
+                    'response': json.dumps(device_response, ensure_ascii=False, indent=2),
+                    'device_msg': device_msg,
+                    'device_status': device_status
+                })
+            except json.JSONDecodeError:
+                return JsonResponse({'success': True, 'response': result})
+        else:
+            return JsonResponse({'success': False, 'error': result})
+
+    except Exception as e:
+        logger.exception(f"升级漏洞库失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def virus_create(request):
+    """
+    创建病毒库升级包
+
+    接收multipart/form-data:
+    - file: zip文件
+    - vul_time: 时间（如 2026-03-09）
+    - version: 版本号（如 2026030901）
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        uploaded_file = request.FILES.get('file')
+        vul_time = request.POST.get('vul_time', '')
+        version = request.POST.get('version', '')
+
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': '缺少zip文件'})
+        if not vul_time or not version:
+            return JsonResponse({'success': False, 'error': '缺少vul_time或version参数'})
+
+        zip_content = uploaded_file.read()
+
+        from .knowledge_utils import create_virus_package
+        success, result = create_virus_package(zip_content, vul_time, version)
+
+        if success:
+            import base64
+            return JsonResponse({
+                'success': True,
+                'content': base64.b64encode(result).decode('utf-8'),
+                'filename': f'hx-sfw-all-vir-{version}.lib'
+            })
+        else:
+            return JsonResponse({'success': False, 'error': result})
+
+    except Exception as e:
+        logger.exception(f"创建病毒库包失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+def virus_upgrade(request):
+    """
+    升级病毒库到设备
+
+    接收 multipart/form-data:
+    - file: 升级包文件 (.lib)
+    - ip: 设备IP
+    - auto_get_cookie: 是否自动获取Cookie
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        uploaded_file = request.FILES.get('file')
+        ip = request.POST.get('ip', '').strip()
+        auto_get_cookie = request.POST.get('auto_get_cookie', 'false').lower() == 'true'
+
+        if not ip:
+            return JsonResponse({'success': False, 'error': '缺少设备IP'})
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': '缺少升级包文件'})
+
+        file_content = uploaded_file.read()
+
+        from .knowledge_utils import upgrade_virus_to_device
+        success, result = upgrade_virus_to_device(ip, file_content, auto_get_cookie=auto_get_cookie)
+
+        if success:
+            try:
+                device_response = json.loads(result)
+                device_msg = device_response.get('msg', '')
+                device_status = device_response.get('status', 0)
+                return JsonResponse({
+                    'success': True,
+                    'response': json.dumps(device_response, ensure_ascii=False, indent=2),
+                    'device_msg': device_msg,
+                    'device_status': device_status
+                })
+            except json.JSONDecodeError:
+                return JsonResponse({'success': True, 'response': result})
+        else:
+            return JsonResponse({'success': False, 'error': result})
+
+    except Exception as e:
+        logger.exception(f"升级病毒库失败: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
 
 
 def license_management(request):
@@ -823,6 +1452,51 @@ def agent_test_network(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+def validate_device_data(data, is_update=False):
+    """
+    验证设备数据
+
+    Args:
+        data: 请求数据字典
+        is_update: 是否是更新操作（更新时不验证必填项）
+
+    Returns:
+        list: 错误信息列表，空列表表示验证通过
+    """
+    errors = []
+
+    if not is_update:
+        # 添加时必填项验证
+        if not data.get('name', '').strip():
+            errors.append('设备名称不能为空')
+        if not data.get('type', '').strip():
+            errors.append('设备类型不能为空')
+        if not data.get('ip', '').strip():
+            errors.append('IP地址不能为空')
+
+    # IP 地址格式验证
+    ip = data.get('ip', '').strip()
+    if ip:
+        ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+        if not re.match(ip_pattern, ip):
+            errors.append('IP地址格式不正确')
+        else:
+            parts = ip.split('.')
+            if not all(0 <= int(p) <= 255 for p in parts):
+                errors.append('IP地址范围不正确')
+
+    # 端口范围验证
+    port = data.get('port', 22)
+    try:
+        port = int(port)
+        if not (1 <= port <= 65535):
+            errors.append('端口范围应为 1-65535')
+    except (ValueError, TypeError):
+        errors.append('端口格式不正确')
+
+    return errors
+
+
 def device_monitor(request):
     """
     测试设备监控页面
@@ -830,13 +1504,14 @@ def device_monitor(request):
     return render(request, 'device_monitor.html')
 
 
-@csrf_exempt
 def device_list(request):
     """获取所有测试设备"""
     if request.method != 'GET':
         return JsonResponse({'success': False, 'error': '仅支持GET请求'})
-    
+
     try:
+        # 返回所有字段（包括密码，用于后续 SSH 操作）
+        # 注意：这是内部系统，密码传输在 HTTPS 下是安全的
         devices = TestDevice.objects.all().values()
         device_list = list(devices)
         return JsonResponse({'success': True, 'devices': device_list})
@@ -845,24 +1520,28 @@ def device_list(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_add(request):
     """添加设备"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': '仅支持POST请求'})
-    
+
     try:
         data = json.loads(request.body)
+
+        # 输入验证
+        errors = validate_device_data(data, is_update=False)
+        if errors:
+            return JsonResponse({'success': False, 'error': '；'.join(errors)})
+
         name = data.get('name', '').strip()
         device_type = data.get('type', '').strip()
         ip = data.get('ip', '').strip()
         port = int(data.get('port', 22))
         user = data.get('user', 'admin').strip()
-        password = data.get('password', 'tdhx@2017')
+        password = data.get('password', '')
+        backend_password = data.get('backend_password', '')
+        is_long_running = data.get('is_long_running', False)  # 长跑环境
         description = data.get('description', '').strip()
-
-        if not name or not device_type or not ip:
-            return JsonResponse({'success': False, 'error': '请填写必填项'})
 
         device = TestDevice.objects.create(
             name=name,
@@ -871,25 +1550,48 @@ def device_add(request):
             port=port,
             user=user,
             password=password,
+            backend_password=backend_password,
+            is_long_running=is_long_running,
             description=description
         )
+
+        # 如果是长跑环境，自动启动监测
+        if is_long_running:
+            try:
+                device_info = {
+                    'name': name,
+                    'ip': ip,
+                    'type': device_type,
+                    'user': user,
+                    'password': password,
+                    'port': port
+                }
+                start_device_monitoring(str(device.id), device_info)
+                logger.info(f'长跑环境设备 {name}({ip}) 已自动启动监测')
+            except Exception as e:
+                logger.warning(f'自动启动监测失败: {e}')
+
         return JsonResponse({'success': True, 'message': '设备已添加', 'device_id': device.id})
     except Exception as e:
         logger.exception(f"添加设备时出错: {e}")
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_update(request):
     """更新设备信息"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': '仅支持POST请求'})
-    
+
     try:
         data = json.loads(request.body)
         device_id = data.get('id')
         if not device_id:
             return JsonResponse({'success': False, 'error': '设备ID不能为空'})
+
+        # 输入验证（更新模式，不验证必填项）
+        errors = validate_device_data(data, is_update=True)
+        if errors:
+            return JsonResponse({'success': False, 'error': '；'.join(errors)})
 
         device = TestDevice.objects.get(id=device_id)
         device.name = data.get('name', device.name).strip()
@@ -897,7 +1599,16 @@ def device_update(request):
         device.ip = data.get('ip', device.ip).strip()
         device.port = int(data.get('port', device.port))
         device.user = data.get('user', device.user).strip()
-        device.password = data.get('password', device.password)
+        # 如果提供了新密码则更新，否则保留原密码
+        new_password = data.get('password')
+        if new_password is not None and new_password != '':
+            device.password = new_password
+        # 后台密码（如果提供了则更新）
+        new_backend_password = data.get('backend_password')
+        if new_backend_password is not None and new_backend_password != '':
+            device.backend_password = new_backend_password
+        # 长跑环境
+        device.is_long_running = data.get('is_long_running', device.is_long_running)
         device.description = data.get('description', device.description).strip()
         device.save()
 
@@ -909,7 +1620,6 @@ def device_update(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_delete(request):
     """删除设备"""
     if request.method != 'POST':
@@ -928,7 +1638,6 @@ def device_delete(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_test_connection(request):
     """测试设备SSH连接"""
     if request.method != 'POST':
@@ -958,7 +1667,6 @@ def device_test_connection(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_monitor_data(request):
     """获取设备监控数据（CPU、内存、网络）
     优化：先检测设备在线状态，不通就不继续获取其他信息
@@ -975,14 +1683,16 @@ def device_monitor_data(request):
         
         if not ip:
             return JsonResponse({'success': False, 'error': 'IP地址不能为空'})
-        
+
         # 获取设备类型
         device_type = data.get('device_type', '').strip()
-        
+        # 获取后台密码（可选，如果不传则使用默认值）
+        backend_password = data.get('backend_password', '')
+
         # 第一步：先检测设备在线状态（ping检测，使用socket连接测试，不进行SSH认证）
         from .agent_manager import agent_manager
         is_online, online_msg = agent_manager.test_network_connectivity(ip, port, timeout=3)
-        
+
         if not is_online:
             # 设备不在线，直接返回，不获取CPU、内存、网络信息
             logger.info(f'设备 {ip}:{port} 不在线，跳过获取监控数据: {online_msg}')
@@ -991,20 +1701,20 @@ def device_monitor_data(request):
                 'error': f'设备不在线: {online_msg}',
                 'offline': True
             })
-        
+
         # 设备在线，继续获取监控信息
-        # 获取CPU信息
-        cpu_usage = get_cpu_info(ip, user, password, device_type=device_type)
-        
+        # 获取CPU信息（包含使用率和名称）
+        cpu_info = get_cpu_info(ip, user, password, device_type=device_type, backend_password=backend_password)
+
         # 获取内存信息
-        memory_info = get_memory_info(ip, user, password, device_type=device_type)
-        
+        memory_info = get_memory_info(ip, user, password, device_type=device_type, backend_password=backend_password)
+
         # 获取网络信息（包含速率）
-        network_info = get_network_info(ip, user, password, device_type=device_type)
-        
+        network_info = get_network_info(ip, user, password, device_type=device_type, backend_password=backend_password)
+
         return JsonResponse({
             'success': True,
-            'cpu_usage': cpu_usage,
+            'cpu': cpu_info,
             'memory': memory_info,
             'network': network_info
         })
@@ -1016,7 +1726,50 @@ def device_monitor_data(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
+def device_disk_data(request):
+    """获取设备磁盘使用信息（独立API，用于5分钟周期的监控）"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        data = json.loads(request.body)
+        ip = data.get('ip', '').strip()
+        port = int(data.get('port', 22))
+        user = data.get('user', DEFAULT_USER).strip()
+        password = data.get('password', DEFAULT_PASSWORD)
+
+        if not ip:
+            return JsonResponse({'success': False, 'error': 'IP地址不能为空'})
+
+        device_type = data.get('device_type', '').strip()
+        backend_password = data.get('backend_password', '')
+
+        # 先检测设备在线状态
+        from .agent_manager import agent_manager
+        is_online, online_msg = agent_manager.test_network_connectivity(ip, port, timeout=3)
+
+        if not is_online:
+            return JsonResponse({
+                'success': False,
+                'error': f'设备不在线: {online_msg}',
+                'offline': True
+            })
+
+        # 获取磁盘信息
+        disk_info = get_disk_info(ip, user, password, device_type=device_type, backend_password=backend_password)
+
+        return JsonResponse({
+            'success': True,
+            'disk': disk_info
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': '请求数据格式错误'})
+    except Exception as e:
+        logger.exception(f"获取磁盘数据时出错: {e}")
+        return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
+
+
 def device_coredump_list(request):
     """获取coredump文件列表"""
     if request.method != 'POST':
@@ -1050,43 +1803,40 @@ def device_coredump_list(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_execute_command(request):
     """执行设备命令"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': '仅支持POST请求'})
-    
+
     try:
         data = json.loads(request.body)
         ip = data.get('ip', '').strip()
         port = int(data.get('port', 22))
         user = data.get('user', DEFAULT_USER).strip()
         password = data.get('password', DEFAULT_PASSWORD)
-        command_type = data.get('command_type', 'normal')
+        command_type = data.get('command_type', 'backend')
         command = data.get('command', '').strip()
         device_type = data.get('device_type', '').strip()
-        
+        backend_password = data.get('backend_password', '')  # 后台密码
+
         if not ip:
             return JsonResponse({'success': False, 'error': 'IP地址不能为空'})
-        
+
         if not command:
             return JsonResponse({'success': False, 'error': '命令不能为空'})
-        
+
         output = False
-        
+
         if command_type == 'vtysh':
             # Vtysh命令（交互式）
             output = execute_in_vtysh(command, ip, user, password, log=True)
-        elif command_type == 'backend':
-            # 后台命令（需要root权限）
-            output = execute_in_backend(command, ip, user, password, device_type=device_type)
         else:
-            # 普通命令
-            output = execute(command, ip, user, password, port)
-        
+            # 后台命令（需要root权限）
+            output = execute_in_backend(command, ip, user, password, backend_password=backend_password, device_type=device_type)
+
         if output is False:
             return JsonResponse({'success': False, 'error': '命令执行失败，请检查连接和命令'})
-        
+
         return JsonResponse({
             'success': True,
             'output': output
@@ -2880,7 +3630,6 @@ def service_logs_api(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_monitoring_toggle(request):
     """开启/关闭设备监测"""
     if request.method != 'POST':
@@ -2915,7 +3664,6 @@ def device_monitoring_toggle(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_monitoring_status(request):
     """获取所有设备的监测状态"""
     if request.method != 'GET':
@@ -2932,7 +3680,6 @@ def device_monitoring_status(request):
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
-@csrf_exempt
 def device_alert_config(request):
     """获取或保存告警配置"""
     if request.method == 'GET':
@@ -2970,7 +3717,6 @@ def device_alert_config(request):
     return JsonResponse({'success': False, 'error': '不支持的请求方法'})
 
 
-@csrf_exempt
 def device_alert_config_test(request):
     """测试邮件发送"""
     if request.method != 'POST':
@@ -3028,6 +3774,88 @@ def device_alert_config_test(request):
         return JsonResponse({'success': False, 'error': '请求数据格式错误'})
     except Exception as e:
         logger.exception(f"测试邮件发送时出错: {e}")
+        return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
+
+
+def device_alert_status(request):
+    """获取所有设备的告警状态"""
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'error': '仅支持GET请求'})
+
+    try:
+        from .models import DeviceAlertStatus
+        from django.utils import timezone
+
+        # 获取所有未忽略且有效的告警
+        alerts = DeviceAlertStatus.objects.filter(
+            has_alert=True,
+            is_ignored=False
+        )
+
+        status_dict = {}
+        for alert in alerts:
+            # 检查忽略是否已过期
+            if alert.is_ignore_active():
+                continue
+
+            device_id = str(alert.device_id)
+            if device_id not in status_dict:
+                status_dict[device_id] = {
+                    'has_alert': True,
+                    'alert_type': alert.alert_type,
+                    'alert_value': alert.alert_value,
+                    'alert_time': alert.alert_time.isoformat() if alert.alert_time else None
+                }
+
+        return JsonResponse({
+            'success': True,
+            'status': status_dict
+        })
+
+    except Exception as e:
+        logger.exception(f"获取告警状态时出错: {e}")
+        return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
+
+
+def device_alert_ignore(request):
+    """忽略设备告警"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '仅支持POST请求'})
+
+    try:
+        from .models import DeviceAlertStatus
+        from django.utils import timezone
+        from datetime import timedelta
+
+        data = json.loads(request.body)
+        device_id = data.get('device_id')
+
+        if not device_id:
+            return JsonResponse({'success': False, 'error': '缺少设备ID'})
+
+        # 设置忽略时间为一周后
+        ignore_until = timezone.now() + timedelta(days=7)
+
+        # 更新该设备的所有未忽略告警
+        updated_count = DeviceAlertStatus.objects.filter(
+            device_id=device_id,
+            has_alert=True,
+            is_ignored=False
+        ).update(
+            is_ignored=True,
+            ignore_until=ignore_until
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'已忽略设备 {device_id} 的 {updated_count} 个告警，一周内不会再发送邮件提醒',
+            'ignore_until': ignore_until.isoformat()
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': '请求数据格式错误'})
+    except Exception as e:
+        logger.exception(f"忽略告警时出错: {e}")
         return JsonResponse({'success': False, 'error': f'服务器内部错误: {str(e)}'})
 
 
