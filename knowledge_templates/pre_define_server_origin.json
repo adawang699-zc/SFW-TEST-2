@@ -1,0 +1,822 @@
+{
+  "service_L2": [
+    {
+      "content": "", 
+      "type": 1, 
+      "name": "any", 
+      "desc": "any"
+    }, 
+    {
+      "content": "{\"eth_type\":\"0x88b8\"}", 
+      "type": 1, 
+      "name": "goose", 
+      "desc": "goose"
+    }, 
+    {
+      "content": "{\"eth_type\":\"0x88ba\"}", 
+      "type": 1, 
+      "name": "sv", 
+      "desc": "sv"
+    }, 
+    {
+      "content": "{\"eth_type\":\"0x8892\"}", 
+      "type": 1, 
+      "name": "profinet-dcp", 
+      "desc": "profinet-dcp"
+    }, 
+    {
+      "content": "{\"eth_type\":\"0x88ab\"}", 
+      "type": 1, 
+      "name": "powerlink", 
+      "desc": "powerlink"
+    }, 
+    {
+      "content": "{\"eth_type\":\"0x88a4\"}", 
+      "type": 1, 
+      "name": "ethercat", 
+      "desc": "ethercat"
+    }
+  ], 
+  "service_L3": [
+    {
+      "content": "0;0;0;0", 
+      "type": 0, 
+      "name": "any", 
+      "desc": "any"
+    }, 
+    {
+      "content": "tcp;0;0;0", 
+      "type": 0, 
+      "name": "tcp_any", 
+      "desc": "tcp_any"
+    }, 
+    {
+      "content": "udp;0;0;0", 
+      "type": 0, 
+      "name": "udp_any", 
+      "desc": "udp_any"
+    }, 
+    {
+      "content": "tcp;179;0;0", 
+      "type": 0, 
+      "name": "bgp_tcp", 
+      "desc": " Border Gateway Protocol"
+    }, 
+    {
+      "content": "udp;179;0;0", 
+      "type": 0, 
+      "name": "bgp_udp", 
+      "desc": "bgp_udp"
+    }, 
+    {
+      "content": "udp;512;0;0", 
+      "type": 0, 
+      "name": "biff", 
+      "desc": "biff"
+    }, 
+    {
+      "content": "udp;67;0;0", 
+      "type": 0, 
+      "name": "bootps_udp", 
+      "desc": "bootps_udp"
+    }, 
+    {
+      "content": "udp;68;0;0", 
+      "type": 0, 
+      "name": "bootpc_udp", 
+      "desc": "bootpc_udp"
+    }, 
+    {
+      "content": "tcp;19;0;0", 
+      "type": 0, 
+      "name": "chargen_tcp", 
+      "desc": "chargen_tcp"
+    }, 
+    {
+      "content": "tcp;13;0;0", 
+      "type": 0, 
+      "name": "daytime_tcp", 
+      "desc": "daytime_tcp"
+    }, 
+    {
+      "content": "tcp;9;0;0", 
+      "type": 0, 
+      "name": "discard_tcp", 
+      "desc": "discard_tcp"
+    }, 
+    {
+      "content": "udp;9;0;0", 
+      "type": 0, 
+      "name": "discard_udp", 
+      "desc": "discard_udp"
+    }, 
+    {
+      "content": "tcp;53;0;0", 
+      "type": 0, 
+      "name": "domain_tcp", 
+      "desc": " Domain Name Server"
+    }, 
+    {
+      "content": "udp;53;0;0", 
+      "type": 0, 
+      "name": "domain_udp", 
+      "desc": "domain_udp"
+    }, 
+    {
+      "content": "tcp;7;0;0", 
+      "type": 0, 
+      "name": "echo_tcp", 
+      "desc": "echo_tcp"
+    }, 
+    {
+      "content": "udp;7;0;0", 
+      "type": 0, 
+      "name": "echo_udp", 
+      "desc": "echo_udp"
+    }, 
+    {
+      "content": "tcp;512;0;0", 
+      "type": 0, 
+      "name": "exec", 
+      "desc": "exec"
+    }, 
+    {
+      "content": "tcp;79;0;0", 
+      "type": 0, 
+      "name": "finger", 
+      "desc": "finger"
+    }, 
+    {
+      "content": "tcp;70;0;0", 
+      "type": 0, 
+      "name": "gopher_tcp", 
+      "desc": " Internet Gopher"
+    }, 
+    {
+      "content": "tcp;101;0;0", 
+      "type": 0, 
+      "name": "hostnames", 
+      "desc": "hostnames"
+    }, 
+    {
+      "content": "tcp;443;0;0", 
+      "type": 0, 
+      "name": "https_tcp", 
+      "desc": " http protocol over TLS/SSL"
+    }, 
+    {
+      "content": "tcp;10000;0;0", 
+      "type": 0, 
+      "name": "webmin", 
+      "desc": "webmin"
+    }, 
+    {
+      "content": "tcp;194;0;0", 
+      "type": 0, 
+      "name": "irc_tcp", 
+      "desc": " Internet Relay Chat"
+    }, 
+    {
+      "content": "tcp;543;0;0", 
+      "type": 0, 
+      "name": "klogin", 
+      "desc": " Kerberized `rlogin is  (v5)"
+    }, 
+    {
+      "content": "tcp;544;0;0", 
+      "type": 0, 
+      "name": "kshell", 
+      "desc": " Kerberized `rsh is  (v5)"
+    }, 
+    {
+      "content": "udp;1701;0;0", 
+      "type": 0, 
+      "name": "l2f_udp", 
+      "desc": "l2f_udp"
+    }, 
+    {
+      "content": "tcp;513;0;0", 
+      "type": 0, 
+      "name": "login", 
+      "desc": "login"
+    }, 
+    {
+      "content": "tcp;515;0;0", 
+      "type": 0, 
+      "name": "printer", 
+      "desc": " line printer spooler"
+    }, 
+    {
+      "content": "tcp;1863;0;0", 
+      "type": 0, 
+      "name": "msnp_tcp", 
+      "desc": "msnp_tcp"
+    }, 
+    {
+      "content": "udp;7001;0;0", 
+      "type": 0, 
+      "name": "afs3-callback_udp", 
+      "desc": "afs3-callback_udp"
+    }, 
+    {
+      "content": "udp;138;0;0", 
+      "type": 0, 
+      "name": "netbios-dgm_udp", 
+      "desc": "netbios-dgm_udp"
+    }, 
+    {
+      "content": "tcp;42;0;0", 
+      "type": 0, 
+      "name": "nameserver", 
+      "desc": " IEN 116"
+    }, 
+    {
+      "content": "udp;137;0;0", 
+      "type": 0, 
+      "name": "netbios-ns_udp", 
+      "desc": "netbios-ns_udp"
+    }, 
+    {
+      "content": "tcp;139;0;0", 
+      "type": 0, 
+      "name": "netbios-ssn_tcp", 
+      "desc": " NETBIOS session service"
+    }, 
+    {
+      "content": "udp;139;0;0", 
+      "type": 0, 
+      "name": "netbios-ssn_udp", 
+      "desc": "netbios-ssn_udp"
+    }, 
+    {
+      "content": "tcp;119;0;0", 
+      "type": 0, 
+      "name": "nntp", 
+      "desc": "nntp"
+    }, 
+    {
+      "content": "udp;123;0;0", 
+      "type": 0, 
+      "name": "ntp_udp", 
+      "desc": " Network Time Protocol"
+    }, 
+    {
+      "content": "tcp;109;0;0", 
+      "type": 0, 
+      "name": "pop2_tcp", 
+      "desc": "pop2_tcp"
+    }, 
+    {
+      "content": "udp;1812;0;0", 
+      "type": 0, 
+      "name": "radius_udp", 
+      "desc": "radius_udp"
+    }, 
+    {
+      "content": "udp;1813;0;0", 
+      "type": 0, 
+      "name": "radius-acct_udp", 
+      "desc": "radius-acct_udp"
+    }, 
+    {
+      "content": "tcp;514;0;0", 
+      "type": 0, 
+      "name": "shell", 
+      "desc": " no passwords used"
+    }, 
+    {
+      "content": "tcp;554;0;0", 
+      "type": 0, 
+      "name": "rtsp_tcp", 
+      "desc": "rtsp_tcp"
+    }, 
+    {
+      "content": "udp;554;0;0", 
+      "type": 0, 
+      "name": "rtsp_udp", 
+      "desc": "rtsp_udp"
+    }, 
+    {
+      "content": "tcp;2000;0;0", 
+      "type": 0, 
+      "name": "cisco-sccp_tcp", 
+      "desc": "cisco-sccp_tcp"
+    }, 
+    {
+      "content": "tcp;5060;0;0", 
+      "type": 0, 
+      "name": "sip_tcp", 
+      "desc": "sip_tcp"
+    }, 
+    {
+      "content": "tcp;22;0;0", 
+      "type": 0, 
+      "name": "ssh_tcp", 
+      "desc": " SSH Remote Login Protocol"
+    }, 
+    {
+      "content": "tcp;111;0;0", 
+      "type": 0, 
+      "name": "sunrpc_tcp", 
+      "desc": "sunrpc_tcp"
+    }, 
+    {
+      "content": "udp;111;0;0", 
+      "type": 0, 
+      "name": "sunrpc_udp", 
+      "desc": "sunrpc_udp"
+    }, 
+    {
+      "content": "udp;514;0;0", 
+      "type": 0, 
+      "name": "syslog", 
+      "desc": "syslog"
+    }, 
+    {
+      "content": "tcp;49;0;0", 
+      "type": 0, 
+      "name": "tacacs_tcp", 
+      "desc": " Login Host Protocol (TACACS)"
+    }, 
+    {
+      "content": "udp;65;0;0", 
+      "type": 0, 
+      "name": "tacacs-ds_udp", 
+      "desc": "tacacs-ds_udp"
+    }, 
+    {
+      "content": "udp;517;0;0", 
+      "type": 0, 
+      "name": "talk", 
+      "desc": "talk"
+    }, 
+    {
+      "content": "udp;69;0;0", 
+      "type": 0, 
+      "name": "tftp", 
+      "desc": "tftp"
+    }, 
+    {
+      "content": "tcp;37;0;0", 
+      "type": 0, 
+      "name": "time_tcp", 
+      "desc": "time_tcp"
+    }, 
+    {
+      "content": "udp;37;0;0", 
+      "type": 0, 
+      "name": "time_udp", 
+      "desc": "time_udp"
+    }, 
+    {
+      "content": "tcp;540;0;0", 
+      "type": 0, 
+      "name": "uucp", 
+      "desc": " uucp daemon"
+    }, 
+    {
+      "content": "udp;513;0;0", 
+      "type": 0, 
+      "name": "who", 
+      "desc": "who"
+    }, 
+    {
+      "content": "tcp;43;0;0", 
+      "type": 0, 
+      "name": "whois", 
+      "desc": "whois"
+    }, 
+    {
+      "content": "udp;177;0;0", 
+      "type": 0, 
+      "name": "xdmcp_udp", 
+      "desc": "xdmcp_udp"
+    }, 
+    {
+      "content": "tcp;80;0;0", 
+      "type": 1, 
+      "name": "http", 
+      "desc": " WorldWideWeb HTTP"
+    }, 
+    {
+      "content": "tcp;502;0;0", 
+      "type": 1, 
+      "name": "modbus", 
+      "desc": "modbus"
+    }, 
+    {
+      "content": "tcp;2404;0;0", 
+      "type": 1, 
+      "name": "iec104", 
+      "desc": "iec104"
+    }, 
+    {
+      "content": "tcp;44818;0;0", 
+      "type": 1, 
+      "name": "ENIP_TCP", 
+      "desc": "ethernet/IP"
+    }, 
+    {
+      "content": "udp;44818;0;0", 
+      "type": 1, 
+      "name": "ENIP_UDP", 
+      "desc": "ethernet/IP"
+    }, 
+    {
+      "content": "udp;2222;1;0", 
+      "type": 1, 
+      "name": "ENIP_IO", 
+      "desc": "ethernet/IP"
+    }, 
+    {
+      "content": "tcp;20000;0;0", 
+      "type": 1, 
+      "name": "dnp3", 
+      "desc": "dnp3"
+    }, 
+    {
+      "content": "tcp;15;0;0", 
+      "type": 1, 
+      "name": "aic", 
+      "desc": "aic"
+    }, 
+    {
+      "content": "udp;48899;0;0", 
+      "type": 1, 
+      "name": "Beckoff ADS", 
+      "desc": "Beckoff ADS"
+    }, 
+    {
+      "content": "tcp;3500;0;0", 
+      "type": 1, 
+      "name": "Bachmann_Tcp", 
+      "desc": "Bachmann PLC Protocol"
+    }, 
+    {
+      "content": "udp;3003;0;0", 
+      "type": 1, 
+      "name": "Bachmann_Udp", 
+      "desc": "Bachmann Udp"
+    }, 
+    {
+      "content": "udp;47808;0;0", 
+      "type": 1, 
+      "name": "BACnet", 
+      "desc": "BACnet"
+    }, 
+    {
+      "content": "udp;9600;0;0", 
+      "type": 1, 
+      "name": "Omron Fins", 
+      "desc": "Omron Fins"
+    }, 
+    {
+      "content": "tcp;8193;0;0", 
+      "type": 1, 
+      "name": "Focas", 
+      "desc": "Focas"
+    }, 
+    {
+      "content": "tcp;20476;0;0", 
+      "type": 1, 
+      "name": "foxboro", 
+      "desc": "foxboro"
+    }, 
+    {
+      "content": "udp;6000;0;0", 
+      "type": 1, 
+      "name": "HollySys LK", 
+      "desc": "HollySys LK protocol"
+    }, 
+    {
+      "content": "udp;7314;0;0", 
+      "type": 1, 
+      "name": "Hollysys m5 udp", 
+      "desc": "Hollysys m5 udp"
+    }, 
+    {
+      "content": "tcp;5007;0;0", 
+      "type": 1, 
+      "name": "melsec-q-tcp", 
+      "desc": "melsec-q tcp"
+    }, 
+    {
+      "content": "tcp;5006;0;0", 
+      "type": 1, 
+      "name": "melsec-q-udp", 
+      "desc": "melsec-q udp"
+    }, 
+    {
+      "content": "udp;4800;0;0", 
+      "type": 1, 
+      "name": "moxa-nport", 
+      "desc": "moxa-nport"
+    }, 
+    {
+      "content": "udp;3702;0;0", 
+      "type": 1, 
+      "name": "onvif", 
+      "desc": "onvif"
+    }, 
+    {
+      "content": "tcp;1962;0;0", 
+      "type": 1, 
+      "name": "PCWorx", 
+      "desc": "PCWorx"
+    }, 
+    {
+      "content": "tcp;20547;0;0", 
+      "type": 1, 
+      "name": "ProConOS", 
+      "desc": "ProConOS"
+    }, 
+    {
+      "content": "tcp;4410;0;0", 
+      "type": 1, 
+      "name": "siemenslicense", 
+      "desc": "siemenslicense"
+    }, 
+    {
+      "content": "udp;12288;0;0", 
+      "type": 1, 
+      "name": "supcon_dcs", 
+      "desc": "supcon_dcs"
+    }, 
+    {
+      "content": "tcp;135;0;0", 
+      "type": 1, 
+      "name": "OPC", 
+      "desc": "OPC"
+    }, 
+    {
+      "content": "tcp;5007;0;0", 
+      "type": 1, 
+      "name": "MELSOFT_Tcp", 
+      "desc": "MELSOFT_Tcp"
+    }, 
+    {
+      "content": "udp;5006;0;0", 
+      "type": 1, 
+      "name": "MELSOFT_Udp", 
+      "desc": "MELSOFT_Udp"
+    }, 
+    {
+      "content": "tcp;102;3;0", 
+      "type": 1, 
+      "name": "ISO-TSAP ", 
+      "desc": "ISO-TSAP "
+    }, 
+    {
+      "content": "tcp;789;0;0", 
+      "type": 1, 
+      "name": "Crimson V3", 
+      "desc": "Crimson V3"
+    }, 
+    {
+      "content": "tcp;102;1;0", 
+      "type": 1, 
+      "name": "S7", 
+      "desc": "S7"
+    }, 
+    {
+      "content": "tcp;102;2;0", 
+      "type": 1, 
+      "name": "mms", 
+      "desc": "mms"
+    }, 
+    {
+      "content": "tcp;102;3;0", 
+      "type": 1, 
+      "name": "S7Plus", 
+      "desc": "S7Plus"
+    }, 
+    {
+      "content": "tcp;20;0;0", 
+      "type": 1, 
+      "name": "ftp-data", 
+      "desc": "ftp-data"
+    }, 
+    {
+      "content": "tcp;21;0;0", 
+      "type": 1, 
+      "name": "ftp", 
+      "desc": "ftp"
+    }, 
+    {
+      "content": "tcp;1883;0;0", 
+      "type": 1, 
+      "name": "mqtt", 
+      "desc": "mqtt"
+    }, 
+    {
+      "content": "udp;5683;0;0", 
+      "type": 1, 
+      "name": "coap", 
+      "desc": "coap"
+    }, 
+    {
+      "content": "tcp;9600;0;0", 
+      "type": 1, 
+      "name": "fins-tcp", 
+      "desc": "fins-tcp"
+    }, 
+    {
+      "content": "tcp;2001;0;0", 
+      "type": 1, 
+      "name": "hexagon", 
+      "desc": "hexagon"
+    }, 
+    {
+      "content": "udp;17224,17225;0;0", 
+      "type": 1, 
+      "name": "trdp", 
+      "desc": "trdp"
+    }, 
+    {
+      "content": "tcp;4840;0;0", 
+      "type": 1, 
+      "name": "opcua", 
+      "desc": "opcua"
+    }, 
+    {
+      "content": "udp;5060;0;0", 
+      "type": 1, 
+      "name": "sip", 
+      "desc": "sip"
+    }, 
+    {
+      "content": "udp;18246;0;0", 
+      "type": 1, 
+      "name": "egd", 
+      "desc": "egd"
+    }, 
+    {
+      "content": "udp;34962,34963,34964;0;0", 
+      "type": 1, 
+      "name": "profinet-io", 
+      "desc": "profinet-io"
+    }, 
+    {
+      "content": "tcp;1521;0;0", 
+      "type": 1, 
+      "name": "oracle", 
+      "desc": "oracle"
+    }, 
+    {
+      "content": "tcp;110;0;0", 
+      "type": 1, 
+      "name": "pop3", 
+      "desc": " POP version 3"
+    }, 
+    {
+      "content": "tcp;25;0;0", 
+      "type": 1, 
+      "name": "smtp", 
+      "desc": "smtp"
+    }, 
+    {
+      "content": "udp;161,162;0;0", 
+      "type": 1, 
+      "name": "snmp", 
+      "desc": "snmp"
+    }, 
+    {
+      "content": "tcp;23;0;0", 
+      "type": 1, 
+      "name": "telnet", 
+      "desc": "telnet"
+    }, 
+    {
+      "content": "tcp;1433;0;0", 
+      "type": 1, 
+      "name": "sqlserver", 
+      "desc": "sqlserver"
+    }, 
+    {
+      "content": "tcp;1720;0;0", 
+      "type": 1, 
+      "name": "H323", 
+      "desc": "H323"
+    }, 
+    {
+      "content": "tcp;143;0;0", 
+      "type": 1, 
+      "name": "imap", 
+      "desc": " Interim Mail Access P 2 and 4"
+    }, 
+    {
+      "content": "tcp;18245;0;0", 
+      "type": 1, 
+      "name": "gesrtp", 
+      "desc": "gesrtp"
+    }, 
+    {
+      "content": "tcp;5094;0;0", 
+      "type": 1, 
+      "name": "hartip-tcp", 
+      "desc": "hart-ip tcp"
+    }, 
+    {
+      "content": "udp;5094;0;0", 
+      "type": 1, 
+      "name": "hartip-udp", 
+      "desc": "hart_ip udp"
+    }, 
+    {
+      "content": "udp;1628;0;0", 
+      "type": 1, 
+      "name": "lon", 
+      "desc": "Local Operating Network"
+    }, 
+    {
+      "content": "tcp;3671;0;0", 
+      "type": 1, 
+      "name": "knxip-tcp", 
+      "desc": "knxip-tcp"
+    }, 
+    {
+      "content": "udp;3671;0;0", 
+      "type": 1, 
+      "name": "knxip-udp", 
+      "desc": "knxip-udp"
+    }, 
+    {
+      "content": "tcp;13400;0;0", 
+      "type": 1, 
+      "name": "doip-tcp", 
+      "desc": "doip-tcp"
+    }, 
+    {
+      "content": "udp;13400;0;0", 
+      "type": 1, 
+      "name": "doip-udp", 
+      "desc": "doip-udp"
+    }, 
+    {
+      "content": "tcp;30490;0;0", 
+      "type": 1, 
+      "name": "someip-tcp", 
+      "desc": "someip-tcp"
+    }, 
+    {
+      "content": "udp;30490;0;0", 
+      "type": 1, 
+      "name": "someip-udp", 
+      "desc": "someip-udp"
+    }, 
+    {
+      "content": "tcp;5000;0;0", 
+      "type": 1, 
+      "name": "hsms", 
+      "desc": "hsms"
+    }, 
+    {
+      "content": "tcp;7000;0;0", 
+      "type": 1, 
+      "name": "gryphon", 
+      "desc": "gryphon"
+    }, 
+    {
+      "content": "tcp;4001;0;0", 
+      "type": 1, 
+      "name": "h1", 
+      "desc": "sinec-h1"
+    }, 
+    {
+      "content": "tcp;2403;0;0", 
+      "type": 1, 
+      "name": "iec103", 
+      "desc": "iec103"
+    }, 
+    {
+      "content": "tcp;135;0;0", 
+      "type": 1, 
+      "name": "opcae", 
+      "desc": "opcae"
+    }, 
+    {
+      "content": "tcp;135;0;0", 
+      "type": 1, 
+      "name": "opcdx", 
+      "desc": "opcdx"
+    }, 
+    {
+      "content": "tcp;135;0;0", 
+      "type": 1, 
+      "name": "opchda", 
+      "desc": "opchda"
+    }, 
+    {
+      "content": "tcp;4000;0;0", 
+      "type": 1, 
+      "name": "slmp", 
+      "desc": "slmp"
+    }, 
+    {
+      "content": "tcp;4000;0;0", 
+      "type": 1, 
+      "name": "cc-link-ie", 
+      "desc": "cc-link-ie"
+    }
+  ]
+}

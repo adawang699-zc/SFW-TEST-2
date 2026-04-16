@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工控防火墙自动化测试平台 - 培训演讲稿</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma Shan Zheng&family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff6b35;
+            --primary-dark: #e55a2b;
+            --secondary: #004e89;
+            --accent: #00a896;
+            --warning: #f9c74f;
+            --danger: #d00000;
+            --success: #38b000;
+            --bg-dark: #0f0f23;
+            --bg-card: #1a1a2e;
+            --bg-light: #16213e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --border: rgba(255, 255, 255, 0.1);
+            --glow: 0 0 40px rgba(255, 107, 53, 0.3);
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.8;
+            overflow-x: hidden;
+        }
+
+        /* 背景动画 */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(255, 107, 53, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 107, 53, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 20% 30%, rgba(255, 107, 53, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 70%, rgba(0, 168, 150, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 页面 Logo */
+        .page-logo {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            height: 45px;
+            z-index: 999;
+            filter: drop-shadow(0 2px 8px rgba(255, 107, 53, 0.4));
+            opacity: 0.9;
+            transition: all 0.3s ease;
+        }
+
+        .page-logo:hover {
+            opacity: 1;
+            transform: scale(1.05);
+            filter: drop-shadow(0 4px 16px rgba(255, 107, 53, 0.6));
+        }
+
+        /* 导航 */
+        .nav-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+        }
+
+        .nav-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .nav-toc {
+            position: fixed;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .nav-dot:hover {
+            background: rgba(255, 107, 53, 0.5);
+            transform: scale(1.2);
+        }
+
+        .nav-dot.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        }
+
+        /* 标题样式 */
+        .slide {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 40px 0;
+            position: relative;
+        }
+
+        .slide-title {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: clamp(3rem, 8vw, 6rem);
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary) 0%, #ff8f66 50%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 24px;
+            text-shadow: none;
+            filter: drop-shadow(0 0 40px rgba(255, 107, 53, 0.3));
+        }
+
+        .slide-subtitle {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            text-align: center;
+            color: var(--text-secondary);
+            max-width: 800px;
+            margin: 0 auto 40px;
+            font-weight: 300;
+        }
+
+        .slide-number {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255, 107, 53, 0.3);
+            box-shadow: var(--glow), var(--card-shadow);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(0, 168, 150, 0.2));
+            border: 1px solid rgba(255, 107, 53, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.8;
+        }
+
+        /* 网格布局 */
+        .grid-2, .grid-3, .grid-4 {
+            display: grid;
+            gap: 20px;
+            margin-top: 40px;
+            width: 100%;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        /* 协议展示 */
+        .protocol-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 32px;
+            width: 100%;
+        }
+
+        /* 架构图 */
+        .architecture-diagram {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            align-items: center;
+            margin-top: 60px;
+        }
+
+        .arch-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .arch-box {
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-light));
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .arch-box:hover {
+            border-color: var(--primary);
+            transform: scale(1.02);
+            box-shadow: var(--glow);
+        }
+
+        .arch-box.primary {
+            border-color: rgba(255, 107, 53, 0.5);
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), var(--bg-card));
+        }
+
+        .arch-box.secondary {
+            border-color: rgba(0, 168, 150, 0.5);
+            background: linear-gradient(135deg, rgba(0, 168, 150, 0.1), var(--bg-card));
+        }
+
+        .arch-box.accent {
+            border-color: rgba(0, 78, 137, 0.5);
+            background: linear-gradient(135deg, rgba(0, 78, 137, 0.1), var(--bg-card));
+        }
+
+        .arch-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
+        .arch-label {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .arch-sub {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .arch-connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .arch-arrow {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--border), var(--primary), var(--border));
+            position: relative;
+        }
+
+        .arch-arrow::after {
+            content: '▶';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+            font-size: 12px;
+        }
+
+        /* 功能列表 */
+        .feature-list {
+            list-style: none;
+            margin-top: 32px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            background: rgba(255, 107, 53, 0.05);
+            border-color: rgba(255, 107, 53, 0.3);
+            transform: translateX(8px);
+        }
+
+        .feature-check {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--success), #00dd55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.2rem;
+        }
+
+        .feature-content h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+
+        .feature-content p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        /* 技术栈标签 */
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .tech-tag {
+            padding: 8px 20px;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: 24px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .tech-tag:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .tech-tag.secondary {
+            background: rgba(0, 168, 150, 0.1);
+            border-color: rgba(0, 168, 150, 0.3);
+            color: var(--accent);
+        }
+
+        .tech-tag.secondary:hover {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 20px rgba(0, 168, 150, 0.4);
+        }
+
+        /* 数据展示 */
+        .stat-box {
+            text-align: center;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .stat-box:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+        }
+
+        .stat-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* 代码块 */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin-top: 24px;
+        }
+
+        .code-block code {
+            color: #e6edf3;
+        }
+
+        .code-comment { color: #8b949e; }
+        .code-keyword { color: #ff7b72; }
+        .code-string { color: #a5d6ff; }
+        .code-function { color: #d2a8ff; }
+        .code-variable { color: #79c0ff; }
+
+        /* 高亮文字 */
+        .highlight {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .highlight-accent {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        /* 结束页 */
+        .ending-slide {
+            text-align: center;
+        }
+
+        .ending-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 48px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 40px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+            margin-top: 40px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.3);
+        }
+
+        .ending-cta:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 12px 48px rgba(255, 107, 53, 0.5);
+        }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-3 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .architecture-diagram {
+                grid-template-columns: 1fr;
+            }
+            .arch-connector {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 0 20px;
+            }
+            .nav-toc {
+                display: none;
+            }
+        }
+
+        /* 动画 */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 目录覆盖层 */
+        .toc-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toc-overlay.active {
+            display: flex;
+        }
+
+        .toc-menu {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .toc-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .toc-item {
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 107, 53, 0.1);
+            border-color: var(--primary);
+            transform: translateX(8px);
+        }
+
+        .toc-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        /* 滚动提示 */
+        .scroll-hint {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+            opacity: 0.6;
+        }
+
+        .scroll-hint i {
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateX(-50%) translateY(0);
+            }
+            40% {
+                transform: translateX(-50%) translateY(-10px);
+            }
+            60% {
+                transform: translateX(-50%) translateY(-5px);
+            }
+        }
+
+        /* 章节页眉 */
+        .chapter-header {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .chapter-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            opacity: 0.5;
+        }
+
+        .chapter-title {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* 协议展示 */
+        .protocol-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 32px;
+        }
+
+        .protocol-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .protocol-card:hover {
+            border-color: var(--accent);
+            background: rgba(0, 168, 150, 0.05);
+            transform: translateY(-4px);
+        }
+
+        .protocol-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
+        .protocol-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .protocol-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* 价值展示 */
+        .value-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 48px;
+            position: relative;
+        }
+
+        .value-flow::before {
+            content: '';
+            position: absolute;
+            top: 40px;
+            left: 50px;
+            right: 50px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            z-index: 0;
+        }
+
+        .value-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            padding: 0 20px;
+        }
+
+        .value-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 3px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+            box-shadow: var(--glow);
+        }
+
+        .value-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .value-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景效果 -->
+    <div class="bg-grid"></div>
+    <div class="bg-gradient"></div>
+
+    <!-- 页面 Logo -->
+    <img src="static/logo2.png" alt="天地和兴 Logo" class="page-logo" />
+
+    <!-- 进度条 -->
+    <div class="nav-progress">
+        <div class="nav-progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- 目录导航点 -->
+    <div class="nav-toc" id="navToc">
+        <div class="nav-dot active" data-slide="0" title="封面"></div>
+        <div class="nav-dot" data-slide="1" title="项目概述"></div>
+        <div class="nav-dot" data-slide="2" title="系统架构"></div>
+        <div class="nav-dot" data-slide="3" title="核心功能"></div>
+        <div class="nav-dot" data-slide="4" title="工控协议"></div>
+        <div class="nav-dot" data-slide="5" title="测试价值"></div>
+        <div class="nav-dot" data-slide="2" title="系统架构"></div>
+        <div class="nav-dot" data-slide="3" title="测试流程"></div>
+        <div class="nav-dot" data-slide="4" title="核心功能"></div>
+        <div class="nav-dot" data-slide="5" title="工控协议"></div>
+        <div class="nav-dot" data-slide="6" title="测试价值"></div>
+        <div class="nav-dot" data-slide="7" title="技术栈"></div>
+        <div class="nav-dot" data-slide="8" title="总结"></div>
+    </div>
+
+    <!-- 目录覆盖层 -->
+    <div class="toc-overlay" id="tocOverlay">
+        <div class="toc-menu">
+            <h2 class="toc-title">目录导航</h2>
+            <div class="toc-item" data-slide="0">
+                <div class="toc-number">1</div>
+                <div>项目封面</div>
+            </div>
+            <div class="toc-item" data-slide="1">
+                <div class="toc-number">2</div>
+                <div>项目概述</div>
+            </div>
+            <div class="toc-item" data-slide="2">
+                <div class="toc-number">3</div>
+                <div>系统架构</div>
+            </div>
+            <div class="toc-item" data-slide="3">
+                <div class="toc-number">4</div>
+                <div>测试流程</div>
+            </div>
+            <div class="toc-item" data-slide="4">
+                <div class="toc-number">5</div>
+                <div>核心功能模块</div>
+            </div>
+            <div class="toc-item" data-slide="5">
+                <div class="toc-number">6</div>
+                <div>工控协议支持</div>
+            </div>
+            <div class="toc-item" data-slide="6">
+                <div class="toc-number">7</div>
+                <div>为测试带来的价值</div>
+            </div>
+            <div class="toc-item" data-slide="7">
+                <div class="toc-number">8</div>
+                <div>技术栈</div>
+            </div>
+            <div class="toc-item" data-slide="8">
+                <div class="toc-number">9</div>
+                <div>总结与展望</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 1: 封面 -->
+    <section class="slide" id="slide0">
+        <div class="container">
+            <h1 class="slide-title">工控防火墙自动化测试平台</h1>
+            <p class="slide-subtitle">赋能高效测试 · 守护工控安全 · 驱动质量升级</p>
+            <div style="text-align: center; margin-top: 40px;">
+                <div class="card" style="display: inline-block;">
+                    <div class="card-icon" style="margin: 0 auto 24px; width: 120px; height: 120px; font-size: 3.5rem;">
+                        🛡️
+                    </div>
+                    <div class="card-title" style="text-align: center; font-size: 1.8rem;">天地和兴 · 安全设备测试部</div>
+                    <div class="card-desc" style="text-align: center; margin-top: 16px;">
+                        培训材料 - 张程<br>
+                        <span style="color: var(--primary);">2026 年 4 月</span>
+                    </div>
+                </div>
+            </div>
+            <div class="scroll-hint">
+                <i>▼</i>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 2: 项目概述 -->
+    <section class="slide" id="slide1">
+        <div class="container">
+            <div class="chapter-header">
+                <span class="chapter-number">01</span>
+                <h2 class="chapter-title">项目概述</h2>
+            </div>
+
+            <div class="grid-2">
+                <div class="card fade-in">
+                    <div class="card-icon">📋</div>
+                    <h3 class="card-title">项目定位</h3>
+                    <p class="card-desc">
+                        面向<span class="highlight">工控防火墙设备</span>的一体化自动化测试平台，
+                        集成<span class="highlight-accent">策略配置</span>、<span class="highlight-accent">协议测试</span>、
+                        <span class="highlight-accent">设备监控</span>、<span class="highlight-accent">服务下发</span>
+                        等核心能力，实现<span class="highlight">全流程自动化</span>、<span class="highlight">标准化</span>测试。
+                    </p>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-icon">🎯</div>
+                    <h3 class="card-title">核心价值</h3>
+                    <ul class="feature-list" style="margin-top: 16px;">
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>工具归并</h4>
+                                <p>测试工具统一整合，不用来回切换工具和测试设备</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>覆盖率提升</h4>
+                                <p>支持 20+ 工控协议，覆盖 80%+ 测试场景</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>质量保障</h4>
+                                <p>标准化测试流程，减少人为失误</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="grid-4 fade-in">
+                <div class="stat-box">
+                    <div class="stat-number">19+</div>
+                    <div class="stat-label">功能模块</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">20+</div>
+                    <div class="stat-label">工控协议</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">API 接口</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">自动化覆盖</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 3: 系统架构 -->
+    <section class="slide" id="slide2">
+        <div class="container">
+            <div class="chapter-header">
+                <span class="chapter-number">02</span>
+                <h2 class="chapter-title">系统架构</h2>
+            </div>
+
+            <div class="card fade-in" style="padding: 24px;">
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- 第一层：控制层 -->
+                    <div class="arch-box primary" style="padding: 16px;">
+                        <div class="arch-icon" style="font-size: 1.6rem;">🎮</div>
+                        <div class="arch-label" style="font-size: 0.95rem;">控制层 - Django WEB 管理</div>
+                        <div class="arch-sub" style="margin-top: 4px; font-size: 0.8rem;">设备管理 | 策略配置 | 测试执行 | 实时监控</div>
+                    </div>
+
+                    <!-- 箭头 -->
+                    <div style="text-align: center; font-size: 1.2rem; color: var(--primary); line-height: 1;">▼</div>
+
+                    <!-- 第二层：交互层 -->
+                    <div class="arch-box" style="padding: 16px; border-color: var(--primary);">
+                        <div class="arch-icon" style="font-size: 1.6rem;">🔄</div>
+                        <div class="arch-label" style="font-size: 0.95rem;">交互层 - Django 后端</div>
+                        <div class="arch-sub" style="margin-top: 4px; font-size: 0.8rem;">请求路由 | 任务调度 | 数据持久化 | 连接管理</div>
+                    </div>
+
+                    <!-- 箭头 -->
+                    <div style="text-align: center; font-size: 1.2rem; color: var(--primary); line-height: 1;">▼</div>
+
+                    <!-- 第三层：部署层 -->
+                    <div class="arch-box secondary" style="padding: 16px;">
+                        <div class="arch-icon" style="font-size: 1.6rem;">📦</div>
+                        <div class="arch-label" style="font-size: 0.95rem;">部署层 - Agent 代理</div>
+                        <div class="arch-sub" style="margin-top: 4px; font-size: 0.8rem; margin-bottom: 12px;">报文发送 | 工控协议模拟 | 端口扫描 | 报文回放</div>
+
+                        <!-- Agent 横向布局 - 串联结构 -->
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                            <div class="arch-box accent" style="padding: 12px; min-width: 120px;">
+                                <div class="arch-icon" style="font-size: 1.2rem;">🤖</div>
+                                <div class="arch-label" style="font-size: 0.85rem;">Agent-A</div>
+                                <div class="arch-sub" style="font-size: 0.7rem;">报文发送<br>工控协议模拟</div>
+                            </div>
+                            <div style="width: 30px; height: 2px; background: var(--primary);"></div>
+                            <div class="arch-box primary" style="padding: 12px; min-width: 120px; border-style: dashed;">
+                                <div class="arch-icon" style="font-size: 1.2rem;">🛡️</div>
+                                <div class="arch-label" style="font-size: 0.85rem;">被测防火墙</div>
+                                <div class="arch-sub" style="font-size: 0.7rem;">测试目标</div>
+                            </div>
+                            <div style="width: 30px; height: 2px; background: var(--primary);"></div>
+                            <div class="arch-box accent" style="padding: 12px; min-width: 120px;">
+                                <div class="arch-icon" style="font-size: 1.2rem;">🤖</div>
+                                <div class="arch-label" style="font-size: 0.85rem;">Agent-B</div>
+                                <div class="arch-sub" style="font-size: 0.7rem;">报文发送<br>工控协议模拟</div>
+                            </div>
+                        </div>
+
+                        <!-- 虚线框 -->
+                        <div style="margin-top: 12px; border: 2px dashed var(--primary); border-radius: 10px; padding: 12px; text-align: center;">
+                            <div class="arch-sub" style="font-size: 0.8rem; color: var(--primary);">一组测试单元（Agent-A ↔ 防火墙 ↔ Agent-B）可扩展多组</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 层级说明 -->
+            <div class="grid-3 fade-in" style="margin-top: 20px;">
+                <div class="card" style="border-color: var(--primary); padding: 16px;">
+                    <h4 style="margin-bottom: 8px; color: var(--primary); font-size: 0.9rem;">🎮 控制层功能</h4>
+                    <p class="card-desc" style="font-size: 0.8rem;">设备管理 | 策略配置 | 测试执行 | 实时监控</p>
+                </div>
+                <div class="card" style="border-color: var(--accent); padding: 16px;">
+                    <h4 style="margin-bottom: 8px; color: var(--accent); font-size: 0.9rem;">🔄 交互层功能</h4>
+                    <p class="card-desc" style="font-size: 0.8rem;">请求路由 | 任务调度 | 数据持久化 | 连接管理</p>
+                </div>
+                <div class="card" style="border-color: var(--warning); padding: 16px;">
+                    <h4 style="margin-bottom: 8px; color: var(--warning); font-size: 0.9rem;">📦 部署层功能</h4>
+                    <p class="card-desc" style="font-size: 0.8rem;">报文发送 | 协议测试 | 端口扫描 | 报文回放</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 4: 测试流程 -->
+    <section class="slide" id="slide3">
+        <div class="container">
+            <div class="chapter-header">
+                <span class="chapter-number">03</span>
+                <h2 class="chapter-title">测试流程</h2>
+            </div>
+
+            <div class="card fade-in" style="padding: 24px;">
+                <div style="display: flex; flex-direction: column; gap: 16px; align-items: center;">
+                    <!-- 流程步骤 -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                        <div class="arch-box primary" style="padding: 16px; min-width: 140px; text-align: center;">
+                            <div class="arch-icon" style="font-size: 1.6rem;">⚙️</div>
+                            <div class="arch-label" style="font-size: 0.9rem;">1. 配置环境</div>
+                            <div class="arch-sub" style="font-size: 0.75rem; margin-top: 4px;">设置测试环境<br>配置网络参数</div>
+                        </div>
+
+                        <div style="width: 40px; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent));"></div>
+
+                        <div class="arch-box" style="padding: 16px; min-width: 140px; text-align: center; border-color: var(--primary);">
+                            <div class="arch-icon" style="font-size: 1.6rem;">🖥️</div>
+                            <div class="arch-label" style="font-size: 0.9rem;">2. 设置测试设备</div>
+                            <div class="arch-sub" style="font-size: 0.75rem; margin-top: 4px;">添加测试设备<br>配置设备参数</div>
+                        </div>
+
+                        <div style="width: 40px; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent));"></div>
+
+                        <div class="arch-box secondary" style="padding: 16px; min-width: 140px; text-align: center;">
+                            <div class="arch-icon" style="font-size: 1.6rem;">📦</div>
+                            <div class="arch-label" style="font-size: 0.9rem;">3. 部署 Agent</div>
+                            <div class="arch-sub" style="font-size: 0.75rem; margin-top: 4px;">远程部署<br>自动同步</div>
+                        </div>
+                    </div>
+
+                    <!-- 箭头向下 -->
+                    <div style="text-align: center; font-size: 1.5rem; color: var(--primary); line-height: 1;">▼</div>
+
+                    <!-- 第二行流程 -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                        <div class="arch-box accent" style="padding: 16px; min-width: 140px; text-align: center;">
+                            <div class="arch-icon" style="font-size: 1.6rem;">🚀</div>
+                            <div class="arch-label" style="font-size: 0.9rem;">4. 执行测试</div>
+                            <div class="arch-sub" style="font-size: 0.75rem; margin-top: 4px;">选择测试类型<br>运行测试用例</div>
+                        </div>
+
+                        <div style="width: 40px; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent));"></div>
+
+                        <div class="arch-box primary" style="padding: 16px; min-width: 140px; text-align: center;">
+                            <div class="arch-icon" style="font-size: 1.6rem;">📊</div>
+                            <div class="arch-label" style="font-size: 0.9rem;">5. 验证结果</div>
+                            <div class="arch-sub" style="font-size: 0.75rem; margin-top: 4px;">实时查看输出<br>对比期望结果</div>
+                        </div>
+
+                        <div style="width: 40px; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent));"></div>
+
+                        <div class="arch-box" style="padding: 16px; min-width: 140px; text-align: center; border-color: var(--warning);">
+                            <div class="arch-icon" style="font-size: 1.6rem;">📄</div>
+                            <div class="arch-label" style="font-size: 0.9rem;">6. 生成报告</div>
+                            <div class="arch-sub" style="font-size: 0.75rem; margin-top: 4px;">自动汇总结果<br>输出测试报告</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 5: 核心功能 -->
+    <section class="slide" id="slide4">
+        <div class="container">
+            <div class="chapter-header">
+                <span class="chapter-number">04</span>
+                <h2 class="chapter-title">核心功能模块</h2>
+            </div>
+
+            <div class="grid-3">
+                <div class="card fade-in" style="height: 100%;">
+                    <div class="card-icon">🛡️</div>
+                    <h3 class="card-title">防火墙策略测试</h3>
+                    <p class="card-desc">包过滤、深度检测、VPN 配置、二层转发等策略的自动化配置与验证</p>
+                    <ul class="feature-list" style="margin-top: 16px;">
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">自定义服务配置</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">地址列表/地址组</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">批量测试用例执行</h4>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-icon">🖥️</div>
+                    <h3 class="card-title">设备管理监控</h3>
+                    <p class="card-desc">测试设备全生命周期管理，实时资源监控与告警</p>
+                    <ul class="feature-list" style="margin-top: 16px;">
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">设备 CRUD 操作</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">CPU/内存实时监控</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">邮件告警通知</h4>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-icon">🏭</div>
+                    <h3 class="card-title">工控协议测试</h3>
+                    <p class="card-desc">支持 20+ 工业协议，覆盖电力、轨交、楼宇等场景</p>
+                    <ul class="feature-list" style="margin-top: 16px;">
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">GOOSE/SV 报文</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">Modbus TCP/RTU</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">S7 PLC 通信</h4>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-icon">📡</div>
+                    <h3 class="card-title">远程 Agent 管理</h3>
+                    <p class="card-desc">SSH 远程部署测试 Agent，实现分布式报文发送</p>
+                    <ul class="feature-list" style="margin-top: 16px;">
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">Agent 自动部署</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">批量启停控制</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">实时日志查看</h4>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-icon">🔍</div>
+                    <h3 class="card-title">扫描诊断工具</h3>
+                    <p class="card-desc">网络诊断与报文分析工具集</p>
+                    <ul class="feature-list" style="margin-top: 16px;">
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">端口扫描</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">报文回放</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">DHCP 客户端</h4>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-icon">📋</div>
+                    <h3 class="card-title">知识库管理</h3>
+                    <p class="card-desc">知识库、病毒库、漏洞库的升级包生成与管理</p>
+                    <ul class="feature-list" style="margin-top: 16px;">
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">模板编辑管理</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">升级包生成</h4>
+                            </div>
+                        </li>
+                        <li class="feature-item" style="padding: 12px;">
+                            <div class="feature-check" style="width: 24px; height: 24px; font-size: 0.9rem;">✓</div>
+                            <div class="feature-content">
+                                <h4 style="font-size: 0.95rem;">授权管理工具</h4>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 6: 工控协议 -->
+    <section class="slide" id="slide5">
+        <div class="container">
+            <div class="chapter-header">
+                <span class="chapter-number">05</span>
+                <h2 class="chapter-title">工控协议支持</h2>
+            </div>
+
+            <div class="card fade-in" style="padding: 32px; margin-bottom: 40px;">
+                <h3 style="margin-bottom: 24px; color: var(--accent);">📡 电力行业协议</h3>
+                <div class="protocol-grid">
+                    <div class="protocol-card">
+                        <div class="protocol-icon">⚡</div>
+                        <div class="protocol-name">GOOSE</div>
+                        <div class="protocol-desc">IEC 61850 面向通用对象</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">📶</div>
+                        <div class="protocol-name">SV</div>
+                        <div class="protocol-desc">IEC 61850 采样值</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🔌</div>
+                        <div class="protocol-name">EtherCAT</div>
+                        <div class="protocol-desc">以太网控制自动化</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">⚙️</div>
+                        <div class="protocol-name">POWERLINK</div>
+                        <div class="protocol-desc">实时以太网协议</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in" style="padding: 32px; margin-bottom: 40px;">
+                <h3 style="margin-bottom: 24px; color: var(--primary);">🏭 工业控制协议</h3>
+                <div class="protocol-grid">
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🔧</div>
+                        <div class="protocol-name">Modbus</div>
+                        <div class="protocol-desc">TCP/RTU 远程终端单元</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🤖</div>
+                        <div class="protocol-name">S7</div>
+                        <div class="protocol-desc">西门子 PLC 通信</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🔗</div>
+                        <div class="protocol-name">PROFINET</div>
+                        <div class="protocol-desc">工业以太网标准</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">📡</div>
+                        <div class="protocol-name">DCP</div>
+                        <div class="protocol-desc">发现和配置协议</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in" style="padding: 32px; margin-bottom: 40px;">
+                <h3 style="margin-bottom: 24px; color: var(--warning);">🏢 其他行业协议</h3>
+                <div class="protocol-grid">
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🏗️</div>
+                        <div class="protocol-name">BACnet</div>
+                        <div class="protocol-desc">楼宇自控网络</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">📊</div>
+                        <div class="protocol-name">DNP3</div>
+                        <div class="protocol-desc">远动协议</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🌐</div>
+                        <div class="protocol-name">EtherNet/IP</div>
+                        <div class="protocol-desc">工业协议</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">📡</div>
+                        <div class="protocol-name">SNMP</div>
+                        <div class="protocol-desc">简单网络管理</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in" style="background: linear-gradient(135deg, rgba(0, 168, 150, 0.1), var(--bg-card)); border-color: var(--accent);">
+                <h3 style="margin-bottom: 16px; color: var(--accent);">🎯 协议测试能力</h3>
+                <div class="grid-2" style="margin-top: 0;">
+                    <div>
+                        <ul class="feature-list" style="margin-top: 0;">
+                            <li class="feature-item">
+                                <div class="feature-check">✓</div>
+                                <div class="feature-content">
+                                    <h4>报文构造与发送</h4>
+                                    <p>基于 Scapy 自定义协议字段，构造合法/异常报文</p>
+                                </div>
+                            </li>
+                            <li class="feature-item">
+                                <div class="feature-check">✓</div>
+                                <div class="feature-content">
+                                    <h4>协议解析与验证</h4>
+                                    <p>ASN.1 编码/解码，验证防火墙解析正确性</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul class="feature-list" style="margin-top: 0;">
+                            <li class="feature-item">
+                                <div class="feature-check">✓</div>
+                                <div class="feature-content">
+                                    <h4>流量压力测试</h4>
+                                    <p>高速报文发送，测试防火墙吞吐量</p>
+                                </div>
+                            </li>
+                            <li class="feature-item">
+                                <div class="feature-check">✓</div>
+                                <div class="feature-content">
+                                    <h4> fuzz 测试</h4>
+                                    <p>随机字段变异，发现潜在漏洞</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 7: 测试价值 -->
+    <section class="slide" id="slide6">
+        <div class="container">
+            <div class="chapter-header">
+                <span class="chapter-number">06</span>
+                <h2 class="chapter-title">为测试带来的价值</h2>
+            </div>
+
+            <div class="value-flow fade-in">
+                <div class="value-step">
+                    <div class="value-circle">🎯</div>
+                    <div class="value-label">需求分析</div>
+                    <div class="value-desc">明确测试目标</div>
+                </div>
+                <div class="value-step">
+                    <div class="value-circle">📝</div>
+                    <div class="value-label">用例设计</div>
+                    <div class="value-desc">标准化模板</div>
+                </div>
+                <div class="value-step">
+                    <div class="value-circle">⚡</div>
+                    <div class="value-label">自动执行</div>
+                    <div class="value-desc">一键批量测试</div>
+                </div>
+                <div class="value-step">
+                    <div class="value-circle">📊</div>
+                    <div class="value-label">结果验证</div>
+                    <div class="value-desc">自动对比期望</div>
+                </div>
+                <div class="value-step">
+                    <div class="value-circle">📋</div>
+                    <div class="value-label">报告生成</div>
+                    <div class="value-desc">完整测试记录</div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 40px;">
+                <div class="card fade-in">
+                    <h3 style="margin-bottom: 24px; color: var(--success);">✅ 效率提升</h3>
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>手工操作自动化</h4>
+                                <p>无需手动登录设备、逐条配置策略，API 自动调用</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>批量测试执行</h4>
+                                <p>一次性执行 50+ 测试用例，自动记录结果</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>环境快速搭建</h4>
+                                <p>Agent 自动部署，远程环境分钟级就绪</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>回归测试便捷</h4>
+                                <p>版本更新后一键重跑全部用例</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card fade-in">
+                    <h3 style="margin-bottom: 24px; color: var(--accent);">🔒 质量保障</h3>
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>测试覆盖全面</h4>
+                                <p>20+ 工控协议、100+ 测试场景全覆盖</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>测试过程可追溯</h4>
+                                <p>完整的测试日志、响应记录、时间戳</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>设备实时监测</h4>
+                                <p>CPU/内存告警，防止设备异常影响测试</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <div class="feature-check">✓</div>
+                            <div class="feature-content">
+                                <h4>测试结果可比对</h4>
+                                <p>期望结果 vs 实际结果自动对比</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card fade-in" style="margin-top: 40px; background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), var(--bg-card)); border-color: var(--primary);">
+                <h3 style="margin-bottom: 24px; text-align: center; color: var(--primary);">📈 测试能力提升对比</h3>
+                <div class="grid-4">
+                    <div class="stat-box">
+                        <div class="stat-number">1.5x</div>
+                        <div class="stat-label">测试效率提升</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">80%</div>
+                        <div class="stat-label">用例自动化率</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">30%</div>
+                        <div class="stat-label">人力成本降低</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">100%</div>
+                        <div class="stat-label">测试可追溯</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 8: 技术栈 -->
+    <section class="slide" id="slide7">
+        <div class="container">
+            <div class="chapter-header">
+                <span class="chapter-number">07</span>
+                <h2 class="chapter-title">技术栈</h2>
+            </div>
+
+            <div class="grid-2 fade-in">
+                <div class="card">
+                    <h3 style="margin-bottom: 24px; color: var(--primary);">🐍 后端技术</h3>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Python 3.12</span>
+                        <span class="tech-tag">Django 5.1</span>
+                        <span class="tech-tag">Flask 3.1</span>
+                        <span class="tech-tag">Quart 0.20</span>
+                        <span class="tech-tag">SQLite</span>
+                        <span class="tech-tag">PostgreSQL</span>
+                        <span class="tech-tag">SQLAlchemy</span>
+                    </div>
+
+                    <h3 style="margin: 32px 0 16px; color: var(--accent);">🌐 前端技术</h3>
+                    <div class="tech-tags">
+                        <span class="tech-tag">HTML5/CSS3</span>
+                        <span class="tech-tag">JavaScript</span>
+                        <span class="tech-tag">Bootstrap 5</span>
+                        <span class="tech-tag">Tailwind CSS</span>
+                        <span class="tech-tag">jQuery</span>
+                    </div>
+
+                    <h3 style="margin: 32px 0 16px; color: var(--warning);">🔧 桌面 GUI</h3>
+                    <div class="tech-tags">
+                        <span class="tech-tag">PyQt5/6</span>
+                        <span class="tech-tag">CustomTkinter</span>
+                        <span class="tech-tag">Gradio 5</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 24px; color: var(--success);">🔗 通信协议</h3>
+                    <div class="tech-tags">
+                        <span class="tech-tag">SSH (Paramiko)</span>
+                        <span class="tech-tag">HTTP/HTTPS</span>
+                        <span class="tech-tag">SFTP</span>
+                        <span class="tech-tag">SNMP</span>
+                        <span class="tech-tag">Syslog</span>
+                        <span class="tech-tag">Socket</span>
+                    </div>
+
+                    <h3 style="margin: 32px 0 16px; color: var(--danger);">📡 工控协议库</h3>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Scapy 2.5</span>
+                        <span class="tech-tag">PyModbus 3.7</span>
+                        <span class="tech-tag">python-snap7 2.0</span>
+                        <span class="tech-tag">pycomm3 1.2</span>
+                        <span class="tech-tag">BACpypes3 0.0</span>
+                        <span class="tech-tag">DNP3 21.6</span>
+                    </div>
+
+                    <h3 style="margin: 32px 0 16px; color: var(--primary);">🧪 测试框架</h3>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Pytest 7.4</span>
+                        <span class="tech-tag">Robot Framework 6.0</span>
+                        <span class="tech-tag">Playwright 1.51</span>
+                        <span class="tech-tag">Selenium 4.20</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in" style="margin-top: 40px;">
+                <h3 style="margin-bottom: 24px;">🔑 核心依赖</h3>
+                <div class="code-block">
+                    <code>
+<span class="code-comment"># 网络报文与协议</span>
+scapy<span class="code-keyword">==</span><span class="code-string">2.5.0</span>        <span class="code-comment"># 报文构造与分析</span>
+paramiko<span class="code-keyword">==</span><span class="code-string">3.4.0</span>       <span class="code-comment"># SSH 远程管理</span>
+pysnmp<span class="code-keyword">==</span><span class="code-string">7.1.8</span>        <span class="code-comment"># SNMP 网络管理</span>
+
+<span class="code-comment"># 工控协议</span>
+pyModbus<span class="code-keyword">==</span><span class="code-string">3.7.0</span>      <span class="code-comment"># Modbus 协议</span>
+python<span class="code-keyword">-</span>snap7<span class="code-keyword">==</span><span class="code-string">2.0.2</span>   <span class="code-comment"># S7 PLC 协议</span>
+pycomm3<span class="code-keyword">==</span><span class="code-string">1.2.16</span>      <span class="code-comment"># EtherNet/IP</span>
+
+<span class="code-comment"># 数据分析</span>
+pandas<span class="code-keyword">==</span><span class="code-string">2.2.3</span>        <span class="code-comment"># 数据处理</span>
+numpy<span class="code-keyword">==</span><span class="code-string">2.2.4</span>         <span class="code-comment"># 数值计算</span>
+
+<span class="code-comment"># AI/LLM 集成</span>
+langchain<span class="code-keyword">==</span><span class="code-string">0.3.22</span>    <span class="code-comment"># LLM 应用框架</span>
+anthropic<span class="code-keyword">==</span><span class="code-string">0.49.0</span>    <span class="code-comment"># Claude API</span>
+                    </code>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 9: 总结 -->
+    <section class="slide" id="slide8">
+        <div class="container ending-slide">
+            <h1 class="slide-title">总结与展望</h1>
+            <p class="slide-subtitle" style="margin-top: 40px;">
+                持续优化 · 功能扩展 · 智能化升级
+            </p>
+
+            <div class="grid-3 fade-in" style="margin-top: 60px;">
+                <div class="card">
+                    <div class="card-icon">🚀</div>
+                    <h3 class="card-title">当前成果</h3>
+                    <p class="card-desc" style="margin-top: 16px;">
+                        ✓ 19+ 功能模块完整可用<br>
+                        ✓ 20+ 工控协议全面支持<br>
+                        ✓ 50+ API 接口稳定运行<br>
+                        ✓ 日均执行 100+ 测试用例
+                    </p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">🎯</div>
+                    <h3 class="card-title">优化方向</h3>
+                    <p class="card-desc" style="margin-top: 16px;">
+                        → 测试报告自动生成<br>
+                        → 可视化测试编排<br>
+                        → 硬件部署一体化<br>
+                        → 便携盒子批量部署
+                    </p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">💡</div>
+                    <h3 class="card-title">未来规划</h3>
+                    <p class="card-desc" style="margin-top: 16px;">
+                        → 硬件部署一体化<br>
+                        → Agent 集成到便携盒子<br>
+                        → 性能基准测试<br>
+                        → 设备兼容性矩阵
+                    </p>
+                </div>
+            </div>
+
+            <div class="card fade-in" style="margin-top: 60px; background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), var(--bg-card)); border-color: var(--primary);">
+                <h3 style="font-size: 1.5rem; margin-bottom: 16px;">感谢聆听！</h3>
+                <p class="card-desc" style="font-size: 1.2rem; color: var(--text-secondary);">
+                    欢迎提问与交流
+                </p>
+                <a href="#slide0" class="ending-cta" onclick="scrollToSlide(0); return false;">
+                    <span>返回顶部</span>
+                    <span>↑</span>
+                </a>
+            </div>
+
+            <div class="slide-number">9 / 9</div>
+        </div>
+    </section>
+
+    <script>
+        // 滚动导航
+        const slides = document.querySelectorAll('.slide');
+        const navDots = document.querySelectorAll('.nav-dot');
+        const progressBar = document.getElementById('progressBar');
+        const navToc = document.getElementById('navToc');
+        const tocOverlay = document.getElementById('tocOverlay');
+        const tocItems = document.querySelectorAll('.toc-item');
+
+        function getCurrentSlideIndex() {
+            const scrollPosition = window.scrollY + window.innerHeight / 2;
+            for (let i = 0; i < slides.length; i++) {
+                const slideTop = slides[i].offsetTop;
+                const slideBottom = slideTop + slides[i].offsetHeight;
+                if (scrollPosition >= slideTop && scrollPosition < slideBottom) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
+        function updateNav() {
+            const currentIndex = getCurrentSlideIndex();
+
+            // 更新进度条
+            const progress = ((currentIndex + 1) / slides.length) * 100;
+            progressBar.style.width = progress + '%';
+
+            // 更新导航点
+            navDots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentIndex);
+            });
+
+            // 更新幻灯片可见性动画
+            document.querySelectorAll('.fade-in').forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (rect.top < window.innerHeight - 100) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+
+        function scrollToSlide(index) {
+            slides[index].scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 导航点点击
+        navDots.forEach((dot, index) => {
+            dot.addEventListener('click', () => {
+                scrollToSlide(index);
+            });
+        });
+
+        // 目录点击
+        tocItems.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                scrollToSlide(index);
+                tocOverlay.classList.remove('active');
+            });
+        });
+
+        // 点击背景打开目录
+        document.addEventListener('click', (e) => {
+            if (e.target === document.body || e.target.classList.contains('bg-grid') || e.target.classList.contains('bg-gradient')) {
+                tocOverlay.classList.add('active');
+            }
+        });
+
+        tocOverlay.addEventListener('click', (e) => {
+            if (e.target === tocOverlay) {
+                tocOverlay.classList.remove('active');
+            }
+        });
+
+        // 键盘导航
+        document.addEventListener('keydown', (e) => {
+            const currentIndex = getCurrentSlideIndex();
+            if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+                if (currentIndex < slides.length - 1) {
+                    e.preventDefault();
+                    scrollToSlide(currentIndex + 1);
+                }
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                if (currentIndex > 0) {
+                    e.preventDefault();
+                    scrollToSlide(currentIndex - 1);
+                }
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                scrollToSlide(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                scrollToSlide(slides.length - 1);
+            } else if (e.key === 'm' || e.key === 'M') {
+                tocOverlay.classList.toggle('active');
+            }
+        });
+
+        // 滚动监听
+        window.addEventListener('scroll', updateNav);
+        window.addEventListener('resize', updateNav);
+
+        // 初始化
+        updateNav();
+
+        // 添加滑动提示淡出
+        let hasScrolled = false;
+        window.addEventListener('scroll', () => {
+            if (!hasScrolled && window.scrollY > 100) {
+                document.querySelector('.scroll-hint')?.style.setProperty('opacity', '0');
+                hasScrolled = true;
+            }
+        });
+    </script>
+</body>
+</html>
